@@ -67,28 +67,27 @@ st.markdown("""
 
 @st.cache_resource
 def initialize_models():
-    """Initialize all models (cached to avoid reloading)."""
+    """Initialize all models (cached to avoid reloading). Emotion detector lazy-loads on first use."""
     try:
+        # Suppress model initialization logs
+        import warnings
+        warnings.filterwarnings('ignore')
+        
         # Initialize intent classifier
-        print("Initializing intent classifier...")
         intent_classifier = IntentClassifier()
         
         if not intent_classifier.is_trained:
-            print("Training intent classifier...")
             training_result = intent_classifier.train()
             if not training_result.get("success"):
                 st.warning("⚠️ Intent classifier training failed")
         
-        # Initialize emotion detector
-        print("Initializing emotion detector...")
+        # Initialize emotion detector (lazy-loads on first use, NOT on startup)
         emotion_detector = EmotionDetector()
         
         # Initialize LLM handler
-        print("Initializing LLM handler...")
         llm_handler = LLMHandler()
         
         # Initialize database
-        print("Initializing database...")
         database = ChatbotDatabase()
         
         return {
@@ -131,12 +130,8 @@ def chat_interface():
     llm_handler = models["llm_handler"]
     database = models["database"]
     
-    # Load previous session if available
-    if len(st.session_state.messages) == 0:
-        previous_session = database.load_session(st.session_state.session_id)
-        if previous_session.get("messages"):
-            st.session_state.messages = previous_session["messages"]
-            st.success(f"✅ Restored chat history (Session: {st.session_state.session_id[:4]}...)")
+    # Start fresh each session (previous chat history available but not auto-loaded)
+    # To restore previous session, user can click "📊 View Logs Summary" in sidebar
     
     # Header
     st.markdown("# 🎓 College AI Assistant")

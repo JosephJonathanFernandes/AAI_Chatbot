@@ -388,7 +388,7 @@ class ChatbotDatabase:
             session_id (str): Unique session identifier
         
         Returns:
-            dict: Session data with messages, or empty dict if not found
+            dict: Session data with messages and total_turns, or empty dict if not found
         """
         try:
             import json
@@ -398,7 +398,7 @@ class ChatbotDatabase:
             
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT messages, metadata FROM chat_sessions 
+                SELECT messages, metadata, total_turns FROM chat_sessions 
                 WHERE session_id = ?
             """, (session_id,))
             
@@ -408,7 +408,8 @@ class ChatbotDatabase:
             if row:
                 return {
                     "messages": json.loads(row['messages']),
-                    "metadata": json.loads(row['metadata'])
+                    "metadata": json.loads(row['metadata']),
+                    "total_turns": row['total_turns']
                 }
             return {}
         except Exception as e:
@@ -444,3 +445,71 @@ class ChatbotDatabase:
         except Exception as e:
             print(f"Error listing sessions: {e}")
             return []
+    
+    @property
+    def conn(self):
+        """Property to get a database connection for direct access."""
+        return self.get_connection()
+    
+    def save_log(self, user_input, bot_response, intent, confidence, emotion, llm_source="groq", response_time=0, **kwargs):
+        """
+        Alias for log_interaction - save interaction log.
+        
+        Args:
+            user_input (str): User's input message
+            bot_response (str): Bot's response
+            intent (str): Detected intent
+            confidence (float): Intent confidence score
+            emotion (str): Detected emotion
+            llm_source (str): Source of LLM response
+            response_time (float): Time taken to generate response
+        
+        Returns:
+            bool: True if successful
+        """
+        return self.log_interaction(
+            user_input=user_input,
+            intent=intent,
+            confidence=confidence,
+            emotion=emotion,
+            response=bot_response,
+            response_time=response_time,
+            llm_source=llm_source
+        )
+    
+    def save_analytics(self, analytics_data: dict) -> bool:
+        """
+        Save analytics data to analytics table.
+        
+        Args:
+            analytics_data (dict): Analytics data with keys: total_interactions, average_confidence, etc.
+        
+        Returns:
+            bool: True if successful
+        """
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO analytics 
+                (date, total_interactions, average_confidence, top_intent, avg_response_time)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                today,
+                analytics_data.get('total_interactions', 0),
+                analytics_data.get('average_confidence', 0),
+                analytics_data.get('top_intent', 'unknown'),
+                analytics_data.get('avg_response_time', 0)
+            ))
+            
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error saving analytics: {e}")
+            return False

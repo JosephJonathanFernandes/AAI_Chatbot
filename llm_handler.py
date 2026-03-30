@@ -30,7 +30,7 @@ class LLMHandler:
         self.college_data = load_json_file(college_data_path)
         
         # Model configuration
-        self.groq_model = "llama-3.1-70b-versatile"
+        self.groq_model = "llama-3.1-8b-instant"  # Active Groq model (tested 2026-03-30)
         self.ollama_model = "mistral"
         
         # Track fallback usage

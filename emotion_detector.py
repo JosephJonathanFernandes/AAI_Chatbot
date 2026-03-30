@@ -5,6 +5,7 @@ Detects emotions: happy, stressed, confused, neutral, angry, sad.
 
 from transformers import pipeline
 import torch
+import threading
 
 
 class EmotionDetector:
@@ -26,31 +27,51 @@ class EmotionDetector:
         "confused": ["confused", "unclear", "what", "how", "don't understand", "help you understand"]
     }
     
-    def __init__(self, model_name="distilbert-base-uncased-finetuned-sst-2-english"):
+    def __init__(self, model_name="distilbert-base-uncased"):
         """
         Initialize emotion detector with a transformer model.
+        Pre-loads model in background thread to avoid blocking startup.
         
         Args:
             model_name (str): HuggingFace model identifier
         """
+        self.model_name = model_name
+        self.device = 0 if torch.cuda.is_available() else -1
+        self.sentiment_pipeline = None
+        self._initialized = False
+        
+        # Start background thread to load model (non-blocking)
+        self._load_thread = threading.Thread(target=self._load_model, daemon=True)
+        self._load_thread.start()
+    
+    def _ensure_loaded(self):
+        """Wait for model to load if still loading."""
+        if not self._initialized and self._load_thread.is_alive():
+            self._load_thread.join(timeout=30)  # Wait up to 30 seconds
+    
+    def _load_model(self):
+        """Load the model (runs in background thread)."""
+        if self._initialized:
+            return
+        
         try:
-            self.model_name = model_name
-            self.device = 0 if torch.cuda.is_available() else -1
-            
             # Load the sentiment analysis pipeline
             self.sentiment_pipeline = pipeline(
                 "sentiment-analysis",
-                model=model_name,
+                model=self.model_name,
                 device=self.device
             )
-            print(f"Emotion detector initialized with {model_name}")
+            self._initialized = True
+            print(f"✓ Emotion detector model loaded: {self.model_name}")
         except Exception as e:
-            print(f"Error initializing emotion detector: {e}")
+            print(f"Error loading emotion detector model: {e}")
             self.sentiment_pipeline = None
+            self._initialized = True
     
     def detect_emotion(self, text):
         """
         Detect emotions in the given text.
+        Waits for background model loading to complete if needed.
         
         Args:
             text (str): User input text
@@ -58,6 +79,9 @@ class EmotionDetector:
         Returns:
             dict: Contains 'emotion' and 'confidence' keys
         """
+        # Ensure model is loaded (waits if still loading in background)
+        self._ensure_loaded()
+        
         if not text or not self.sentiment_pipeline:
             return {"emotion": "neutral", "confidence": 0.0}
         

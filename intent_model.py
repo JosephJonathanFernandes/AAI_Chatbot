@@ -52,7 +52,6 @@ class IntentClassifier:
         self.model = LogisticRegression(
             max_iter=200,
             random_state=42,
-            multi_class='multinomial',
             solver='lbfgs',
             C=1.0
         )
