@@ -207,23 +207,31 @@ def chat_interface():
             # Show debug info if enabled
             if st.session_state.show_debug and message.get("debug_info"):
                 debug = message["debug_info"]
+                entities_str = ", ".join([f"{k}={v}" for k, v in debug.get('entities', {}).items()])
+                if not entities_str:
+                    entities_str = "None"
+                clarity_status = "[NEEDS CLARITY]" if debug.get('should_clarify') else "[CLEAR]"
                 st.markdown(f"""<div class="debug-panel">
                 <strong>Debug Info:</strong><br>
-                Intent: {debug.get('intent')} | Confidence: {debug.get('confidence'):.0%}<br>
+                Intent: {debug.get('intent')} {clarity_status} | Confidence: {debug.get('confidence'):.0%}<br>
                 Emotion: {debug.get('emotion')} | Source: {debug.get('llm_source')}<br>
+                Entities: {entities_str}<br>
                 Response Time: {debug.get('response_time'):.2f}s
                 </div>""", unsafe_allow_html=True)
     
     # User input
     st.markdown("---")
-    user_input = st.text_input(
-        "Type your message:",
-        placeholder="Ask me about fees, exams, placements, or anything about college...",
-        key="user_input"
-    )
+    col1, col2 = st.columns([0.9, 0.1])
+    with col1:
+        user_input = st.text_input(
+            "Type your message:",
+            placeholder="Ask me about fees, exams, placements, or anything about college..."
+        )
+    with col2:
+        submit_button = st.button("Send", use_container_width=True)
     
     # Process user input
-    if user_input:
+    if submit_button and user_input:
         # Add user message to chat
         st.session_state.messages.append({
             "role": "user",
@@ -243,13 +251,17 @@ def chat_interface():
             emotion_result = emotion_detector.detect_emotion(user_input)
             emotion = emotion_result.get("emotion", "neutral")
             
-            # Step 3: Check if within college domain
+            # Step 3: Extract entities and update context
+            entities = st.session_state.conversation_context.extract_entities(user_input, intent)
+            st.session_state.conversation_context.last_entities = entities
+            
+            # Step 4: Check if within college domain
             is_in_domain = is_college_domain_query(intent, confidence)
             
-            # Step 4: Generate context
+            # Step 5: Generate context
             context = st.session_state.conversation_context.get_prompt_context()
             
-            # Step 5: Generate response (LLM always generates, no strict domain blocking)
+            # Step 6: Generate response (LLM always generates, no strict domain blocking)
             llm_result = llm_handler.generate_response(
                 user_input,
                 intent,
@@ -260,6 +272,7 @@ def chat_interface():
             response = llm_result["response"]
             llm_source = llm_result.get("source", "unknown")
             response_time = llm_result.get("time", 0.0)
+            should_clarify = llm_result.get("should_clarify", False)
             
             total_time = time.time() - start_time
         
@@ -270,7 +283,9 @@ def chat_interface():
             "emotion": emotion,
             "llm_source": llm_source,
             "response_time": response_time,
-            "is_in_domain": is_in_domain
+            "is_in_domain": is_in_domain,
+            "should_clarify": should_clarify,
+            "entities": entities
         }
         
         st.session_state.messages.append({
@@ -310,7 +325,7 @@ def chat_interface():
             }
         )
         
-        # Display the new messages
+        # Rerun to refresh the display
         st.rerun()
     
     # Show logs summary if requested

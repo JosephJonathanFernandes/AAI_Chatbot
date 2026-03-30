@@ -8,7 +8,11 @@ import time
 import requests
 from typing import Optional
 import json
+from dotenv import load_dotenv
 from utils import load_json_file, get_time_of_day
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class LLMHandler:
@@ -51,8 +55,32 @@ class LLMHandler:
             stream (bool): Enable streaming for faster response time
         
         Returns:
-            dict: Contains 'response', 'error', 'source', 'time'
+            dict: Contains 'response', 'error', 'source', 'time', 'should_clarify'
         """
+        # Check if we need clarification due to low confidence
+        # Only clarify for very vague/ambiguous questions (< 15% confidence)
+        if confidence < 0.15:
+            # Return clarification prompt instead of generating response
+            clarification_map = {
+                "fees": "Are you asking about tuition fees, payment plans, deposits, or scholarships?",
+                "exams": "Do you want to know about exam dates, preparation tips, or passing criteria?",
+                "timetable": "Are you looking for class schedules, lab timings, or when college starts?",
+                "placements": "Are you interested in placement statistics, companies, or salary info?",
+                "admission": "Which aspect interests you - application process, requirements, or cutoff marks?",
+                "faculty": "Would you like faculty contact info, office hours, or research areas?",
+                "library": "Are you asking about library hours, book availability, or e-resources?",
+            }
+            
+            clarification = clarification_map.get(intent, "Could you provide more details about your question?")
+            
+            return {
+                "response": f"I'm not entirely sure what you're looking for. {clarification}",
+                "error": None,
+                "source": "clarification",
+                "time": 0,
+                "should_clarify": True
+            }
+        
         # Build system prompt
         system_prompt = self._build_system_prompt(intent, confidence, emotion)
         
@@ -70,7 +98,8 @@ class LLMHandler:
                 "response": result["response"],
                 "error": None,
                 "source": "groq",
-                "time": response_time
+                "time": response_time,
+                "should_clarify": False
             }
         
         # Fallback to Ollama
@@ -85,7 +114,8 @@ class LLMHandler:
                 "response": result["response"],
                 "error": None,
                 "source": "ollama",
-                "time": response_time
+                "time": response_time,
+                "should_clarify": False
             }
         
         # If both fail, return error
@@ -93,7 +123,8 @@ class LLMHandler:
             "response": "I apologize, but I'm unable to process your request right now. Please try again later.",
             "error": "Both API and fallback failed",
             "source": "error",
-            "time": response_time
+            "time": response_time,
+            "should_clarify": False
         }
     
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
@@ -179,7 +210,7 @@ class LLMHandler:
             response = requests.post(
                 self.ollama_base_url,
                 json=payload,
-                timeout=30
+                timeout=10  # 10 second timeout to prevent hanging
             )
             
             if response.status_code == 200:
@@ -216,20 +247,38 @@ class LLMHandler:
         """
         time_of_day = get_time_of_day()
         
-        prompt = f"""You are a college assistant from {self.college_data.get('college_name', 'Advanced Academic Institute')}.
+        confidence_guidance = ""
+        if confidence < 0.4:
+            confidence_guidance = "\n[LOW CONFIDENCE: Ask for clarification before answering]"
+        elif confidence < 0.6:
+            confidence_guidance = "\n[MODERATE CONFIDENCE: Confirm understanding before detailed answer]"
+        else:
+            confidence_guidance = "\n[HIGH CONFIDENCE: Proceed with answering]"
+        
+        prompt = f"""You are a helpful college assistant from {self.college_data.get('college_name', 'Advanced Academic Institute')}.
+
+CONTEXT AWARENESS RULES:
+- MAINTAIN conversation flow - reference previous topics when relevant
+- If user says "it", "that", "for X" - connect to earlier mentions
+- Build on what was already discussed in the conversation
+- If continuing same topic, provide NEW details, not repetition
 
 ANTI-HALLUCINATION RULES:
-- Only state facts you're confident about from knowledge base
-- If uncertain: "I'm not certain. Please contact admissions."
-- Never invent dates, numbers, or policies
-- Never claim real-time data access
+- Only state facts from college knowledge base
+- If uncertain about specifics: "Let me provide what I know..."
+- Never invent dates, numbers, fees, or policies
+- Admit uncertainty gracefully
 
-INSTRUCTIONS:
-1. Be CONCISE (2-3 sentences max) for fast response
-2. College Q: Use knowledge base facts with confidence
-3. Other Q: Acknowledge gracefully, then briefly help
-4. Match tone to emotion {emotion}
-5. Admit uncertainty rather than guess
+COMMUNICATION STYLE:
+1. Be DIRECT & CONCISE (2-3 sentences for factual Qs)
+2. CLARIFY if request is ambiguous: "Just to confirm - are you asking about...?"
+3. Always show you're connecting to previous conversation
+4. Match tone to user emotion: {emotion}
+5. For vague Qs: Ask guided questions before answering{confidence_guidance}
+
+EXAMPLE PATTERNS:
+- Previous Q: "What are fees?" → Answer: "$85k for engineering..."
+- Follow-up Q: "for engineering?" → Don't repeat; add NEW info: "...with payment plans available..."
 """
         return prompt
     

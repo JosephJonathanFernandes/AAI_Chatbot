@@ -181,23 +181,94 @@ class ConversationContext:
         """
         context_parts = []
         
-        # Add recent conversation
+        # Add recent conversation with full Q&A for better context
         if self.conversation_history:
-            context_parts.append("Previous context:")
-            for turn in list(self.conversation_history)[-2:]:
-                context_parts.append(f"- Last topic: {turn['intent']}")
+            context_parts.append("RECENT CONVERSATION:")
+            for turn in list(self.conversation_history)[-3:]:
+                context_parts.append(f"  User: {turn['user_input']}")
+                context_parts.append(f"  Assistant: {turn['bot_response'][:100]}...")
         else:
             context_parts.append("This is the start of the conversation.")
         
         # Add topic continuity info
         if self.get_topic_continuity():
-            context_parts.append("- User is continuing on the same topic.")
+            context_parts.append("\n[IMPORTANT: User is continuing on the SAME TOPIC as previous turn]")
         
         # Add emotion context
         if self.last_emotion != "neutral":
-            context_parts.append(f"- User seems to be {self.last_emotion}.")
+            context_parts.append(f"[TONE: User is {self.last_emotion.upper()}]")
+        
+        # Add last entities for pronoun/reference resolution
+        if self.last_entities:
+            context_parts.append(f"[CONTEXT: Last mentioned - {self.last_entities}]")
         
         return "\n".join(context_parts)
+    
+    def extract_entities(self, user_input: str, intent: str) -> dict:
+        """
+        Extract and track entities mentioned in user input.
+        
+        Args:
+            user_input (str): User's message
+            intent (str): Detected intent
+        
+        Returns:
+            dict: Extracted entities
+        """
+        entities = {}
+        
+        # Track common entities by intent
+        lower_input = user_input.lower()
+        
+        # Department/Program entities
+        if intent == "fees" or intent == "admission" or intent == "placements":
+            if any(word in lower_input for word in ["engineering", "engg", "cs", "computer"]):
+                entities["department"] = "Engineering"
+            elif any(word in lower_input for word in ["arts", "humanities", "liberal"]):
+                entities["department"] = "Arts"
+            elif any(word in lower_input for word in ["science", "physics", "chemistry"]):
+                entities["department"] = "Science"
+        
+        # Fee-related entities
+        if intent == "fees":
+            if "scholarship" in lower_input:
+                entities["fee_type"] = "Scholarship"
+            elif "payment" in lower_input:
+                entities["fee_type"] = "Payment options"
+            elif "deadline" in lower_input:
+                entities["fee_type"] = "Deadline"
+        
+        # Exam-related entities
+        if intent == "exams":
+            if "midterm" in lower_input:
+                entities["exam_type"] = "Midterm"
+            elif "final" in lower_input:
+                entities["exam_type"] = "Final"
+            elif "schedule" in lower_input or "date" in lower_input:
+                entities["exam_info"] = "Dates"
+        
+        return entities
+    
+    def resolve_pronouns(self, user_input: str) -> str:
+        """
+        Resolve pronouns/vague references using conversation history.
+        
+        Args:
+            user_input (str): Current user input
+        
+        Returns:
+            str: Resolved message with context
+        """
+        lower_input = user_input.lower()
+        resolved = user_input
+        
+        # Replace "it", "that", "this" with previous context
+        if ("it" in lower_input or "that" in lower_input or "this" in lower_input) and self.last_entities:
+            if "department" in self.last_entities:
+                resolved = resolved.replace("it", self.last_entities["department"])
+                resolved = resolved.replace("that", self.last_entities["department"])
+        
+        return resolved
     
     def export_session(self):
         """

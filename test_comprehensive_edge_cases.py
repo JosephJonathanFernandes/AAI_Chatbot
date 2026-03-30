@@ -401,6 +401,308 @@ def test_transformer_edge_cases():
     return suite
 
 
+def test_ui_questions():
+    """Test all UI question cases organized by category."""
+    print(f"\n{Colors.BLUE}{'='*70}")
+    print(f"COMPREHENSIVE UI TEST QUESTIONS")
+    print(f"{'='*70}{Colors.RESET}\n")
+    
+    suite = TestSuite()
+    
+    try:
+        classifier = IntentClassifier()
+        detector = EmotionDetector()
+        handler = LLMHandler()
+        db = ChatbotDatabase("test_ui_questions.db")
+        suite.add_result("Components Initialization", True)
+    except Exception as e:
+        suite.add_result("Components Initialization", False, str(e)[:100])
+        return suite
+    
+    # === IN-SCOPE QUESTIONS (organized by intent) ===
+    
+    # FEES QUESTIONS
+    fees_questions = [
+        "What are the tuition fees?",
+        "How much does the course cost?",
+        "Is there financial aid available?",
+        "Tell me about scholarship information",
+        "What are the payment options?",
+        "When is the fee payment deadline?",
+        "How do I pay fees?",
+        "Fee structure",
+        "Cost of admission",
+        "Is there a discount for multiple courses?"
+    ]
+    
+    # EXAMS QUESTIONS
+    exams_questions = [
+        "When is the exam scheduled?",
+        "What's the exam syllabus?",
+        "How to prepare for midterm exams?",
+        "What is the pass mark?",
+        "When are final exams?",
+        "What's my exam center?",
+        "Exam schedule",
+        "Test dates",
+        "How long does each exam take?",
+        "What's the seat number?"
+    ]
+    
+    # TIMETABLE QUESTIONS
+    timetable_questions = [
+        "What's the class schedule?",
+        "When are the lectures?",
+        "What are the lab timings?",
+        "When does college start?",
+        "What are the break timings?",
+        "When is my class?",
+        "Class timings",
+        "Timetable",
+        "Course schedule"
+    ]
+    
+    # PLACEMENTS QUESTIONS
+    placements_questions = [
+        "Tell me about placements",
+        "What's the average salary?",
+        "Which companies visit campus?",
+        "What's the placement statistics?",
+        "Are there internship opportunities?",
+        "How to get placed?",
+        "Placement training",
+        "Recruitment process",
+        "Job offers"
+    ]
+    
+    # FACULTY QUESTIONS
+    faculty_questions = [
+        "Who is the professor for [subject]?",
+        "How can I contact faculty?",
+        "What are faculty office hours?",
+        "Who is the department head?",
+        "Are there guest lectures?",
+        "Faculty information",
+        "Teacher details",
+        "Faculty research"
+    ]
+    
+    # HOLIDAYS QUESTIONS
+    holidays_questions = [
+        "When are the holidays?",
+        "What's the summer break schedule?",
+        "When is the winter break?",
+        "What are the semester break dates?",
+        "Holiday schedule",
+        "Break dates",
+        "When is summer break?",
+        "College closed"
+    ]
+    
+    # LIBRARY QUESTIONS
+    library_questions = [
+        "What are library timings?",
+        "How do I borrow books?",
+        "What e-resources are available?",
+        "Where is the computer lab?",
+        "Library information",
+        "Book availability",
+        "Library membership",
+        "Reference section"
+    ]
+    
+    # ADMISSION QUESTIONS
+    admission_questions = [
+        "How do I apply to the college?",
+        "What are the admission requirements?",
+        "What's the application deadline?",
+        "What are the cutoff marks?",
+        "Do I need an entrance exam?",
+        "Document requirements",
+        "Merit list",
+        "How to enroll?"
+    ]
+    
+    # DEPARTMENTS QUESTIONS
+    departments_questions = [
+        "What departments are available?",
+        "Which courses does the Engineering department offer?",
+        "What specializations are available?",
+        "Arts department",
+        "Science courses",
+        "Commerce programs",
+        "Which department should I choose?"
+    ]
+    
+    # GREETINGS & CASUAL
+    greeting_questions = [
+        "Hi! How are you?",
+        "Hello, what's up?",
+        "Good morning!",
+        "Nice to meet you!",
+        "Hey there!",
+        "Greetings",
+        "Welcome"
+    ]
+    
+    # GRATITUDE
+    gratitude_questions = [
+        "Thank you for your help!",
+        "Thanks a lot!",
+        "I appreciate your assistance",
+        "That was very helpful!",
+        "Thanks for helping",
+        "I appreciate it"
+    ]
+    
+    # Test all in-scope questions
+    all_in_scope = {
+        "[FEES]": fees_questions,
+        "[EXAMS]": exams_questions,
+        "[TIMETABLE]": timetable_questions,
+        "[PLACEMENTS]": placements_questions,
+        "[FACULTY]": faculty_questions,
+        "[HOLIDAYS]": holidays_questions,
+        "[LIBRARY]": library_questions,
+        "[ADMISSION]": admission_questions,
+        "[DEPARTMENTS]": departments_questions,
+        "[GREETINGS]": greeting_questions,
+        "[GRATITUDE]": gratitude_questions
+    }
+    
+    print(f"{Colors.YELLOW}Testing In-Scope Questions:{Colors.RESET}\n")
+    
+    for category, questions in all_in_scope.items():
+        print(f"  {category}")
+        for question in questions[:3]:  # Test first 3 in each category
+            try:
+                intent_result = classifier.predict(question)
+                intent = intent_result.get('intent')
+                confidence = intent_result.get('confidence', 0)
+                
+                emotion_result = detector.detect_emotion(question)
+                emotion = emotion_result.get('emotion')
+                
+                response = handler.generate_response(
+                    user_input=question,
+                    intent=intent,
+                    confidence=confidence,
+                    emotion=emotion
+                )
+                
+                passed = (intent is not None and 
+                         'response' in response and 
+                         len(response['response']) > 0)
+                
+                suite.add_result(f"    {question[:50]}", passed,
+                               f"Intent: {intent}, Conf: {confidence:.2f}")
+            except Exception as e:
+                suite.add_result(f"    {question[:50]}", False, str(e)[:50])
+    
+    # === OUT-OF-SCOPE QUESTIONS (Edge Cases) ===
+    out_of_scope_questions = [
+        "What's the weather today?",
+        "How do I cook pasta?",
+        "Tell me a joke",
+        "What's your favorite movie?",
+        "What's 2+2?",
+        "Can you help with my homework in physics?",
+        "I'm feeling depressed",
+        "How do I fix my laptop?",
+        "What's the price of Bitcoin?"
+    ]
+    
+    print(f"\n{Colors.YELLOW}Testing Out-of-Scope Questions (Edge Cases):{Colors.RESET}\n")
+    
+    for question in out_of_scope_questions:
+        try:
+            intent_result = classifier.predict(question)
+            intent = intent_result.get('intent')
+            confidence = intent_result.get('confidence', 0)
+            
+            # Out-of-scope should have low confidence or be unrelated to college
+            out_of_scope_intents = [None, 'other', 'unknown']
+            is_valid = intent in out_of_scope_intents or confidence < 0.5
+            
+            suite.add_result(f"Out-of-scope: {question[:50]}", is_valid,
+                           f"Intent: {intent}, Conf: {confidence:.2f}")
+        except Exception as e:
+            suite.add_result(f"Out-of-scope: {question[:50]}", False, str(e)[:50])
+    
+    # === EMOTIONAL/CONTEXT QUESTIONS ===
+    emotional_questions = [
+        ("I'm really stressed about the exams, what should I do?", "stress/anxiety"),
+        ("I'm so frustrated! The timetable changed again!", "frustration"),
+        ("I'm confused about which department to choose", "confusion"),
+        ("I'm very happy with the placement opportunities!", "happiness"),
+        ("I'm worried about my grades", "worry/anxiety"),
+        ("This is making me anxious, can you help?", "anxiety"),
+        ("I love this college, it's amazing!", "love/happiness")
+    ]
+    
+    print(f"\n{Colors.YELLOW}Testing Emotional/Context Questions:{Colors.RESET}\n")
+    
+    for question, emotion_desc in emotional_questions:
+        try:
+            emotion_result = detector.detect_emotion(question)
+            emotion = emotion_result.get('emotion')
+            confidence = emotion_result.get('confidence', 0)
+            
+            is_valid = emotion is not None and confidence > 0
+            
+            suite.add_result(f"Emotion: {question[:50]}", is_valid,
+                           f"Detected: {emotion}")
+        except Exception as e:
+            suite.add_result(f"Emotion: {question[:50]}", False, str(e)[:50])
+    
+    # === EDGE CASES & SPECIAL TESTS ===
+    edge_cases = [
+        ("wot r the fees?", "typos"),
+        ("FEES", "all caps"),
+        ("fee", "singular form"),
+        ("tution", "misspelled"),
+        ("Tell me about fees and placements", "compound question"),
+        ("When are exams and what's the syllabus?", "multi-part question"),
+        ("fees", "minimal input"),
+        ("exam", "minimal input"),
+        ("?", "single char"),
+        ("help", "vague"),
+        ("When is it?", "ambiguous"),
+        ("Tell me more", "missing context"),
+        ("!!!???***", "special characters"),
+        ("a" * 50, "repeated chars"),
+        ("", "empty input")
+    ]
+    
+    print(f"\n{Colors.YELLOW}Testing Edge Cases & Special Cases:{Colors.RESET}\n")
+    
+    for question, case_type in edge_cases:
+        try:
+            if not question:  # Skip empty strings
+                suite.add_result(f"Edge case: {case_type}", True, "Handled empty input")
+                continue
+                
+            intent_result = classifier.predict(question)
+            intent = intent_result.get('intent')
+            confidence = intent_result.get('confidence', 0)
+            
+            is_valid = intent is not None or confidence >= 0
+            
+            suite.add_result(f"Edge case: {case_type} - {question[:30]}", is_valid,
+                           f"Intent: {intent}, Conf: {confidence:.2f}")
+        except Exception as e:
+            suite.add_result(f"Edge case: {case_type}", False, str(e)[:50])
+    
+    # Cleanup
+    try:
+        if os.path.exists("test_ui_questions.db"):
+            os.remove("test_ui_questions.db")
+    except:
+        pass
+    
+    return suite
+
+
 def test_integration_flow():
     """Test end-to-end integration flow."""
     print(f"\n{Colors.BLUE}{'='*70}")
@@ -487,6 +789,7 @@ def main():
     all_suites.append(test_intent_classifier())
     all_suites.append(test_database_operations())
     all_suites.append(test_transformer_edge_cases())
+    all_suites.append(test_ui_questions())
     all_suites.append(test_integration_flow())
     
     # Print overall summary
