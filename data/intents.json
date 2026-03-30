@@ -1,0 +1,197 @@
+{
+  "intents": [
+    {
+      "tag": "fees",
+      "patterns": [
+        "What are the tuition fees?",
+        "How much does the course cost?",
+        "Fee structure",
+        "Scholarship information",
+        "Payment options",
+        "Fee payment deadline",
+        "How do I pay fees?",
+        "Is there financial aid?",
+        "Cost of admission"
+      ],
+      "responses": [
+        "Let me provide you with fee information.",
+        "I can help you with fee details."
+      ]
+    },
+    {
+      "tag": "exams",
+      "patterns": [
+        "When is the exam?",
+        "Exam schedule",
+        "Test dates",
+        "Final exams",
+        "Midterm exams",
+        "How to prepare for exams?",
+        "Exam syllabus",
+        "Pass mark",
+        "Seat number",
+        "Exam center"
+      ],
+      "responses": [
+        "Here's the exam information.",
+        "Let me help you with exam details."
+      ]
+    },
+    {
+      "tag": "timetable",
+      "patterns": [
+        "What's the class schedule?",
+        "When are lectures?",
+        "Class timings",
+        "Timetable",
+        "Course schedule",
+        "When is my class?",
+        "Lab timings",
+        "When does college start?",
+        "Break timings"
+      ],
+      "responses": [
+        "Here's the timetable information.",
+        "Let me provide the schedule."
+      ]
+    },
+    {
+      "tag": "placements",
+      "patterns": [
+        "Tell me about placements",
+        "Placement statistics",
+        "Average salary",
+        "Companies that visit",
+        "How to get placed?",
+        "Placement training",
+        "Recruitment process",
+        "Job offers",
+        "Internship opportunities"
+      ],
+      "responses": [
+        "Here's placement information.",
+        "Let me share placement details."
+      ]
+    },
+    {
+      "tag": "faculty",
+      "patterns": [
+        "Who is the professor?",
+        "Faculty information",
+        "Teacher details",
+        "How to contact faculty?",
+        "Faculty office hours",
+        "Department head",
+        "Are there guest lectures?",
+        "Faculty research"
+      ],
+      "responses": [
+        "Here's faculty information.",
+        "Let me provide faculty details."
+      ]
+    },
+    {
+      "tag": "holidays",
+      "patterns": [
+        "When are holidays?",
+        "Holiday schedule",
+        "Break dates",
+        "When is summer break?",
+        "Winter holidays",
+        "Semester break",
+        "Vacation dates",
+        "College closed"
+      ],
+      "responses": [
+        "Here's the holiday schedule.",
+        "Let me provide holiday information."
+      ]
+    },
+    {
+      "tag": "library",
+      "patterns": [
+        "Library information",
+        "Book availability",
+        "How to borrow books?",
+        "Library timing",
+        "Library membership",
+        "Reference section",
+        "E-resources",
+        "Computer lab"
+      ],
+      "responses": [
+        "Here's library information.",
+        "Let me help with library details."
+      ]
+    },
+    {
+      "tag": "admission",
+      "patterns": [
+        "How to apply?",
+        "Admission requirements",
+        "Application deadline",
+        "Cutoff marks",
+        "Entrance exam",
+        "Merit list",
+        "Document requirements",
+        "How to enroll?"
+      ],
+      "responses": [
+        "Here's admission information.",
+        "Let me provide admission details."
+      ]
+    },
+    {
+      "tag": "departments",
+      "patterns": [
+        "What departments are available?",
+        "Engineering department",
+        "Arts department",
+        "Science courses",
+        "Commerce programs",
+        "Course offerings",
+        "Specializations",
+        "Which department should I choose?"
+      ],
+      "responses": [
+        "Let me tell you about departments.",
+        "Here's department information."
+      ]
+    },
+    {
+      "tag": "greeter",
+      "patterns": [
+        "Hi",
+        "Hello",
+        "Hey",
+        "Good morning",
+        "Good evening",
+        "How are you?",
+        "What's up?",
+        "Greetings",
+        "Welcome",
+        "Nice to meet you"
+      ],
+      "responses": [
+        "Hello! Welcome to the college assistant.",
+        "Hi there! How can I help you today?"
+      ]
+    },
+    {
+      "tag": "gratitude",
+      "patterns": [
+        "Thank you",
+        "Thanks a lot",
+        "I appreciate it",
+        "Thanks for helping",
+        "That's very helpful",
+        "Thank you so much",
+        "Appreciate your help"
+      ],
+      "responses": [
+        "You're welcome!",
+        "Happy to help!"
+      ]
+    }
+  ]
+}
