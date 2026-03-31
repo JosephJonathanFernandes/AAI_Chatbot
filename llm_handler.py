@@ -1,6 +1,7 @@
 """
 LLM handler for Groq API with Ollama fallback.
 Manages API calls, prompt engineering, and response generation.
+Includes time-aware context and anti-hallucination safeguards.
 """
 
 import os
@@ -10,6 +11,7 @@ from typing import Optional
 import json
 from dotenv import load_dotenv
 from utils import load_json_file, get_time_of_day
+from time_context import TimeContext
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,6 +34,9 @@ class LLMHandler:
         
         # Load college knowledge base
         self.college_data = load_json_file(college_data_path)
+        
+        # Initialize time context for intelligent responses
+        self.time_context = TimeContext(college_data_path)
         
         # Model configuration
         self.groq_model = "llama-3.1-8b-instant"  # Active Groq model (tested 2026-03-30)
@@ -58,8 +63,11 @@ class LLMHandler:
             dict: Contains 'response', 'error', 'source', 'time', 'should_clarify'
         """
         # Check if we need clarification due to low confidence
-        # Only clarify for very vague/ambiguous questions (< 15% confidence)
-        if confidence < 0.15:
+        # Only clarify for ambiguous questions (< 15% confidence)
+        # Skip clarification for safe, factual intents like college_info that should be directly answered
+        safe_direct_answer_intents = {"college_info", "greeter", "gratitude"}
+        
+        if confidence < 0.15 and intent not in safe_direct_answer_intents:
             # Return clarification prompt instead of generating response
             clarification_map = {
                 "fees": "Are you asking about tuition fees, payment plans, deposits, or scholarships?",
@@ -235,7 +243,7 @@ class LLMHandler:
     
     def _build_system_prompt(self, intent: str, confidence: float, emotion: str) -> str:
         """
-        Build context-aware system prompt (optimized for speed & accuracy).
+        Build context-aware system prompt with time awareness (optimized for speed & accuracy).
         
         Args:
             intent (str): Detected intent
@@ -243,9 +251,11 @@ class LLMHandler:
             emotion (str): Detected emotion
         
         Returns:
-            str: System prompt for LLM
+            str: System prompt for LLM with time and anti-hallucination context
         """
-        time_of_day = get_time_of_day()
+        # Get time-aware context
+        time_context_prompt = self.time_context.get_context_awareness_prompt()
+        hallucination_check = self.time_context.get_hallucination_check_prompt()
         
         confidence_guidance = ""
         if confidence < 0.4:
@@ -255,19 +265,25 @@ class LLMHandler:
         else:
             confidence_guidance = "\n[HIGH CONFIDENCE: Proceed with answering]"
         
-        prompt = f"""You are a helpful college assistant from {self.college_data.get('college_name', 'Advanced Academic Institute')}.
+        prompt = f"""You are a helpful, friendly & creative college assistant from {self.college_data.get('college_name', 'Advanced Academic Institute')}.
 
-CONTEXT AWARENESS RULES:
+CURRENT TIME CONTEXT:
+{time_context_prompt}
+
+{hallucination_check}
+
+CONVERSATION FLOW RULES:
 - MAINTAIN conversation flow - reference previous topics when relevant
 - If user says "it", "that", "for X" - connect to earlier mentions
 - Build on what was already discussed in the conversation
 - If continuing same topic, provide NEW details, not repetition
 
-ANTI-HALLUCINATION RULES:
-- Only state facts from college knowledge base
-- If uncertain about specifics: "Let me provide what I know..."
-- Never invent dates, numbers, fees, or policies
-- Admit uncertainty gracefully
+PERSONALIZATION:
+- Use user's name when they provide it (but not at the start of EVERY response - vary it)
+- Be warm and conversational: "That's a great question, [Name]!" or just natural flow
+- Show genuine interest in their success at college
+- Give tailored advice based on their questions and context
+- Be creative with emoji usage (add 1-2 max per response for warmth, not overdone)
 
 COMMUNICATION STYLE:
 1. Be DIRECT & CONCISE (2-3 sentences for factual Qs)
@@ -275,10 +291,13 @@ COMMUNICATION STYLE:
 3. Always show you're connecting to previous conversation
 4. Match tone to user emotion: {emotion}
 5. For vague Qs: Ask guided questions before answering{confidence_guidance}
+6. Be conversational, not robotic - think like a helpful college senior
 
-EXAMPLE PATTERNS:
-- Previous Q: "What are fees?" → Answer: "$85k for engineering..."
-- Follow-up Q: "for engineering?" → Don't repeat; add NEW info: "...with payment plans available..."
+RESPONSE GUIDELINES:
+- NEVER make up specific details (names, numbers, dates)
+- Always reference source: "According to our records..." or "From our college data..."
+- If information isn't available: "I don't have that specific information"
+- Use common sense with timing context
 """
         return prompt
     
@@ -320,6 +339,19 @@ EXAMPLE PATTERNS:
         
         if not self.college_data:
             return ""
+        
+        # Handle college_info separately since it needs multiple top-level fields
+        if intent == "college_info":
+            college_info = {
+                "college_name": self.college_data.get("college_name"),
+                "established": self.college_data.get("established"),
+                "location": self.college_data.get("location"),
+                "website": self.college_data.get("website"),
+                "accreditation": self.college_data.get("accreditation")
+            }
+            context_parts.append("College Information:")
+            context_parts.append(json.dumps(college_info, indent=2))
+            return "\n".join(context_parts)
         
         intent_data_map = {
             "fees": ("fees", "Fee Information"),

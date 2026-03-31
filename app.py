@@ -18,6 +18,7 @@ from emotion_detector import EmotionDetector
 from llm_handler import LLMHandler
 from context_manager import ConversationContext
 from database import ChatbotDatabase
+from time_context import TimeContext
 from utils import (
     get_time_greeting, get_time_of_day, calculate_confidence_percentage,
     is_college_domain_query, truncate_text, get_current_timestamp
@@ -119,6 +120,12 @@ def chat_interface():
     if "show_debug" not in st.session_state:
         st.session_state.show_debug = False
     
+    if "user_name" not in st.session_state:
+        st.session_state.user_name = None
+    
+    if "greeting_shown" not in st.session_state:
+        st.session_state.greeting_shown = False
+    
     # Initialize models
     models = initialize_models()
     if not models:
@@ -130,12 +137,16 @@ def chat_interface():
     llm_handler = models["llm_handler"]
     database = models["database"]
     
+    # Initialize time context for intelligent greetings
+    time_context = TimeContext()
+    
     # Start fresh each session (previous chat history available but not auto-loaded)
     # To restore previous session, user can click "📊 View Logs Summary" in sidebar
     
-    # Header
+    # Header with intelligent time-aware greeting
     st.markdown("# 🎓 College AI Assistant")
-    st.markdown(f"**{get_time_greeting()}** Welcome to your intelligent college assistant!")
+    st.markdown(f"**{time_context.get_intelligent_greeting()}**")
+    st.caption(f"🕐 Current time: {get_current_timestamp()}")
     
     # Sidebar
     with st.sidebar:
@@ -195,6 +206,35 @@ def chat_interface():
     # Main chat area
     st.markdown("---")
     
+    # First interaction: Collect user's name for personalization
+    if not st.session_state.greeting_shown and len(st.session_state.messages) == 0:
+        st.markdown("### Welcome! 👋")
+        col1, col2 = st.columns([0.7, 0.3])
+        with col1:
+            user_name = st.text_input(
+                "What's your name?",
+                placeholder="Enter your name to personalize our conversation...",
+                key="name_input"
+            )
+        with col2:
+            if st.button("Start Chat", use_container_width=True):
+                if user_name.strip():
+                    st.session_state.user_name = user_name.strip()
+                    st.session_state.greeting_shown = True
+                    
+                    # Add opening greeting to chat
+                    greeting_response = f"Hi {st.session_state.user_name}! 👋 {time_context.get_intelligent_greeting()} I'm here to help you with any questions about {time_context.college_data.get('college_name', 'our college')}. What would you like to know?"
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": greeting_response,
+                        "debug_info": {"intent": "greeter", "confidence": 1.0, "emotion": "friendly", "llm_source": "greeting", "response_time": 0, "is_in_domain": True, "should_clarify": False, "entities": {}}
+                    })
+                    st.rerun()
+                else:
+                    st.warning("Please enter your name to continue 😊")
+        st.stop()
+    
     # Display chat history
     for message in st.session_state.messages:
         if message["role"] == "user":
@@ -221,17 +261,12 @@ def chat_interface():
     
     # User input
     st.markdown("---")
-    col1, col2 = st.columns([0.9, 0.1])
-    with col1:
-        user_input = st.text_input(
-            "Type your message:",
-            placeholder="Ask me about fees, exams, placements, or anything about college..."
-        )
-    with col2:
-        submit_button = st.button("Send", use_container_width=True)
+    user_input = st.chat_input(
+        placeholder=f"Hi {st.session_state.user_name or 'there'}! Ask me about fees, exams, placements, or anything..."
+    )
     
-    # Process user input
-    if submit_button and user_input:
+    # Process user input (Enter key or user pressing any submit action)
+    if user_input:
         # Add user message to chat
         st.session_state.messages.append({
             "role": "user",
@@ -239,7 +274,7 @@ def chat_interface():
         })
         
         # Show typing indicator
-        with st.spinner("Thinking..."):
+        with st.spinner(f"Thinking... 🤔"):
             start_time = time.time()
             
             # Step 1: Classify intent
@@ -255,24 +290,49 @@ def chat_interface():
             entities = st.session_state.conversation_context.extract_entities(user_input, intent)
             st.session_state.conversation_context.last_entities = entities
             
+            # Handle mid-conversation name collection
+            if "user_name" in entities and entities["user_name"]:
+                new_name = entities["user_name"]
+                # Check if this is a name change
+                name_changed = st.session_state.user_name and st.session_state.user_name != new_name
+                old_name = st.session_state.user_name
+                
+                # Update user name
+                st.session_state.user_name = new_name
+            else:
+                name_changed = False
+                new_name = None
+            
             # Step 4: Check if within college domain
             is_in_domain = is_college_domain_query(intent, confidence)
             
-            # Step 5: Generate context
+            # Step 5: Generate context (include user name)
             context = st.session_state.conversation_context.get_prompt_context()
+            if st.session_state.user_name:
+                context = f"User's name: {st.session_state.user_name}\n" + context
             
-            # Step 6: Generate response (LLM always generates, no strict domain blocking)
-            llm_result = llm_handler.generate_response(
-                user_input,
-                intent,
-                confidence,
-                emotion,
-                context
-            )
-            response = llm_result["response"]
-            llm_source = llm_result.get("source", "unknown")
-            response_time = llm_result.get("time", 0.0)
-            should_clarify = llm_result.get("should_clarify", False)
+            # Step 6: Handle name introduction/change message
+            if "user_name" in entities and entities["user_name"]:
+                if name_changed:
+                    response = f"Got it! I'll call you {new_name} from now on. 👋"
+                else:
+                    response = f"Nice to meet you, {new_name}! 😊 How can I help you today?"
+                llm_source = "name_capture"
+                response_time = 0.0
+                should_clarify = False
+            else:
+                # Generate response (LLM always generates, no strict domain blocking)
+                llm_result = llm_handler.generate_response(
+                    user_input,
+                    intent,
+                    confidence,
+                    emotion,
+                    context
+                )
+                response = llm_result["response"]
+                llm_source = llm_result.get("source", "unknown")
+                response_time = llm_result.get("time", 0.0)
+                should_clarify = llm_result.get("should_clarify", False)
             
             total_time = time.time() - start_time
         
@@ -321,7 +381,8 @@ def chat_interface():
             metadata={
                 "total_turns": len(st.session_state.messages) // 2,
                 "last_intent": intent,
-                "last_emotion": emotion
+                "last_emotion": emotion,
+                "user_name": st.session_state.user_name
             }
         )
         

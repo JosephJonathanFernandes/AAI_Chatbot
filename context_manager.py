@@ -1,10 +1,11 @@
 """
 Context management for multi-turn conversations.
-Maintains conversation history, intents, entities, and state.
+Maintains conversation history, intents, entities, and state with time awareness.
 """
 
 from collections import deque
 from datetime import datetime
+from time_context import TimeContext
 
 
 class ConversationContext:
@@ -25,6 +26,9 @@ class ConversationContext:
         self.last_entities = {}
         self.session_start = datetime.now()
         self.total_turns = 0
+        
+        # Initialize time context for time-aware responses
+        self.time_context = TimeContext()
     
     def add_turn(self, user_input, bot_response, intent, confidence, emotion, entities=None):
         """
@@ -204,6 +208,35 @@ class ConversationContext:
         
         return "\n".join(context_parts)
     
+    def get_time_aware_context(self):
+        """
+        Get time-aware context information for intelligent responses.
+        Useful for deciding if user can visit office, library accessibility, etc.
+        
+        Returns:
+            dict: Time-based context information
+        """
+        return self.time_context.get_context_summary()
+    
+    def is_conversation_started_today(self):
+        """
+        Check if conversation started today vs continuing from yesterday.
+        
+        Returns:
+            bool: True if session started today
+        """
+        return self.session_start.date() == datetime.now().date()
+    
+    def get_session_duration_minutes(self):
+        """
+        Get how long the current session has lasted.
+        
+        Returns:
+            float: Duration in minutes
+        """
+        delta = datetime.now() - self.session_start
+        return delta.total_seconds() / 60
+    
     def extract_entities(self, user_input: str, intent: str) -> dict:
         """
         Extract and track entities mentioned in user input.
@@ -215,10 +248,65 @@ class ConversationContext:
         Returns:
             dict: Extracted entities
         """
+        import re
         entities = {}
         
         # Track common entities by intent
         lower_input = user_input.lower()
+        
+        # Name extraction (mid-conversation name collection)
+        # Comprehensive patterns supporting: contractions, multi-word names, hyphens, apostrophes, casual speech
+        name_patterns = [
+            # Contractions (check FIRST to avoid conflicts)
+            (r"my name's ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                      # "my name's John Smith"
+            (r"the name's ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                     # "the name's Marcus"
+            
+            # "'s the name" pattern (BEFORE general inline, to avoid capture conflicts)
+            (r"^([a-zA-Z][a-zA-Z\s-]+)'s the name(?:\s|,|$)", True),             # "Sarah's the name" (start of message)
+            
+            # Standard patterns (multi-word support)
+            (r"my name is ([a-zA-Z\s'-]+?)(?:\s(?:and|but|how|what|,)|$)", True), # "my name is John Smith"
+            (r"i am ([a-zA-Z\s'-]+?)(?:\s(?:and|but|\w+-\w+)|$)", True),          # "i am Alex" or "i am Jean-Paul"
+            (r"i'm ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                            # "i'm Sarah"
+            (r"call me ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                        # "call me John"
+            (r"you can call me ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                # "you can call me Marcus"
+            
+            # Alternative phrasings
+            (r"i go by ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                        # "i go by Jean-Paul"
+            (r"people call me ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                 # "people call me Sam"
+            (r"just call me ([a-zA-Z\s'-]+?)(?:\s|,|$)", True),                   # "just call me Alex"
+            
+            # Inline/conversational patterns (less specific - use carefully)
+            (r"i'm ([a-zA-Z\s'-]+?)(?:,(?:\s+(?:nice|thanks|nice to meet))|$)", True),  # "i'm Sarah, nice to meet you"
+            
+            # Fallback patterns
+            (r"name is ([a-zA-Z'-]+)(?:\s|$)", True),                             # "name is Ahmed"
+            (r"it's ([a-zA-Z'-]+)(?:\s|$)", True),                                # "it's Maria"
+        ]
+        
+        for pattern, should_match in name_patterns:
+            match = re.search(pattern, lower_input)
+            if match:
+                name = match.group(1).strip()
+                # Skip if empty or too long (likely false positive)
+                if len(name) > 0 and len(name.split()) <= 3:  # max 3 words
+                    # Capitalize names properly (handles multi-word names)
+                    name_parts = name.split()
+                    capitalized_parts = []
+                    for part in name_parts:
+                        # Handle hyphenated names (e.g., Jean-Paul)
+                        if '-' in part:
+                            sub_parts = part.split('-')
+                            capitalized_parts.append('-'.join([sp.capitalize() for sp in sub_parts]))
+                        # Handle apostrophes (e.g., O'Brien)
+                        elif "'" in part:
+                            sub_parts = part.split("'")
+                            capitalized_parts.append("'".join([sp.capitalize() for sp in sub_parts]))
+                        else:
+                            capitalized_parts.append(part.capitalize())
+                    
+                    entities["user_name"] = ' '.join(capitalized_parts)
+                    break
         
         # Department/Program entities
         if intent == "fees" or intent == "admission" or intent == "placements":

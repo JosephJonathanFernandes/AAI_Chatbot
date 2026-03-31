@@ -616,6 +616,8 @@ def test_ui_questions():
     
     for question in out_of_scope_questions:
         try:
+            import time
+            time.sleep(0.2)  # Rate limit protection
             intent_result = classifier.predict(question)
             intent = intent_result.get('intent')
             confidence = intent_result.get('confidence', 0)
