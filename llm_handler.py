@@ -1,28 +1,37 @@
 """
 LLM handler for Groq API with Ollama fallback.
-Manages API calls, prompt engineering, and response generation.
-Includes time-aware context and anti-hallucination safeguards.
+Enhanced with structured prompt engineering, knowledge grounding (RAG-lite), 
+and scope detection for controlled LLM responses.
+
+Features:
+- Always uses LLM for response generation (never bypass)
+- Knowledge grounding reduces hallucination
+- Scope detection catches out-of-domain queries
+- Emotion-aware response toning
+- Structured prompt engineering with context injection
 """
 
 import os
 import time
 import requests
-from typing import Optional
+from typing import Optional, List, Dict
 import json
 from dotenv import load_dotenv
 from utils import load_json_file, get_time_of_day
 from time_context import TimeContext
+from prompt_engineering import PromptEngineer
+from scope_detector import ScopeDetector
 
 # Load environment variables from .env file
 load_dotenv()
 
 
 class LLMHandler:
-    """Handles LLM interactions with Groq API and Ollama fallback."""
+    """Handles LLM interactions with Groq API and Ollama fallback with knowledge grounding."""
     
     def __init__(self, groq_api_key: Optional[str] = None, college_data_path: str = "data/college_data.json"):
         """
-        Initialize LLM handler.
+        Initialize LLM handler with enhanced prompt engineering and scope detection.
         
         Args:
             groq_api_key (str): Groq API key (uses env var if not provided)
@@ -32,71 +41,92 @@ class LLMHandler:
         self.groq_base_url = "https://api.groq.com/openai/v1"
         self.ollama_base_url = "http://localhost:11434/api/generate"
         
-        # Load college knowledge base
+        # Load college knowledge base for RAG-lite
         self.college_data = load_json_file(college_data_path)
         
-        # Initialize time context for intelligent responses
+        # Initialize enhanced components
         self.time_context = TimeContext(college_data_path)
+        self.prompt_engineer = PromptEngineer()
+        self.scope_detector = ScopeDetector()
         
         # Model configuration
-        self.groq_model = "llama-3.1-8b-instant"  # Active Groq model (tested 2026-03-30)
+        self.groq_model = "llama-3.1-8b-instant"
         self.ollama_model = "mistral"
         
-        # Track fallback usage
+        # Track metrics
         self.fallback_count = 0
         self.groq_success_count = 0
+        self.total_api_calls = 0
     
-    def generate_response(self, user_input: str, intent: str, confidence: float, 
-                         emotion: str, context: str = "", stream: bool = False) -> dict:
+    def generate_response(self, 
+                         user_input: str, 
+                         intent: str, 
+                         confidence: float,
+                         emotion: str, 
+                         conversation_history: List[Dict] = None,
+                         stream: bool = False) -> dict:
         """
-        Generate response using LLM with context awareness.
+        Generate response using LLM with ALWAYS-ON strategy (never bypass LLM).
+        
+        CRITICAL: The LLM is ALWAYS used to generate the final response.
+        Low confidence → instruct LLM to ask clarification
+        Out-of-scope → instruct LLM to reply with standard message
         
         Args:
             user_input (str): User's question
             intent (str): Detected intent
-            confidence (float): Intent confidence score
+            confidence (float): Intent confidence score (0-1)
             emotion (str): Detected emotion
-            context (str): Conversation context
-            stream (bool): Enable streaming for faster response time
+            conversation_history (List): Previous conversation turns
+            stream (bool): Enable streaming
         
         Returns:
-            dict: Contains 'response', 'error', 'source', 'time', 'should_clarify'
+            dict: Response with metadata (response, source, time, is_in_scope, etc.)
         """
-        # Check if we need clarification due to low confidence
-        # Only clarify for ambiguous questions (< 15% confidence)
-        # Skip clarification for safe, factual intents like college_info that should be directly answered
-        safe_direct_answer_intents = {"college_info", "greeter", "gratitude"}
-        
-        if confidence < 0.15 and intent not in safe_direct_answer_intents:
-            # Return clarification prompt instead of generating response
-            clarification_map = {
-                "fees": "Are you asking about tuition fees, payment plans, deposits, or scholarships?",
-                "exams": "Do you want to know about exam dates, preparation tips, or passing criteria?",
-                "timetable": "Are you looking for class schedules, lab timings, or when college starts?",
-                "placements": "Are you interested in placement statistics, companies, or salary info?",
-                "admission": "Which aspect interests you - application process, requirements, or cutoff marks?",
-                "faculty": "Would you like faculty contact info, office hours, or research areas?",
-                "library": "Are you asking about library hours, book availability, or e-resources?",
-            }
-            
-            clarification = clarification_map.get(intent, "Could you provide more details about your question?")
-            
-            return {
-                "response": f"I'm not entirely sure what you're looking for. {clarification}",
-                "error": None,
-                "source": "clarification",
-                "time": 0,
-                "should_clarify": True
-            }
-        
-        # Build system prompt
-        system_prompt = self._build_system_prompt(intent, confidence, emotion)
-        
-        # Build user prompt with context
-        user_prompt = self._build_user_prompt(user_input, intent, context)
-        
-        # Try Groq first
+        self.total_api_calls += 1
         start_time = time.time()
+        
+        # STEP 1: Check scope (but don't bypass LLM - inform it about scope)
+        scope_info = self.scope_detector.get_scope_info(user_input, intent, confidence)
+        is_in_scope = scope_info["is_in_scope"]
+        
+        # STEP 2: Get relevant knowledge grounding (RAG-lite)
+        relevant_knowledge = self._get_grounded_knowledge(intent, user_input)
+        
+        # STEP 3: Get time context
+        time_context_str = self._get_time_context()
+        
+        # STEP 4: Format conversation history (last 3-5 turns)
+        formatted_history = self._format_conversation_history(conversation_history)
+        
+        # STEP 5: Build structured prompts (ALWAYS use LLM)
+        system_prompt = self.prompt_engineer.build_system_prompt(
+            intent=intent,
+            confidence=confidence,
+            emotion=emotion,
+            is_in_scope=is_in_scope,
+            scope_reason=scope_info["reason"]
+        )
+        
+        user_prompt = self.prompt_engineer.build_user_prompt(
+            user_input=user_input,
+            intent=intent,
+            conversation_history=conversation_history or [],
+            relevant_knowledge=relevant_knowledge,
+            time_context=time_context_str
+        )
+        
+        # STEP 6: Add confidence-based behavior instruction to system prompt
+        if confidence < 0.3:
+            # Low confidence → instruct LLM to ask clarification
+            clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
+            system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this clarification question before providing an answer:\n{clarification_guide}"
+        
+        # STEP 7: Add scope instruction to system prompt
+        if not is_in_scope:
+            system_prompt += f"\n\nIMPORTANT: This query is OUT-OF-SCOPE. Respond with:\n'{scope_info['out_of_scope_response']}'"
+        
+        # STEP 8: Try Groq API first
         result = self._call_groq_api(system_prompt, user_prompt)
         response_time = time.time() - start_time
         
@@ -107,12 +137,15 @@ class LLMHandler:
                 "error": None,
                 "source": "groq",
                 "time": response_time,
-                "should_clarify": False
+                "is_in_scope": is_in_scope,
+                "intent": intent,
+                "confidence": confidence,
+                "emotion": emotion,
+                "should_clarify": confidence < 0.3
             }
         
-        # Fallback to Ollama
+        # STEP 9: Fallback to Ollama
         print("⚠️ Groq API failed, falling back to Ollama...")
-        start_time = time.time()
         result = self._call_ollama_api(system_prompt, user_prompt)
         response_time = time.time() - start_time
         self.fallback_count += 1
@@ -123,32 +156,109 @@ class LLMHandler:
                 "error": None,
                 "source": "ollama",
                 "time": response_time,
-                "should_clarify": False
+                "is_in_scope": is_in_scope,
+                "intent": intent,
+                "confidence": confidence,
+                "emotion": emotion,
+                "should_clarify": confidence < 0.3
             }
         
-        # If both fail, return error
+        # STEP 10: If all fails, return fallback response
+        fallback_response = self.prompt_engineer.build_fallback_prompt()
         return {
-            "response": "I apologize, but I'm unable to process your request right now. Please try again later.",
-            "error": "Both API and fallback failed",
-            "source": "error",
+            "response": fallback_response,
+            "error": "Both Groq and Ollama failed",
+            "source": "fallback",
             "time": response_time,
+            "is_in_scope": is_in_scope,
+            "intent": intent,
+            "confidence": confidence,
+            "emotion": emotion,
             "should_clarify": False
         }
+    
+    def _get_grounded_knowledge(self, intent: str, query: str) -> str:
+        """
+        Get relevant knowledge grounding from college_data based on intent.
+        This is RAG-lite - retrieve only relevant sections.
+        
+        Args:
+            intent (str): Detected intent
+            query (str): User's question (for context)
+        
+        Returns:
+            str: Formatted relevant knowledge
+        """
+        knowledge_parts = []
+        
+        # Map intents to college_data sections
+        intent_to_keys = {
+            "fees": ["tuition_fees", "scholarships", "payment_plans"],
+            "exams": ["exam_schedule", "grading_system", "exam_rules"],
+            "timetable": ["academic_calendar", "class_schedule", "term_dates"],
+            "placements": ["placement_stats", "companies", "placement_process"],
+            "faculty": ["faculty_directory", "department_info", "office_hours"],
+            "library": ["library_info", "resources", "access_hours"],
+            "admission": ["admission_criteria", "application_process", "cutoff_marks"],
+            "hostel": ["hostel_info", "accommodation", "hostel_rules"],
+            "sports": ["sports_facilities", "sports_clubs", "events"],
+            "college_info": ["college_overview", "mission", "vision"]
+        }
+        
+        relevant_keys = intent_to_keys.get(intent, [])
+        
+        for key in relevant_keys:
+            if key in self.college_data and self.college_data[key]:
+                content = self.college_data[key]
+                
+                # Format based on content type
+                if isinstance(content, dict):
+                    formatted = "\n".join([f"- {k}: {v}" for k, v in content.items()])
+                elif isinstance(content, list):
+                    formatted = "\n".join([f"- {item}" for item in content])
+                else:
+                    formatted = str(content)
+                
+                knowledge_parts.append(f"**{key.replace('_', ' ').title()}:**\n{formatted}")
+        
+        if knowledge_parts:
+            return "\n\n".join(knowledge_parts)
+        return ""
+    
+    def _get_time_context(self) -> str:
+        """Get time-based context for responses."""
+        time_of_day = get_time_of_day()
+        context = f"Current time of day: {time_of_day}"
+        
+        # Check if exam season or special date
+        special_context = self.time_context.get_context_awareness_prompt()
+        if special_context and special_context != "":
+            context += f"\nSpecial context: {special_context}"
+        
+        return context
+    
+    def _format_conversation_history(self, history: List[Dict]) -> List[Dict]:
+        """Format conversation history for LLM context."""
+        if not history or len(history) == 0:
+            return []
+        
+        # Return last 3 turns
+        return history[-3:] if len(history) > 3 else history
     
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
         Call Groq API for response generation.
         
         Args:
-            system_prompt (str): System prompt with context
-            user_prompt (str): User's question with context
+            system_prompt (str): System prompt
+            user_prompt (str): User prompt
         
         Returns:
-            dict: API response or None on error
+            dict: Response or None on error
         """
         if not self.groq_api_key:
-            print("⚠️ GROQ_API_KEY not set. Skipping Groq API.")
-            return None
+            print("⚠️ GROQ_API_KEY not set in environment")
+            return {"error": "No API key"}
         
         try:
             headers = {
@@ -171,16 +281,15 @@ class LLMHandler:
                 f"{self.groq_base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=8
+                timeout=10
             )
             
             if response.status_code == 200:
                 data = response.json()
-                return {
-                    "response": data["choices"][0]["message"]["content"].strip()
-                }
+                response_text = data["choices"][0]["message"]["content"].strip()
+                return {"response": response_text}
             else:
-                print(f"Groq API error: {response.status_code}")
+                print(f"Groq API error {response.status_code}")
                 return {"error": f"Status {response.status_code}"}
         
         except requests.exceptions.Timeout:
@@ -198,11 +307,11 @@ class LLMHandler:
         Call Ollama API (local) for response generation.
         
         Args:
-            system_prompt (str): System prompt with context
-            user_prompt (str): User's question with context
+            system_prompt (str): System prompt
+            user_prompt (str): User prompt
         
         Returns:
-            dict: API response or None on error
+            dict: Response or None on error
         """
         try:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
@@ -218,197 +327,36 @@ class LLMHandler:
             response = requests.post(
                 self.ollama_base_url,
                 json=payload,
-                timeout=10  # 10 second timeout to prevent hanging
+                timeout=15
             )
             
             if response.status_code == 200:
                 data = response.json()
                 response_text = data.get("response", "").strip()
                 
-                # Clean response
                 if response_text:
                     return {"response": response_text}
                 else:
                     return {"error": "Empty response"}
             else:
-                print(f"Ollama API error: {response.status_code}")
+                print(f"Ollama API error {response.status_code}")
                 return {"error": f"Status {response.status_code}"}
         
         except requests.exceptions.ConnectionError:
-            print("Ollama not running. Make sure to start Ollama with: ollama serve")
+            print("Ollama not running. Start with: ollama serve")
             return {"error": "Ollama not available"}
         except Exception as e:
-            print(f"Ollama API error: {e}")
+            print(f"Ollama error: {e}")
             return {"error": str(e)}
     
-    def _build_system_prompt(self, intent: str, confidence: float, emotion: str) -> str:
-        """
-        Build context-aware system prompt with time awareness (optimized for speed & accuracy).
-        
-        Args:
-            intent (str): Detected intent
-            confidence (float): Intent confidence
-            emotion (str): Detected emotion
-        
-        Returns:
-            str: System prompt for LLM with time and anti-hallucination context
-        """
-        # Get time-aware context
-        time_context_prompt = self.time_context.get_context_awareness_prompt()
-        hallucination_check = self.time_context.get_hallucination_check_prompt()
-        
-        confidence_guidance = ""
-        if confidence < 0.4:
-            confidence_guidance = "\n[LOW CONFIDENCE: Ask for clarification before answering]"
-        elif confidence < 0.6:
-            confidence_guidance = "\n[MODERATE CONFIDENCE: Confirm understanding before detailed answer]"
-        else:
-            confidence_guidance = "\n[HIGH CONFIDENCE: Proceed with answering]"
-        
-        prompt = f"""You are a helpful, friendly & creative college assistant from {self.college_data.get('college_name', 'Advanced Academic Institute')}.
-
-CURRENT TIME CONTEXT:
-{time_context_prompt}
-
-{hallucination_check}
-
-CONVERSATION FLOW RULES:
-- MAINTAIN conversation flow - reference previous topics when relevant
-- If user says "it", "that", "for X" - connect to earlier mentions
-- Build on what was already discussed in the conversation
-- If continuing same topic, provide NEW details, not repetition
-
-PERSONALIZATION:
-- Use user's name when they provide it (but not at the start of EVERY response - vary it)
-- Be warm and conversational: "That's a great question, [Name]!" or just natural flow
-- Show genuine interest in their success at college
-- Give tailored advice based on their questions and context
-- Be creative with emoji usage (add 1-2 max per response for warmth, not overdone)
-
-COMMUNICATION STYLE:
-1. Be DIRECT & CONCISE (2-3 sentences for factual Qs)
-2. CLARIFY if request is ambiguous: "Just to confirm - are you asking about...?"
-3. Always show you're connecting to previous conversation
-4. Match tone to user emotion: {emotion}
-5. For vague Qs: Ask guided questions before answering{confidence_guidance}
-6. Be conversational, not robotic - think like a helpful college senior
-
-RESPONSE GUIDELINES:
-- NEVER make up specific details (names, numbers, dates)
-- Always reference source: "According to our records..." or "From our college data..."
-- If information isn't available: "I don't have that specific information"
-- Use common sense with timing context
-"""
-        return prompt
-    
-    def _build_user_prompt(self, user_input: str, intent: str, context: str = "") -> str:
-        """
-        Build user prompt with relevant context (optimized for speed).
-        
-        Args:
-            user_input (str): User's question
-            intent (str): Detected intent
-            context (str): Conversation context
-        
-        Returns:
-            str: Formatted user prompt
-        """
-        # Minimal context for faster processing
-        parts = []
-        if context:
-            parts.append(context)
-        
-        college_context = self._get_college_context(intent)
-        if college_context:
-            parts.append(college_context)
-        
-        parts.append(f"Q: {user_input}\nA: Be concise. Admit if unsure.")
-        return "\n".join(parts)
-    
-    def _get_college_context(self, intent: str) -> str:
-        """
-        Extract relevant college data based on intent.
-        
-        Args:
-            intent (str): Detected intent
-        
-        Returns:
-            str: Formatted college information
-        """
-        context_parts = []
-        
-        if not self.college_data:
-            return ""
-        
-        # Handle college_info separately since it needs multiple top-level fields
-        if intent == "college_info":
-            college_info = {
-                "college_name": self.college_data.get("college_name"),
-                "established": self.college_data.get("established"),
-                "location": self.college_data.get("location"),
-                "website": self.college_data.get("website"),
-                "accreditation": self.college_data.get("accreditation")
-            }
-            context_parts.append("College Information:")
-            context_parts.append(json.dumps(college_info, indent=2))
-            return "\n".join(context_parts)
-        
-        intent_data_map = {
-            "fees": ("fees", "Fee Information"),
-            "exams": ("exams", "Exam Information"),
-            "timetable": ("timetable", "Class Schedule"),
-            "placements": ("placements", "Placement Information"),
-            "faculty": ("faculty", "Faculty Information"),
-            "holidays": ("holidays", "Holiday Schedule"),
-            "library": ("library", "Library Information"),
-            "admission": ("admission", "Admission Information"),
-            "departments": ("departments", "Departments")
-        }
-        
-        if intent in intent_data_map:
-            key, label = intent_data_map[intent]
-            data = self.college_data.get(key)
-            
-            if data:
-                context_parts.append(f"{label}:")
-                context_parts.append(json.dumps(data, indent=2)[:500])  # Limit size
-        
-        return "\n".join(context_parts) if context_parts else ""
-    
-    def validate_response(self, response: str, intent: str) -> bool:
-        """
-        Validate if response is appropriate for the context.
-        
-        Args:
-            response (str): Generated response
-            intent (str): Intent tag
-        
-        Returns:
-            bool: True if response is valid
-        """
-        # Check minimum length
-        if len(response.strip()) < 5:
-            return False
-        
-        # Avoid very short responses
-        if len(response.strip()) < 20 and "sorry" in response.lower() and "can't" in response.lower():
-            return False
-        
-        return True
-    
     def get_stats(self) -> dict:
-        """
-        Get LLM handler statistics.
-        
-        Returns:
-            dict: Usage statistics
-        """
-        total_calls = self.groq_success_count + self.fallback_count
+        """Get handler statistics."""
+        total_successes = self.groq_success_count + (self.total_api_calls - self.groq_success_count - self.fallback_count)
         
         return {
-            "total_calls": total_calls,
-            "groq_success": self.groq_success_count,
+            "total_api_calls": self.total_api_calls,
+            "groq_successes": self.groq_success_count,
             "fallback_count": self.fallback_count,
-            "fallback_rate": round(self.fallback_count / max(total_calls, 1), 3),
-            "groq_available": bool(self.groq_api_key)
+            "groq_success_rate": round(self.groq_success_count / max(self.total_api_calls, 1) * 100, 2),
+            "fallback_rate": round(self.fallback_count / max(self.total_api_calls, 1) * 100, 2)
         }

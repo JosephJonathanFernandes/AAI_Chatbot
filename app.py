@@ -1,12 +1,22 @@
 """
-Streamlit UI for the college chatbot.
-Main entry point for the application.
+Streamlit UI for the College AI Assistant - Production-Ready Edition.
+Enhanced with scope detection, prompt engineering, emotion-aware responses,
+and knowledge grounding (RAG-lite).
+
+Features:
+- Integrated scope detection for domain filtering
+- Smart clarification for low confidence
+- Emotion-aware response toning
+- Knowledge grounding with relevant college data
+- Enhanced logging with scope & clarification tracking
+- Beautiful chat-like interface similar to ChatGPT
 """
 
 import streamlit as st
 import time
 from datetime import datetime
 import os
+import uuid
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,6 +29,8 @@ from llm_handler import LLMHandler
 from context_manager import ConversationContext
 from database import ChatbotDatabase
 from time_context import TimeContext
+from scope_detector import ScopeDetector
+from prompt_engineering import PromptEngineer
 from utils import (
     get_time_greeting, get_time_of_day, calculate_confidence_percentage,
     is_college_domain_query, truncate_text, get_current_timestamp
@@ -27,7 +39,7 @@ from utils import (
 
 # Page configuration
 st.set_page_config(
-    page_title="College AI Assistant",
+    page_title="College AI Assistant - Production Ready",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -37,23 +49,29 @@ st.set_page_config(
 st.markdown("""
 <style>
     .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
         margin-bottom: 1rem;
         display: flex;
         gap: 1rem;
+        animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0px); }
     }
     .user-message {
-        background-color: #e3f2fd;
-        border-left: 4px solid #2196f3;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 1.25rem;
+        margin-left: 3rem;
+        border: none;
     }
     .assistant-message {
-        background-color: #f5f5f5;
+        background-color: #f0f2f6;
         border-left: 4px solid #4caf50;
-    }
-    .error-message {
-        background-color: #ffebee;
-        border-left: 4px solid #f44336;
+        border-radius: 0.75rem;
+        margin-right: 3rem;
     }
     .debug-panel {
         background-color: #fff3e0;
@@ -61,6 +79,34 @@ st.markdown("""
         border-left: 4px solid #ff9800;
         border-radius: 0.5rem;
         font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    .scope-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-left: 0.5rem;
+    }
+    .in-scope {
+        background-color: #c8e6c9;
+        color: #2e7d32;
+    }
+    .out-of-scope {
+        background-color: #ffcdd2;
+        color: #c62828;
+    }
+    .clarification-badge {
+        background-color: #ffe082;
+        color: #f57f17;
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -68,34 +114,34 @@ st.markdown("""
 
 @st.cache_resource
 def initialize_models():
-    """Initialize all models (cached to avoid reloading). Emotion detector lazy-loads on first use."""
+    """Initialize all models (cached to avoid reloading)."""
     try:
-        # Suppress model initialization logs
+        # Suppress warnings
         import warnings
         warnings.filterwarnings('ignore')
         
-        # Initialize intent classifier
+        # Initialize components
         intent_classifier = IntentClassifier()
         
+        # Train if needed
         if not intent_classifier.is_trained:
             training_result = intent_classifier.train()
             if not training_result.get("success"):
-                st.warning("⚠️ Intent classifier training failed")
+                st.warning("⚠️ Intent classifier training in progress...")
         
-        # Initialize emotion detector (lazy-loads on first use, NOT on startup)
         emotion_detector = EmotionDetector()
-        
-        # Initialize LLM handler
         llm_handler = LLMHandler()
-        
-        # Initialize database
         database = ChatbotDatabase()
+        scope_detector = ScopeDetector()
+        prompt_engineer = PromptEngineer()
         
         return {
             "intent_classifier": intent_classifier,
             "emotion_detector": emotion_detector,
             "llm_handler": llm_handler,
-            "database": database
+            "database": database,
+            "scope_detector": scope_detector,
+            "prompt_engineer": prompt_engineer
         }
     
     except Exception as e:
@@ -104,11 +150,10 @@ def initialize_models():
 
 
 def chat_interface():
-    """Main chatbot interface with persistent session memory."""
+    """Main enhanced chatbot interface."""
     
-    # Initialize session state (with persistence)
+    # Initialize session state
     if "session_id" not in st.session_state:
-        import uuid
         st.session_state.session_id = str(uuid.uuid4())[:8]
     
     if "conversation_context" not in st.session_state:
@@ -120,6 +165,9 @@ def chat_interface():
     if "show_debug" not in st.session_state:
         st.session_state.show_debug = False
     
+    if "show_logs" not in st.session_state:
+        st.session_state.show_logs = False
+    
     if "user_name" not in st.session_state:
         st.session_state.user_name = None
     
@@ -129,223 +177,250 @@ def chat_interface():
     # Initialize models
     models = initialize_models()
     if not models:
-        st.error("Failed to initialize models. Please check your setup.")
+        st.error("Failed to initialize models.")
         return
     
     intent_classifier = models["intent_classifier"]
     emotion_detector = models["emotion_detector"]
     llm_handler = models["llm_handler"]
     database = models["database"]
+    scope_detector = models["scope_detector"]
+    prompt_engineer = models["prompt_engineer"]
     
-    # Initialize time context for intelligent greetings
     time_context = TimeContext()
     
-    # Start fresh each session (previous chat history available but not auto-loaded)
-    # To restore previous session, user can click "📊 View Logs Summary" in sidebar
+    # Header
+    col1, col2 = st.columns([0.8, 0.2])
+    with col1:
+        st.markdown("# 🎓 College AI Assistant")
+        st.markdown("*Production-Ready Edition with Advanced AI Features*")
+    with col2:
+        st.markdown(f"**{get_time_of_day().upper()}** ⏰")
     
-    # Header with intelligent time-aware greeting
-    st.markdown("# 🎓 College AI Assistant")
-    st.markdown(f"**{time_context.get_intelligent_greeting()}**")
-    st.caption(f"🕐 Current time: {get_current_timestamp()}")
+    st.caption(f"Session ID: {st.session_state.session_id} | Time: {get_current_timestamp()}")
     
-    # Sidebar
+    # Sidebar with enhanced controls
     with st.sidebar:
-        st.markdown("## ⚙️ Controls")
+        st.markdown("## ⚙️ Controls & Analytics")
         
         # Debug toggle
-        st.session_state.show_debug = st.checkbox("Show Debug Info", value=st.session_state.show_debug)
+        st.session_state.show_debug = st.checkbox(
+            "🔍 Show Advanced Debug Info",
+            value=st.session_state.show_debug,
+            help="Display intent, emotion, confidence, scope detection, and more"
+        )
         
-        # Clear chat button
+        # Clear chat
         if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.messages = []
-            st.session_state.conversation_context.clear_history()
-            st.success("Chat history cleared!")
+            st.session_state.conversation_context = ConversationContext()
+            st.success("✅ Chat cleared!")
             st.rerun()
         
-        # View logs button
-        if st.button("📊 View Logs Summary", use_container_width=True):
-            st.session_state.show_logs = True
+        # View logs
+        if st.button("📊 View Session Logs", use_container_width=True):
+            st.session_state.show_logs = not st.session_state.show_logs
         
         st.divider()
         
-        # Statistics
-        st.markdown("## 📈 Statistics")
-        
+        # Analytics
+        st.markdown("### 📈 Analytics")
         analytics = database.get_analytics_summary()
+        
         if analytics:
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Total Interactions", analytics.get("total_interactions", 0))
-                st.metric("Avg Confidence", f"{analytics.get('average_confidence', 0):.2%}")
+                total = analytics.get("total_interactions", 0)
+                st.metric("📝 Total Interactions", total, delta=None)
+                
+                conf = analytics.get("average_confidence", 0)
+                st.metric("🎯 Avg Confidence", f"{conf:.1%}", delta=None)
             
             with col2:
-                st.metric("Avg Response Time", f"{analytics.get('average_response_time', 0):.2f}s")
+                time_m = analytics.get("average_response_time", 0)
+                st.metric("⚡ Avg Response Time", f"{time_m:.2f}s", delta=None)
+                
                 llm_stats = llm_handler.get_stats()
-                st.metric("Fallback Rate", f"{llm_stats.get('fallback_rate', 0):.2%}")
+                fallback = llm_stats.get('fallback_rate', 0)
+                st.metric("🔄 Fallback Rate", f"{fallback:.0f}%", delta=None)
             
+            # Top intents
             if analytics.get("top_intents"):
-                st.markdown("### Top Intents")
+                st.markdown("**🏆 Top Intents**")
                 for intent, count in list(analytics["top_intents"].items())[:3]:
-                    st.write(f"- {intent}: {count}")
+                    st.caption(f"• {intent}: {count} queries")
+            
+            # Out of scope & Clarifications
+            out_of_scope = analytics.get("out_of_scope_count", 0)
+            clarifications = analytics.get("clarification_count", 0)
+            if out_of_scope > 0 or clarifications > 0:
+                st.markdown("**⚠️ Special Handling**")
+                if out_of_scope > 0:
+                    st.caption(f"• Out-of-scope: {out_of_scope}")
+                if clarifications > 0:
+                    st.caption(f"• Clarifications: {clarifications}")
         
         st.divider()
         
-        # Model info
-        st.markdown("## ℹ️ Model Status")
-        st.caption("Intent Classifier")
+        # Model status
+        st.markdown("### ℹ️ System Status")
+        
         model_info = intent_classifier.get_model_info()
-        st.write(f"- Trained: ✅" if model_info["is_trained"] else "- Trained: ❌")
-        st.write(f"- Intents: {model_info['intents_count']}")
+        status = "✅" if model_info["is_trained"] else "⏳"
+        st.caption(f"{status} Intent Classifier: {model_info.get('intents_count', 0)} intents")
         
-        st.caption("LLM Handler")
-        llm_available = "✅ Available" if llm_handler.groq_api_key else "⚠️ Using Ollama fallback"
-        st.write(f"- Groq API: {llm_available}")
+        groq_status = "✅ Available" if llm_handler.groq_api_key else "⚠️ Fallback Mode"
+        st.caption(f"🤖 Groq API: {groq_status}")
         
-        st.caption(f"Session: {st.session_state.session_id[:4]}...")
+        st.caption(f"🌍 Emotion Detector: Ready")
+        st.caption(f"🎯 Scope Detection: Active")
     
-    # Main chat area
+    # Main content area
     st.markdown("---")
     
-    # First interaction: Collect user's name for personalization
+    # First-time greeting and name collection
     if not st.session_state.greeting_shown and len(st.session_state.messages) == 0:
-        st.markdown("### Welcome! 👋")
+        st.markdown("### 👋 Welcome to Your College Assistant!")
+        st.info("I'm an AI assistant with advanced understanding of college queries. I can help with fees, exams, placements, faculty info, and much more. Let's start!")
+        
         col1, col2 = st.columns([0.7, 0.3])
         with col1:
             user_name = st.text_input(
                 "What's your name?",
-                placeholder="Enter your name to personalize our conversation...",
+                placeholder="Enter your name...",
                 key="name_input"
             )
         with col2:
-            if st.button("Start Chat", use_container_width=True):
+            if st.button("✨ Start Chat", use_container_width=True):
                 if user_name.strip():
                     st.session_state.user_name = user_name.strip()
                     st.session_state.greeting_shown = True
                     
-                    # Add opening greeting to chat
-                    greeting_response = f"Hi {st.session_state.user_name}! 👋 {time_context.get_intelligent_greeting()} I'm here to help you with any questions about {time_context.college_data.get('college_name', 'our college')}. What would you like to know?"
-                    
+                    greeting = f"Hi {st.session_state.user_name}! 👋 Welcome to our college assistant. {time_context.get_intelligent_greeting()} What would you like to know?"
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": greeting_response,
-                        "debug_info": {"intent": "greeter", "confidence": 1.0, "emotion": "friendly", "llm_source": "greeting", "response_time": 0, "is_in_domain": True, "should_clarify": False, "entities": {}}
+                        "content": greeting,
+                        "debug_info": {
+                            "intent": "greeting",
+                            "confidence": 1.0,
+                            "emotion": "friendly",
+                            "llm_source": "system",
+                            "response_time": 0,
+                            "is_in_scope": True,
+                            "should_clarify": False,
+                            "scope_reason": "system_greeting"
+                        }
                     })
                     st.rerun()
                 else:
-                    st.warning("Please enter your name to continue 😊")
+                    st.warning("Please enter your name to continue!")
         st.stop()
     
     # Display chat history
     for message in st.session_state.messages:
         if message["role"] == "user":
-            st.markdown(f'<div class="chat-message user-message"><strong>You:</strong> {message["content"]}</div>', 
-                       unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="chat-message user-message"><strong>You:</strong> {message["content"]}</div>',
+                unsafe_allow_html=True
+            )
         else:
-            st.markdown(f'<div class="chat-message assistant-message"><strong>Assistant:</strong> {message["content"]}</div>', 
-                       unsafe_allow_html=True)
+            debug = message.get("debug_info", {})
+            in_scope_badge = ""
+            if debug.get("is_in_scope") is not None:
+                badge_class = "in-scope" if debug["is_in_scope"] else "out-of-scope"
+                badge_text = "IN-SCOPE" if debug["is_in_scope"] else "OUT-OF-SCOPE"
+                in_scope_badge = f'<span class="scope-badge {badge_class}">{badge_text}</span>'
+            
+            clarif_badge = ""
+            if debug.get("should_clarify"):
+                clarif_badge = '<span class="scope-badge clarification-badge">🤔 CLARIFYING</span>'
+            
+            st.markdown(
+                f'<div class="chat-message assistant-message"><strong>Assistant:</strong> {message["content"]} {in_scope_badge}{clarif_badge}</div>',
+                unsafe_allow_html=True
+            )
             
             # Show debug info if enabled
-            if st.session_state.show_debug and message.get("debug_info"):
-                debug = message["debug_info"]
-                entities_str = ", ".join([f"{k}={v}" for k, v in debug.get('entities', {}).items()])
-                if not entities_str:
-                    entities_str = "None"
-                clarity_status = "[NEEDS CLARITY]" if debug.get('should_clarify') else "[CLEAR]"
-                st.markdown(f"""<div class="debug-panel">
-                <strong>Debug Info:</strong><br>
-                Intent: {debug.get('intent')} {clarity_status} | Confidence: {debug.get('confidence'):.0%}<br>
-                Emotion: {debug.get('emotion')} | Source: {debug.get('llm_source')}<br>
-                Entities: {entities_str}<br>
-                Response Time: {debug.get('response_time'):.2f}s
-                </div>""", unsafe_allow_html=True)
+            if st.session_state.show_debug and debug:
+                with st.expander("🔍 Debug Details"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Intent", debug.get("intent", "N/A"))
+                        st.metric("In-Scope", "✅ Yes" if debug.get("is_in_scope") else "❌ No")
+                    with col2:
+                        st.metric("Confidence", f"{debug.get('confidence', 0):.0%}")
+                        st.metric("Emotion", debug.get("emotion", "N/A"))
+                    with col3:
+                        st.metric("LLM Source", debug.get("llm_source", "N/A"))
+                        st.metric("Response Time", f"{debug.get('response_time', 0):.2f}s")
+                    
+                    if debug.get("scope_reason"):
+                        st.caption(f"📌 Scope Reason: {debug['scope_reason']}")
+                    if debug.get("entities"):
+                        st.caption(f"🏷️ Entities: {debug['entities']}")
     
-    # User input
+    # User input area
     st.markdown("---")
     user_input = st.chat_input(
-        placeholder=f"Hi {st.session_state.user_name or 'there'}! Ask me about fees, exams, placements, or anything..."
+        placeholder=f"Hi {st.session_state.user_name or 'there'}! Ask me about fees, exams, placements, faculty, or anything college-related...",
+        key="user_input"
     )
     
-    # Process user input (Enter key or user pressing any submit action)
+    # Process input
     if user_input:
-        # Add user message to chat
         st.session_state.messages.append({
             "role": "user",
             "content": user_input
         })
         
-        # Show typing indicator
-        with st.spinner(f"Thinking... 🤔"):
+        with st.spinner("🤔 Analyzing your question..."):
             start_time = time.time()
             
-            # Step 1: Classify intent
+            # STEP 1: Intent classification
             classification_result = intent_classifier.predict(user_input)
-            intent = classification_result.get("intent")
+            intent = classification_result.get("intent", "unknown")
             confidence = classification_result.get("confidence", 0.0)
             
-            # Step 2: Detect emotion
+            # STEP 2: Emotion detection
             emotion_result = emotion_detector.detect_emotion(user_input)
             emotion = emotion_result.get("emotion", "neutral")
             
-            # Step 3: Extract entities and update context
-            entities = st.session_state.conversation_context.extract_entities(user_input, intent)
-            st.session_state.conversation_context.last_entities = entities
+            # STEP 3: Scope detection (NEW)
+            scope_info = scope_detector.get_scope_info(user_input, intent, confidence)
+            is_in_scope = scope_info["is_in_scope"]
+            scope_reason = scope_info["reason"]
             
-            # Handle mid-conversation name collection
-            if "user_name" in entities and entities["user_name"]:
-                new_name = entities["user_name"]
-                # Check if this is a name change
-                name_changed = st.session_state.user_name and st.session_state.user_name != new_name
-                old_name = st.session_state.user_name
-                
-                # Update user name
-                st.session_state.user_name = new_name
-            else:
-                name_changed = False
-                new_name = None
+            # STEP 4: Get conversation history for context
+            history = st.session_state.conversation_context.get_formatted_history()
             
-            # Step 4: Check if within college domain
-            is_in_domain = is_college_domain_query(intent, confidence)
+            # STEP 5: Generate response with ALL enhancements
+            llm_result = llm_handler.generate_response(
+                user_input=user_input,
+                intent=intent,
+                confidence=confidence,
+                emotion=emotion,
+                conversation_history=st.session_state.conversation_context.get_history()
+            )
             
-            # Step 5: Generate context (include user name)
-            context = st.session_state.conversation_context.get_prompt_context()
-            if st.session_state.user_name:
-                context = f"User's name: {st.session_state.user_name}\n" + context
-            
-            # Step 6: Handle name introduction/change message
-            if "user_name" in entities and entities["user_name"]:
-                if name_changed:
-                    response = f"Got it! I'll call you {new_name} from now on. 👋"
-                else:
-                    response = f"Nice to meet you, {new_name}! 😊 How can I help you today?"
-                llm_source = "name_capture"
-                response_time = 0.0
-                should_clarify = False
-            else:
-                # Generate response (LLM always generates, no strict domain blocking)
-                llm_result = llm_handler.generate_response(
-                    user_input,
-                    intent,
-                    confidence,
-                    emotion,
-                    context
-                )
-                response = llm_result["response"]
-                llm_source = llm_result.get("source", "unknown")
-                response_time = llm_result.get("time", 0.0)
-                should_clarify = llm_result.get("should_clarify", False)
+            response = llm_result["response"]
+            llm_source = llm_result.get("source", "unknown")
+            response_time = llm_result.get("time", 0.0)
+            should_clarify = llm_result.get("should_clarify", False)
+            is_in_scope_llm = llm_result.get("is_in_scope", True)
             
             total_time = time.time() - start_time
         
-        # Add assistant message to chat
+        # Add assistant message with metadata
         debug_info = {
             "intent": intent,
             "confidence": confidence,
             "emotion": emotion,
             "llm_source": llm_source,
             "response_time": response_time,
-            "is_in_domain": is_in_domain,
+            "is_in_scope": is_in_scope_llm,
             "should_clarify": should_clarify,
-            "entities": entities
+            "scope_reason": scope_reason,
+            "entities": {}
         }
         
         st.session_state.messages.append({
@@ -363,62 +438,56 @@ def chat_interface():
             emotion
         )
         
-        # Log to database
+        # Log to database with NEW fields
         database.log_interaction(
-            user_input,
-            intent,
-            confidence,
-            emotion,
-            response,
-            response_time,
-            llm_source
+            user_input=user_input,
+            intent=intent,
+            confidence=confidence,
+            emotion=emotion,
+            response=response,
+            response_time=response_time,
+            llm_source=llm_source,
+            is_in_scope=is_in_scope_llm,
+            should_clarify=should_clarify,
+            scope_reason=scope_reason,
+            session_id=st.session_state.session_id
         )
         
-        # Save session for persistence
-        database.save_session(
-            session_id=st.session_state.session_id,
-            messages=st.session_state.messages,
-            metadata={
-                "total_turns": len(st.session_state.messages) // 2,
-                "last_intent": intent,
-                "last_emotion": emotion,
-                "user_name": st.session_state.user_name
-            }
-        )
-        
-        # Rerun to refresh the display
         st.rerun()
     
-    # Show logs summary if requested
-    if st.session_state.get("show_logs"):
+    # Show logs section if requested
+    if st.session_state.show_logs:
         st.markdown("---")
-        st.markdown("## 📋 Recent Logs")
+        st.markdown("## 📋 Recent Logs & Analytics")
         
-        logs = database.get_logs(limit=10)
+        logs = database.get_logs(limit=20)
         if logs:
+            log_data = []
             for log in logs:
-                timestamp = log.get("timestamp", "N/A")
-                intent = log.get("intent", "N/A")
-                confidence = log.get("confidence", 0)
-                emotion = log.get("emotion", "N/A")
+                scope_icon = "✅" if log.get("is_in_scope") else "❌"
+                clarify_icon = "🤔" if log.get("should_clarify") else "✓"
                 
-                col1, col2, col3, col4 = st.columns(4)
-                col1.caption(f"🕐 {timestamp}")
-                col2.caption(f"🎯 {intent}")
-                col3.caption(f"📊 {confidence:.0%}")
-                col4.caption(f"😊 {emotion}")
-        
-        if st.button("Close Logs"):
-            st.session_state.show_logs = False
-            st.rerun()
+                log_data.append({
+                    "Time": log.get("timestamp", "N/A")[-8:],
+                    "Intent": log.get("intent", "N/A"),
+                    "Confidence": f"{log.get('confidence', 0):.0%}",
+                    "Emotion": log.get("emotion", "N/A"),
+                    "In-Scope": scope_icon,
+                    "Clarify": clarify_icon,
+                    "LLM": log.get("llm_source", "N/A")
+                })
+            
+            st.dataframe(log_data, use_container_width=True, hide_index=True)
+        else:
+            st.info("No logs yet. Start a conversation to see logs!")
 
 
 def main():
-    """Main function to run the Streamlit app."""
+    """Main function."""
     try:
         chat_interface()
     except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
+        st.error(f"⚠️ An error occurred: {e}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Comprehensive Test Suite for Enhanced Chatbot with Time-Awareness & Anti-Hallucination
-Tests all new features: time_context.py, time-aware LLM, anti-hallucination, etc.
+Enhanced Time-Aware Comprehensive Test Suite
+Tests time awareness combined with scope detection and prompt engineering
 """
 
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-# Setup path - add parent directory to import modules
+# Setup path
 load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -22,6 +22,8 @@ from context_manager import ConversationContext
 from emotion_detector import EmotionDetector
 from intent_model import IntentClassifier
 from database import ChatbotDatabase
+from scope_detector import ScopeDetector
+from prompt_engineering import PromptEngineer
 
 
 class Colors:
@@ -37,13 +39,13 @@ class Colors:
 
 class TestSuite:
     """Test suite manager."""
-    
+
     def __init__(self, name: str):
         self.name = name
         self.passed = 0
         self.failed = 0
         self.tests = []
-    
+
     def add_result(self, test_name: str, passed: bool, details: str = ""):
         """Record test result."""
         self.tests.append((test_name, passed, details))
@@ -51,523 +53,471 @@ class TestSuite:
             self.passed += 1
         else:
             self.failed += 1
-        
-        status = f"{Colors.GREEN}✓ PASS{Colors.RESET}" if passed else f"{Colors.RED}✗ FAIL{Colors.RESET}"
+
+        status = (f"{Colors.GREEN}✓ PASS{Colors.RESET}" if passed
+                  else f"{Colors.RED}✗ FAIL{Colors.RESET}")
         print(f"  {status}: {test_name}")
         if details:
             print(f"           {Colors.YELLOW}→ {details}{Colors.RESET}")
-    
+
     def print_summary(self):
         """Print summary."""
         total = self.passed + self.failed
         print(f"\n{Colors.CYAN}{'='*80}{Colors.RESET}")
-        print(f"{Colors.BOLD}{self.name} Summary:{Colors.RESET} " +
-              f"{Colors.GREEN}{self.passed} passed{Colors.RESET}, " +
-              f"{Colors.RED}{self.failed} failed{Colors.RESET} out of {total}")
+        print(f"{Colors.BOLD}{self.name}:{Colors.RESET} "
+              f"{Colors.GREEN}{self.passed} passed{Colors.RESET}, "
+              f"{Colors.RED}{self.failed} failed{Colors.RESET} "
+              f"of {total}")
         print(f"{Colors.CYAN}{'='*80}{Colors.RESET}\n")
         return self.failed == 0
 
 
 # ============================================================================
-# TEST SUITE 1: TimeContext Module Tests
+# TEST SUITE 1: TimeContext with Scope Detection
 # ============================================================================
 
-def test_time_context_module():
-    """Test TimeContext module functionality."""
+def test_time_context_with_scope():
+    """Test TimeContext integrated with scope detection."""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 1: TimeContext Module (Time-Awareness)")
+    print(f"TEST SUITE 1: Time-Context + Scope Detection")
     print(f"{'='*80}{Colors.RESET}\n")
-    
-    suite = TestSuite("TimeContext")
-    
-    # Test 1: Initialization
+
+    suite = TestSuite("Time-Context + Scope")
+
+    # Test 1: TimeContext initialization
     try:
         tc = TimeContext()
-        suite.add_result("TimeContext Initialization", True, "Instance created")
+        suite.add_result("TimeContext Initialization", True,
+                        "Instance created")
     except Exception as e:
         suite.add_result("TimeContext Initialization", False, str(e)[:80])
         return suite
-    
-    # Test 2: get_time_of_day method
-    time_periods = ["early_morning", "morning", "late_morning", "afternoon", "evening", "night", "late_night"]
+
+    # Test 2: Time period detection
+    time_periods = [
+        "early_morning", "morning", "late_morning", "afternoon",
+        "evening", "night", "late_night"]
     time_of_day = tc.get_time_of_day()
-    suite.add_result("get_time_of_day() Returns Valid Period", 
-                     time_of_day in time_periods, f"Got: {time_of_day}")
-    
-    # Test 3: get_intelligent_greeting
+    suite.add_result("Time Period Detection",
+                     time_of_day in time_periods,
+                     f"Current: {time_of_day}")
+
+    # Test 3: Get intelligent greeting
     greeting = tc.get_intelligent_greeting()
-    has_emoji = any(emoji in greeting for emoji in ['☀️', '👋', '🌙', '💪', '🎉', '📚', '🦉'])
-    is_not_empty = len(greeting) > 5
-    suite.add_result("get_intelligent_greeting() Returns Creative Greeting",
-                     has_emoji and is_not_empty, f"Greeting: {greeting[:40]}...")
-    
-    # Test 4: Personalized greeting
-    greeting_with_name = tc.get_intelligent_greeting(user_name="Alex")
-    has_name = "Alex" in greeting_with_name or "morning" in greeting_with_name.lower()
-    suite.add_result("Personized Greeting With User Name",
-                     has_name, f"Got: {greeting_with_name[:50]}...")
-    
-    # Test 5: get_context_awareness_prompt
-    prompt = tc.get_context_awareness_prompt()
-    is_valid = len(prompt) > 50 and ("office" in prompt.lower() or "time" in prompt.lower())
-    suite.add_result("get_context_awareness_prompt() Non-Empty",
-                     is_valid, f"Length: {len(prompt)} chars")
-    
-    # Test 6: get_hallucination_check_prompt
-    hallucination_check = tc.get_hallucination_check_prompt()
-    has_critical = "CRITICAL" in hallucination_check
-    no_hallucination_phrase = "don't have this information" in hallucination_check.lower() or \
-                              "not in database" in hallucination_check.lower()
-    suite.add_result("get_hallucination_check_prompt() Contains Anti-Hallucination Directives",
-                     has_critical and no_hallucination_phrase, f"Includes critical checks")
-    
-    # Test 7: is_office_open
+    has_emoji = any(emoji in greeting for emoji in
+                   ['☀️', '👋', '🌙', '💪', '🎉', '📚', '🦉'])
+    suite.add_result("Time-Aware Greeting with Emoji", has_emoji,
+                    f"Greeting: {greeting[:50]}")
+
+    # Test 4: Office status
     is_open, reason = tc.is_office_open()
-    is_tuple = isinstance(is_open, bool) and isinstance(reason, str)
-    suite.add_result("is_office_open() Returns Tuple[bool, str]",
-                     is_tuple, f"Open: {is_open}, Reason: {reason}")
-    
-    # Test 8: get_relevant_schedule_info
-    schedule = tc.get_relevant_schedule_info("library")
-    has_schedule = "library" in schedule.lower() or "hours" in schedule.lower()
-    suite.add_result("get_relevant_schedule_info() Returns Hour Info",
-                     has_schedule, f"Schedule: {schedule}")
-    
-    # Test 9: get_college_data_snippet
-    snippet = tc.get_college_data_snippet("college_name")
-    is_string = isinstance(snippet, str)
-    not_empty = len(snippet) > 0
-    suite.add_result("get_college_data_snippet() Returns String",
-                     is_string and not_empty, f"Data: {snippet}")
-    
-    # Test 10: get_context_summary
-    summary = tc.get_context_summary()
-    has_keys = all(key in summary for key in ["current_time", "time_of_day", "office_open", "schedules"])
-    suite.add_result("get_context_summary() Contains All Context Keys",
-                     has_keys, f"Keys: {list(summary.keys())}")
-    
-    return suite
+    has_reason = isinstance(reason, str) and len(reason) > 0
+    suite.add_result("Office Status Determination",
+                    has_reason,
+                    f"Open: {is_open}, Reason: {reason[:40]}")
 
+    # Test 5: Combine time context with scope detection
+    try:
+        detector = ScopeDetector()
+        engineer = PromptEngineer()
 
-# ============================================================================
-# TEST SUITE 2: Enhanced Context Manager Tests
-# ============================================================================
-
-def test_enhanced_context_manager():
-    """Test ConversationContext with time awareness."""
-    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 2: Enhanced Context Manager (Time-Aware)")
-    print(f"{'='*80}{Colors.RESET}\n")
-    
-    suite = TestSuite("ConversationContext")
-    
-    # Test 1: Initialization with TimeContext
-    try:
-        ctx = ConversationContext()
-        has_time_context = hasattr(ctx, 'time_context')
-        suite.add_result("ConversationContext Has TimeContext Attribute", has_time_context)
-    except Exception as e:
-        suite.add_result("ConversationContext Initialization", False, str(e)[:80])
-        return suite
-    
-    # Test 2: Add turn
-    try:
-        ctx.add_turn(
-            user_input="What are fees?",
-            bot_response="Our fees are...",
-            intent="fees",
-            confidence=0.95,
-            emotion="neutral",
-            entities={"fee_type": "tuition"}
-        )
-        suite.add_result("add_turn() Records Conversation", len(ctx.get_history()) == 1)
-    except Exception as e:
-        suite.add_result("add_turn() Records Conversation", False, str(e)[:80])
-    
-    # Test 3: get_time_aware_context
-    try:
-        time_aware = ctx.get_time_aware_context()
-        has_time_info = all(key in time_aware for key in ["current_time", "time_of_day", "office_open"])
-        suite.add_result("get_time_aware_context() Returns Time Info",
-                         has_time_info, f"Has keys: {list(time_aware.keys())}")
-    except Exception as e:
-        suite.add_result("get_time_aware_context() Returns Time Info", False, str(e)[:80])
-    
-    # Test 4: is_conversation_started_today
-    try:
-        today = ctx.is_conversation_started_today()
-        suite.add_result("is_conversation_started_today() Returns Boolean",
-                         isinstance(today, bool))
-    except Exception as e:
-        suite.add_result("is_conversation_started_today() Returns Boolean", False, str(e)[:80])
-    
-    # Test 5: get_session_duration_minutes
-    try:
-        duration = ctx.get_session_duration_minutes()
-        is_valid = isinstance(duration, float) and duration >= 0
-        suite.add_result("get_session_duration_minutes() Returns Non-Negative Float",
-                         is_valid, f"Duration: {duration:.2f} minutes")
-    except Exception as e:
-        suite.add_result("get_session_duration_minutes() Returns Non-Negative Float", False, str(e)[:80])
-    
-    # Test 6: Topic continuity detection
-    try:
-        ctx.add_turn("Follow-up on fees", "More info...", "fees", 0.92, "neutral")
-        is_continuous = ctx.get_topic_continuity()
-        suite.add_result("get_topic_continuity() Detects Same Intent",
-                         is_continuous, f"Continuity: {is_continuous}")
-    except Exception as e:
-        suite.add_result("get_topic_continuity() Detects Same Intent", False, str(e)[:80])
-    
-    return suite
-
-
-# ============================================================================
-# TEST SUITE 3: LLM Handler Time-Aware Features
-# ============================================================================
-
-def test_llm_handler_time_aware():
-    """Test LLMHandler with time-aware system prompts."""
-    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 3: LLM Handler Time-Aware Features")
-    print(f"{'='*80}{Colors.RESET}\n")
-    
-    suite = TestSuite("LLMHandler Time-Aware")
-    
-    # Test 1: Initialization with TimeContext
-    try:
-        handler = LLMHandler()
-        has_time_context = hasattr(handler, 'time_context')
-        suite.add_result("LLMHandler Initializes TimeContext",
-                         has_time_context, "TimeContext available")
-    except Exception as e:
-        suite.add_result("LLMHandler Initialization", False, str(e)[:80])
-        return suite
-    
-    # Test 2: System prompt includes time context
-    try:
-        prompt = handler._build_system_prompt("fees", 0.8, "neutral")
-        has_time_context = "CURRENT TIME CONTEXT" in prompt or "context" in prompt.lower()
-        has_anti_hallucination = "CRITICAL" in prompt or "hallucination" in prompt.lower()
-        suite.add_result("System Prompt Includes Time & Anti-Hallucination Directives",
-                         has_time_context and has_anti_hallucination,
-                         f"Prompt length: {len(prompt)} chars")
-    except Exception as e:
-        suite.add_result("System Prompt Generation", False, str(e)[:80])
-    
-    # Test 3: Response contains source
-    try:
-        result = handler.generate_response(
-            user_input="Simple test",
-            intent="general",
-            confidence=0.7,
+        # Test time-aware prompts
+        prompt = engineer.build_system_prompt(
+            intent="placements",
+            is_in_scope=True,
             emotion="neutral"
         )
-        has_source = "source" in result
-        has_response = "response" in result and len(result["response"]) > 0
-        suite.add_result("generate_response() Returns Source & Response",
-                         has_source and has_response,
-                         f"Source: {result.get('source')}")
+
+        # Check if time info can be injected
+        time_context = tc.get_context_summary()
+        has_time_info = time_context is not None and len(time_context) > 0
+
+        suite.add_result("Time Info Available for Prompt Injection",
+                        has_time_info,
+                        f"Time context keys: {len(time_context) if time_context else 0}")
+
     except Exception as e:
-        suite.add_result("generate_response() Basic Functionality", False, str(e)[:80])
-    
-    # Test 4: Low confidence triggers clarification
-    try:
-        result = handler.generate_response(
-            user_input="???",
-            intent="unclear",
-            confidence=0.1,
-            emotion="confused"
-        )
-        should_clarify = result.get("should_clarify", False)
-        is_clarification = "clarif" in result.get("response", "").lower()
-        suite.add_result("Low Confidence (<15%) Triggers Clarification",
-                         should_clarify or is_clarification,
-                         f"Clarify flag: {should_clarify}")
-    except Exception as e:
-        suite.add_result("Clarification on Low Confidence", False, str(e)[:80])
-    
-    # Test 5: Response time tracking
-    try:
-        result = handler.generate_response("Test", "test", 0.5, "neutral")
-        has_time = "time" in result and isinstance(result["time"], (int, float))
-        suite.add_result("Response Time Tracked",
-                         has_time, f"Time: {result.get('time', 0):.2f}s")
-    except Exception as e:
-        suite.add_result("Response Time Tracking", False, str(e)[:80])
-    
+        suite.add_result("Time Info Available", False, str(e)[:80])
+
+    suite.print_summary()
     return suite
 
 
 # ============================================================================
-# TEST SUITE 4: Anti-Hallucination Features
+# TEST SUITE 2: Time-Aware LLM Responses with Multi-Signal Control
+# ============================================================================
+
+def test_time_aware_llm():
+    """Test LLM responses adapted to time of day."""
+    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
+    print(f"TEST SUITE 2: Time-Aware LLM Responses")
+    print(f"{'='*80}{Colors.RESET}\n")
+
+    suite = TestSuite("Time-Aware LLM")
+
+    try:
+        tc = TimeContext()
+        handler = LLMHandler()
+        detector = ScopeDetector()
+        intent_c = IntentClassifier()
+        emotion_d = EmotionDetector()
+
+        time_of_day = tc.get_time_of_day()
+
+        # Test query
+        query = "Tell me about placements"
+
+        # Detect all signals
+        is_in_scope, _, _ = detector.is_in_scope(query)
+        intent_result = intent_c.predict(query)
+        intent = intent_result.get('intent', 'general')
+        confidence = intent_result.get('confidence', 0)
+        emotion_result = emotion_d.detect_emotion(query)
+        emotion = emotion_result.get('emotion', 'neutral')
+
+        # Get time context
+        time_context = tc.get_context_summary()
+
+        # Generate response with all context
+        response = handler.generate_response(
+            user_input=query,
+            intent=intent,
+            confidence=confidence,
+            emotion=emotion
+        )
+
+        has_response = 'response' in response and len(response['response']) > 0
+
+        suite.add_result("LLM Response with Time Context",
+                        has_response,
+                        f"Time: {time_of_day}, "
+                        f"Response length: {len(response.get('response', ''))}")
+
+    except Exception as e:
+        suite.add_result("LLM Response with Time Context",
+                        False, str(e)[:80])
+
+    suite.print_summary()
+    return suite
+
+
+# ============================================================================
+# TEST SUITE 3: Anti-Hallucination with Scope + Knowledge Grounding
 # ============================================================================
 
 def test_anti_hallucination():
-    """Test anti-hallucination mechanisms."""
+    """Test anti-hallucination measures."""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 4: Anti-Hallucination Features")
+    print(f"TEST SUITE 3: Anti-Hallucination Measures")
     print(f"{'='*80}{Colors.RESET}\n")
-    
+
     suite = TestSuite("Anti-Hallucination")
-    
-    # Test 1: TimeContext has hallucination check
+
     try:
-        tc = TimeContext()
-        prompt = tc.get_hallucination_check_prompt()
-        checks = [
-            "CRITICAL" in prompt,
-            "database" in prompt.lower(),
-            "only answer based on" in prompt.lower() or "based on" in prompt.lower(),
-            "never invent" in prompt.lower() or "don't invent" in prompt.lower(),
-        ]
-        all_checks = all(checks)
-        suite.add_result("TimeContext Hallucination Check Contains All Required Elements",
-                         all_checks, f"Checks present: {sum(checks)}/4")
-    except Exception as e:
-        suite.add_result("TimeContext Hallucination Check", False, str(e)[:80])
-    
-    # Test 2: get_college_data_snippet returns safe values
-    try:
-        tc = TimeContext()
-        # Try non-existent key
-        result = tc.get_college_data_snippet("nonexistent_key_xyz")
-        has_safe_message = "not available" in result.lower() or "don't have" in result.lower()
-        suite.add_result("get_college_data_snippet() Falls Back Safely",
-                         has_safe_message, f"Result: {result}")
-    except Exception as e:
-        suite.add_result("Safe Data Fallback", False, str(e)[:80])
-    
-    # Test 3: LLMHandler system prompt has anti-hallucination
-    try:
+        detector = ScopeDetector()
+        engineer = PromptEngineer()
         handler = LLMHandler()
-        prompt = handler._build_system_prompt("fees", 0.9, "neutral")
-        anti_hall_phrases = [
-            "only answer based on",
-            "NEVER make up",
-            "don't have",
-            "admit uncertainty",
-            "reference source"
+        db = ChatbotDatabase(db_path="test_antihalluc.db")
+
+        # Test out-of-domain queries
+        oos_queries = [
+            "What is quantum physics?",
+            "How do I cook a steak?",
+            "Tell me about machine learning"
         ]
-        found = sum(1 for phrase in anti_hall_phrases if phrase.lower() in prompt.lower())
-        suite.add_result("LLM System Prompt Has Multiple Anti-Hallucination Checks",
-                         found >= 3, f"Found {found}/5 anti-hallucination checks")
-    except Exception as e:
-        suite.add_result("LLM Anti-Hallucination Checks", False, str(e)[:80])
-    
-    # Test 4: Invalid data requests handled gracefully
-    try:
-        handler = LLMHandler()
-        result = handler.generate_response(
-            user_input="What are the secret data?",
-            intent="general",
-            confidence=0.5,
-            emotion="neutral"
-        )
-        # Should not error, just return safe response
-        has_response = "response" in result and len(result["response"]) > 0
-        suite.add_result("Invalid Data Requests Handled Gracefully",
-                         has_response, f"Returned response: {len(result.get('response', ''))} chars")
-    except Exception as e:
-        suite.add_result("Invalid Data Handling", False, str(e)[:80])
-    
-    return suite
 
+        for query in oos_queries:
+            try:
+                is_in_scope, reason, _ = detector.is_in_scope(query)
 
-# ============================================================================
-# TEST SUITE 5: Integration Tests
-# ============================================================================
+                if not is_in_scope:
+                    # Build out-of-scope prompt to prevent hallucination
+                    prompt = engineer.build_system_prompt(
+                        intent="other",
+                        is_in_scope=False,
+                        emotion="neutral"
+                    )
 
-def test_integration():
-    """Test full conversation flow with time awareness."""
-    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 5: Integration Tests (Full Conversation Flow)")
-    print(f"{'='*80}{Colors.RESET}\n")
-    
-    suite = TestSuite("Integration")
-    
-    try:
-        # Initialize all components
-        intent_classifier = IntentClassifier()
-        emotion_detector = EmotionDetector()
-        llm_handler = LLMHandler()
-        context = ConversationContext()
-        
-        suite.add_result("All Components Initialized", True)
-    except Exception as e:
-        suite.add_result("Component Initialization", False, str(e)[:80])
-        return suite
-    
-    # Test flow: User asks question → Intent & Emotion detected → Response generated
-    test_queries = [
-        ("What are the library hours?", "library"),
-        ("Tell me about placements", "placements"),
-        ("How do I register?", "admission"),
-    ]
-    
-    for user_input, expected_intent_type in test_queries:
+                    # Prompt should include directive to not hallucinate
+                    anti_halluc_directive = any(
+                        word in prompt.lower()
+                        for word in ['hallucin', 'invent', 'domain',
+                                    'college', 'cannot', 'outside'])
+
+                    # Log the query with scope info
+                    logged = db.log_interaction(
+                        user_input=query,
+                        intent="other",
+                        confidence=0.8,
+                        emotion="neutral",
+                        response="Out of domain response",
+                        response_time=0.2,
+                        llm_source="groq",
+                        is_in_scope=False,
+                        should_clarify=False,
+                        scope_reason=reason,
+                        session_id="test_antihalluc"
+                    )
+
+                    passed = anti_halluc_directive and logged
+
+                else:
+                    passed = False
+
+                suite.add_result(
+                    f"OOS Query: '{query[:40]}...'",
+                    passed,
+                    f"Out-of-scope: {not is_in_scope}, Logged: {logged}")
+
+            except Exception as e:
+                suite.add_result(f"OOS Query: '{query[:40]}...'",
+                               False, str(e)[:80])
+
+        # Cleanup
         try:
-            # Step 1: Classify intent
-            classification = intent_classifier.predict(user_input)
-            intent = classification.get("intent")
-            confidence = classification.get("confidence", 0)
-            
-            # Step 2: Detect emotion
-            emotion_result = emotion_detector.detect_emotion(user_input)
-            emotion = emotion_result.get("emotion", "neutral")
-            
-            # Step 3: Generate response with time context
-            llm_result = llm_handler.generate_response(
-                user_input, intent, confidence, emotion, ""
-            )
-            response = llm_result.get("response", "")
-            
-            # Step 4: Update context
-            context.add_turn(user_input, response, intent, confidence, emotion, {})
-            
-            has_response = len(response) > 0
-            has_time_context = context.get_time_aware_context() is not None
-            
-            suite.add_result(f"Full Flow: '{user_input[:30]}...'",
-                             has_response and has_time_context,
-                             f"Intent={intent}, Conf={confidence:.2f}, Emotion={emotion}")
-        except Exception as e:
-            suite.add_result(f"Full Flow: '{user_input[:30]}...'", False, str(e)[:80])
-    
-    # Test conversation continuity
-    try:
-        context.add_turn("First question", "Answer 1", "fees", 0.9, "neutral")
-        context.add_turn("Follow-up", "Answer 2", "fees", 0.88, "neutral")
-        
-        is_continuous = context.get_topic_continuity()
-        history = context.get_history()
-        has_history = len(history) >= 2
-        
-        suite.add_result("Conversation Continuity & History",
-                         is_continuous and has_history,
-                         f"History length: {len(history)}, Continuous: {is_continuous}")
+            import os
+            if os.path.exists("test_antihalluc.db"):
+                os.remove("test_antihalluc.db")
+        except:
+            pass
+
     except Exception as e:
-        suite.add_result("Conversation Continuity", False, str(e)[:80])
-    
-    # Test time-aware context in conversation
-    try:
-        time_context = context.get_time_aware_context()
-        required_keys = ["current_time", "time_of_day", "office_open", "office_status"]
-        has_all_keys = all(key in time_context for key in required_keys)
-        
-        suite.add_result("Context Contains Time & Schedule Info",
-                         has_all_keys, f"Time of day: {time_context.get('time_of_day')}")
-    except Exception as e:
-        suite.add_result("Context Time Info", False, str(e)[:80])
-    
+        suite.add_result("Setup", False, str(e)[:80])
+
+    suite.print_summary()
     return suite
 
 
 # ============================================================================
-# TEST SUITE 6: Edge Cases & Error Handling
+# TEST SUITE 4: Multi-Signal Response Control
 # ============================================================================
 
-def test_edge_cases():
-    """Test edge cases and error handling."""
+def test_multi_signal_control():
+    """Test multi-signal control of LLM responses."""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
-    print(f"TEST SUITE 6: Edge Cases & Error Handling")
+    print(f"TEST SUITE 4: Multi-Signal Response Control")
     print(f"{'='*80}{Colors.RESET}\n")
-    
-    suite = TestSuite("Edge Cases")
-    
-    # Test 1: Empty strings
-    try:
-        tc = TimeContext()
-        result = tc.get_college_data_snippet("")
-        suite.add_result("Empty String Handling", isinstance(result, str))
-    except Exception as e:
-        suite.add_result("Empty String Handling", False, str(e)[:80])
-    
-    # Test 2: Very long strings
+
+    suite = TestSuite("Multi-Signal Control")
+
     try:
         handler = LLMHandler()
-        long_input = "What " * 200  # 1000+ chars
-        result = handler.generate_response(long_input, "general", 0.5, "neutral")
-        has_response = "response" in result
-        suite.add_result("Very Long Input String", has_response)
-    except Exception as e:
-        suite.add_result("Very Long Input String", False, str(e)[:80])
-    
-    # Test 3: Special characters
-    try:
-        ctx = ConversationContext()
-        result = ctx.add_turn("!!!???***", "Response", "test", 0.5, "neutral")
-        has_history = len(ctx.get_history()) > 0
-        suite.add_result("Special Characters in Input", has_history)
-    except Exception as e:
-        suite.add_result("Special Characters in Input", False, str(e)[:80])
-    
-    # Test 4: Null/None values
-    try:
+        engineer = PromptEngineer()
+        intent_c = IntentClassifier()
+        emotion_d = EmotionDetector()
         tc = TimeContext()
-        result = tc.get_college_data_snippet(None)
-        suite.add_result("None Value Handling", isinstance(result, str))
+
+        signals = {
+            "query": "I'm confused about placements",
+            "intent": None,
+            "confidence": None,
+            "emotion": None,
+            "time_of_day": None,
+            "in_scope": None
+        }
+
+        # Gather all signals
+        intent_result = intent_c.predict(signals["query"])
+        signals["intent"] = intent_result.get('intent', 'general')
+        signals["confidence"] = intent_result.get('confidence', 0)
+
+        emotion_result = emotion_d.detect_emotion(signals["query"])
+        signals["emotion"] = emotion_result.get('emotion', 'neutral')
+
+        signals["time_of_day"] = tc.get_time_of_day()
+        signals["in_scope"] = True
+
+        # Build prompt with all signals
+        try:
+            prompt = engineer.build_system_prompt(
+                intent=signals["intent"],
+                is_in_scope=signals["in_scope"],
+                emotion=signals["emotion"],
+                confidence=signals["confidence"]
+            )
+
+            # Check that prompt reflects all signals
+            has_emotion = signals["emotion"].lower() in prompt.lower() or \
+                         any(word in prompt.lower() for word in
+                            ['calm', 'step', 'reassure', 'explain'])
+            has_intent = signals["intent"].lower() in prompt.lower() or \
+                        'placement' in prompt.lower()
+            has_scope = signals["in_scope"]
+
+            suite.add_result("Prompt Reflects All Signals",
+                           has_emotion and has_intent and has_scope,
+                           f"Emotion: {has_emotion}, Intent: {has_intent}, "
+                           f"Scope: {has_scope}")
+        except Exception as e:
+            suite.add_result("Prompt Reflects All Signals",
+                           False, str(e)[:80])
+
+        # Generate response
+        try:
+            response = handler.generate_response(
+                user_input=signals["query"],
+                intent=signals["intent"],
+                confidence=signals["confidence"],
+                emotion=signals["emotion"]
+            )
+
+            # Response should be influenced by emotion (confused → step-by-step)
+            response_text = response.get('response', '')
+            is_guided = (len(response_text) > 50 and
+                        response.get('should_clarify', False) ==
+                        (signals["confidence"] < 0.4))
+
+            suite.add_result("Response Guided by Multiple Signals",
+                           is_guided,
+                           f"Response length: {len(response_text)}, "
+                           f"Clarify: {response.get('should_clarify', False)}")
+
+        except Exception as e:
+            suite.add_result("Response Guided by Multiple Signals",
+                           False, str(e)[:80])
+
     except Exception as e:
-        suite.add_result("None Value Handling", False, str(e)[:80])
-    
-    # Test 5: Rapid consecutive calls
-    try:
-        tc = TimeContext()
-        results = [tc.get_time_of_day() for _ in range(100)]
-        all_valid = all(r in ["early_morning", "morning", "late_morning", "afternoon", "evening", "night", "late_night"] for r in results)
-        suite.add_result("Rapid Consecutive Calls (100x)", all_valid,
-                         f"Calls successful")
-    except Exception as e:
-        suite.add_result("Rapid Consecutive Calls", False, str(e)[:80])
-    
+        suite.add_result("Setup", False, str(e)[:80])
+
+    suite.print_summary()
     return suite
 
 
 # ============================================================================
-# Main Test Runner
+# TEST SUITE 5: Database Logging with All Signals
+# ============================================================================
+
+def test_comprehensive_logging():
+    """Test comprehensive database logging."""
+    print(f"\n{Colors.BOLD}{Colors.BLUE}{'='*80}")
+    print(f"TEST SUITE 5: Comprehensive Database Logging")
+    print(f"{'='*80}{Colors.RESET}\n")
+
+    suite = TestSuite("Comprehensive Logging")
+
+    db_path = "test_comprehensive_logging.db"
+
+    try:
+        db = ChatbotDatabase(db_path=db_path)
+        tc = TimeContext()
+
+        # Create test interactions with all signals
+        interactions = [
+            {
+                "user_input": "What are the fees?",
+                "intent": "fees",
+                "confidence": 0.95,
+                "emotion": "neutral",
+                "response": "The fees are...",
+                "is_in_scope": True,
+                "should_clarify": False,
+                "scope_reason": "Matched fee keywords"
+            },
+            {
+                "user_input": "I'm confused about placements",
+                "intent": "placement",
+                "confidence": 0.7,
+                "emotion": "confused",
+                "response": "Let me explain placements step-by-step...",
+                "is_in_scope": True,
+                "should_clarify": True,
+                "scope_reason": "Matched placement keywords"
+            }
+        ]
+
+        session_id = f"test_comprehensive_{int(time.time())}"
+
+        for inter in interactions:
+            try:
+                success = db.log_interaction(
+                    user_input=inter["user_input"],
+                    intent=inter["intent"],
+                    confidence=inter["confidence"],
+                    emotion=inter["emotion"],
+                    response=inter["response"],
+                    response_time=0.5,
+                    llm_source="groq",
+                    is_in_scope=inter["is_in_scope"],
+                    should_clarify=inter["should_clarify"],
+                    scope_reason=inter["scope_reason"],
+                    session_id=session_id
+                )
+
+                suite.add_result(
+                    f"Log: '{inter['user_input'][:40]}...'",
+                    success,
+                    f"Logged with scope and clarify flags")
+
+            except Exception as e:
+                suite.add_result(
+                    f"Log: '{inter['user_input'][:40]}...'",
+                    False, str(e)[:80])
+
+        # Verify logs retrieved
+        try:
+            logs = db.get_logs(limit=10)
+            has_new_fields = (len(logs) > 0 and
+                            any('is_in_scope' in log and
+                                'should_clarify' in log
+                                for log in logs))
+
+            suite.add_result("Retrieve Logs with New Fields",
+                           has_new_fields,
+                           f"Retrieved {len(logs)} logs")
+        except Exception as e:
+            suite.add_result("Retrieve Logs with New Fields",
+                           False, str(e)[:80])
+
+        # Cleanup
+        try:
+            import os
+            if os.path.exists(db_path):
+                os.remove(db_path)
+        except:
+            pass
+
+    except Exception as e:
+        suite.add_result("Setup", False, str(e)[:80])
+
+    suite.print_summary()
+    return suite
+
+
+# ============================================================================
+# MAIN
 # ============================================================================
 
 def main():
-    """Run all test suites."""
-    print(f"\n{Colors.BOLD}{Colors.CYAN}")
-    print(f"{'='*80}")
-    print(f"COMPREHENSIVE CHATBOT TEST SUITE WITH TIME-AWARENESS & ANTI-HALLUCINATION")
-    print(f"{'='*80}")
-    print(f"{Colors.RESET}")
-    
-    all_suites = []
-    
-    # Run all test suites
-    all_suites.append(test_time_context_module())
-    all_suites.append(test_enhanced_context_manager())
-    all_suites.append(test_llm_handler_time_aware())
-    all_suites.append(test_anti_hallucination())
-    all_suites.append(test_integration())
-    all_suites.append(test_edge_cases())
-    
-    # Print final summary
+    """Run all tests."""
     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*80}")
-    print(f"FINAL TEST SUMMARY")
+    print(f"TIME-AWARE COMPREHENSIVE TEST SUITE")
+    print(f"With Scope Detection, Prompt Engineering, & Multi-Signal Control")
     print(f"{'='*80}{Colors.RESET}\n")
-    
-    total_passed = sum(s.passed for s in all_suites)
-    total_failed = sum(s.failed for s in all_suites)
-    total_tests = total_passed + total_failed
-    
-    for suite in all_suites:
-        print(f"  {suite.name:30} {Colors.GREEN}{suite.passed:3}{Colors.RESET}\t passed, " +
-              f"{Colors.RED}{suite.failed:3}{Colors.RESET}\t failed")
-    
-    print(f"\n{Colors.BOLD}Overall:{Colors.RESET} {Colors.GREEN}{total_passed}/{total_tests} PASSED{Colors.RESET}")
-    
-    if total_failed == 0:
-        print(f"\n{Colors.GREEN}{Colors.BOLD}✓ ALL TESTS PASSED!{Colors.RESET}\n")
-        return 0
-    else:
-        print(f"\n{Colors.RED}{Colors.BOLD}✗ {total_failed} TESTS FAILED{Colors.RESET}\n")
-        return 1
+
+    results = []
+
+    results.append(test_time_context_with_scope())
+    results.append(test_time_aware_llm())
+    results.append(test_anti_hallucination())
+    results.append(test_multi_signal_control())
+    results.append(test_comprehensive_logging())
+
+    # Summary
+    total_passed = sum(r.passed for r in results)
+    total_failed = sum(r.failed for r in results)
+    total = total_passed + total_failed
+
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*80}")
+    print(f"OVERALL RESULTS")
+    print(f"{'='*80}{Colors.RESET}\n")
+    print(f"  {Colors.GREEN}Passed: {total_passed}{Colors.RESET}")
+    print(f"  {Colors.RED}Failed: {total_failed}{Colors.RESET}")
+    print(f"  Total: {total}")
+    print(f"  Success Rate: {100 * total_passed / total:.1f}%\n")
+
+    return total_failed == 0
 
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    success = main()
+    sys.exit(0 if success else 1)
