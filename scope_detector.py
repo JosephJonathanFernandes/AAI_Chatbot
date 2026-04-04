@@ -1,6 +1,7 @@
 """
 Domain scope detector for college assistant.
 Determines if a query is within the college domain and returns scope status.
+Enhanced with contextual rules, word boundaries, and confidence scoring.
 """
 
 import re
@@ -15,60 +16,69 @@ class ScopeDetector:
         "fees": ["fee", "tuition", "cost", "payment", "payment plan", "scholarship", "loan", 
                  "installment", "financial", "expense", "money", "budget", "deposit"],
         "exams": ["exam", "test", "quiz", "assessment", "midterm", "final", "score", 
-                  "mark", "result", "pass", "fail", "fail", "grading", "gpa"],
-        "timetable": ["schedule", "timetable", "timing", "class time", "when", "time", 
-                      "term", "semester", "session", "calendar", "dates"],
+                  "mark", "result", "pass", "fail", "grading", "gpa"],
+        "timetable": ["schedule", "timetable", "timing", "class time", "term", 
+                      "semester", "session", "calendar", "dates", "when"],
         "placements": ["placement", "job", "company", "recruitment", "salary", "internship", 
-                       "interview", "campus drive", "hiring", "career", "interview"],
+                       "interview", "campus drive", "hiring", "career"],
         "faculty": ["faculty", "professor", "teacher", "lecturer", "instructor", "staff", 
                     "contact", "office", "department", "department head"],
         "library": ["library", "book", "resource", "database", "journal", "research", 
-                    "e-book", "reference", "study"],
+                    "reference", "study room"],
         "admission": ["admission", "apply", "application", "cutoff", "entrance", "merit", 
-                      "requirement", "eligibility", "document", "rejection"],
-        "college_info": ["college", "institution", "university", "campus", "about", 
-                         "facility", "location", "history"],
+                      "requirement", "eligibility", "document"],
+        "college_info": ["college", "institution", "university", "campus", "curriculum",
+                         "course", "degree", "faculty", "facility", "location", "history"],
         "hostel": ["hostel", "accommodation", "room", "boarding", "residence", "stay", 
-                   "mess", "food"],
-        "sports": ["sports", "cricket", "basketball", "gym", "athletics", "tournament", 
-                   "sports day", "physical", "fitness"]
+                   "mess"],
+        "sports": ["sports", "cricket", "basketball", "gym", "athletics", "tournament"]
     }
     
-    # Out-of-scope keywords that trigger generic "out of scope" responses
-    OUT_OF_SCOPE_INDICATORS = [
-        # Technology/Science
-        "quantum", "relativity", "physics", "chemistry", "biology", "programming language", 
-        "algorithm", "machine learning", "artificial intelligence", "deep learning", 
-        "neural network", "python", "java", "javascript", "react", "angular",
+    # DEFINITE out-of-scope: Always out of scope (high confidence)
+    DEFINITE_OUT_OF_SCOPE = [
+        # Action-based (asking for help with non-college tasks)
+        r"\bwrite\s+(my\s+)?code\b", r"\bdo\s+my\s+(assignment|homework|project)\b",
+        r"\bcomplete\s+my\b", r"\bwrite\s+my\b", r"\bhelp\s+me\s+(write|code|debug)\b",
         
-        # Politics/Current affairs
-        "election", "government", "politics", "politician", "president", "minister", 
-        "parliament", "war", "conflict", "international",
+        # Cooking/Food (not college-related)
+        r"\b(cook|recipe|cooking|how\s+to\s+cook)\b",
         
-        # Entertainment
-        "movie", "actor", "actress", "music", "song", "cricket match", "football", 
-        "celebrity", "bollywood", "hollywood", "netflix", "song",
+        # Entertainment (movies, celebrities, music)
+        r"\b(movie|film|actor|actress|celebrity|bollywood|hollywood|netflix)\b",
+        r"\b(music|concert|singer|band)\s+(?!college)",
         
-        # Personal/Medical
-        "health", "disease", "medicine", "doctor", "hospital", "symptom", "diet", 
-        "weight", "exercise", "mental health",
+        # Hobby/Personal
+        r"\bgarden(ing)?\b", r"\btravel\s+recommendation\b", r"\bhow\s+to\s+(fix|repair|build|make)(?!\s+a\s+study)",
         
-        # Philosophy/Abstract
-        "meaning of life", "god", "religion", "spirituality", "consciousness", 
-        "metaphysics", "existential",
-        
-        # Other domains
-        "gardening", "cooking", "travel recommendation", "real estate", "law", 
-        "taxes", "investment", "stock"
+        # Finance/Investment
+        r"\b(stock|bitcoin|investment|tax|trading)\b",
+        r"\b(real\s+estate|property|mortgage)\b",
+    ]
+    
+    # AMBIGUOUS out-of-scope: May be out of scope depending on context
+    AMBIGUOUS_OUT_OF_SCOPE = [
+        r"\bmachine\s+learning\b", r"\bdeep\s+learning\b", r"\bneural\s+network\b",
+        r"\bartificial\s+intelligence\b", r"\bpython\s+(programming|code)\b", r"\bjava\s+(programming)\b",
+        r"\bquantum\b", r"\bphysics\b", r"\bchemistry\b", r"\bbiology\b",
+    ]
+    
+    # College context prefixes that make ambiguous queries in-scope
+    COLLEGE_CONTEXT_PREFIXES = [
+        "in college", "in campus", "at college", "at university", 
+        "college", "campus", "course", "student", "professor tells",
+        "my professor", "my college", "our college", "the college"
     ]
     
     def __init__(self):
         """Initialize scope detector."""
         self.confidence_threshold = 0.3
+        self.definite_oos_pattern = re.compile("|".join(self.DEFINITE_OUT_OF_SCOPE), re.IGNORECASE)
+        self.ambiguous_oos_pattern = re.compile("|".join(self.AMBIGUOUS_OUT_OF_SCOPE), re.IGNORECASE)
     
     def is_in_scope(self, query: str, detected_intent: str = "", intent_confidence: float = 0.5) -> Tuple[bool, str, float]:
         """
         Determine if query is within college domain scope.
+        Uses multi-level analysis: definite rules → contextual analysis → keyword matching.
         
         Args:
             query (str): User's query
@@ -80,71 +90,76 @@ class ScopeDetector:
         """
         query_lower = query.lower()
         
-        # Check for explicit out-of-scope indicators
-        out_of_scope_score = self._check_out_of_scope(query_lower)
-        if out_of_scope_score > 0.7:
-            return False, "out_of_domain", out_of_scope_score
+        # Level 0: Check for college context FIRST (override ambiguous queries)
+        has_college_context = any(prefix in query_lower for prefix in self.COLLEGE_CONTEXT_PREFIXES)
+        if has_college_context:
+            return True, "college_context_detected", 0.85
         
-        # Check for college domain keywords
-        domain_score = self._check_domain_keywords(query_lower)
+        # Level 1: Check for DEFINITE out-of-scope indicators (high confidence)
+        if self.definite_oos_pattern.search(query_lower):
+            return False, "definite_out_of_domain", 0.95
         
-        # Check detected intent relevance
-        if detected_intent and detected_intent in ["college_info", "fees", "exams", "timetable", 
-                                                     "placements", "faculty", "library", "admission", 
-                                                     "hostel", "sports"]:
-            # If intent classifier is confident, trust it
+        # Level 2: Check for ambiguous out-of-scope indicators
+        if self.ambiguous_oos_pattern.search(query_lower):
+            return False, "ambiguous_out_of_domain", 0.65
+        
+        # Level 3: Check for college domain keywords
+        domain_score, matched_category = self._check_domain_keywords(query_lower)
+        
+        # Level 4: Use intent classifier if confident
+        if detected_intent and detected_intent in [
+            "college_info", "fees", "exams", "timetable", "placements", 
+            "faculty", "library", "admission", "hostel", "sports"
+        ]:
             if intent_confidence > 0.4:
                 return True, f"detected_intent_{detected_intent}", intent_confidence
         
-        # Final decision based on keyword analysis
+        # Level 5: Final decision based on keyword analysis
         if domain_score > self.confidence_threshold:
-            return True, "domain_keywords", domain_score
+            return True, f"domain_keywords_{matched_category}", domain_score
         
-        # If still ambiguous and low keyword match, default to out of scope
-        return False, "low_domain_confidence", domain_score
+        # Level 6: Default to out-of-scope if no matches
+        return False, "low_domain_confidence", max(domain_score, intent_confidence * 0.3)
     
-    def _check_out_of_scope(self, query: str) -> float:
-        """
-        Check if query contains out-of-scope indicators.
-        Returns a confidence score for being out-of-scope.
-        """
-        out_of_scope_count = 0
-        total_indicators_checked = len(self.OUT_OF_SCOPE_INDICATORS)
-        
-        for indicator in self.OUT_OF_SCOPE_INDICATORS:
-            if indicator.lower() in query:
-                out_of_scope_count += 1
-        
-        # Return confidence that this is out of scope
-        if out_of_scope_count == 0:
-            return 0.0
-        
-        return min(out_of_scope_count / total_indicators_checked, 1.0)
-    
-    def _check_domain_keywords(self, query: str) -> float:
+    def _check_domain_keywords(self, query: str) -> Tuple[float, str]:
         """
         Check how many domain keywords match the query.
-        Returns a confidence score for being in-domain.
+        Returns confidence score and best matching category.
+        Uses substring matching to handle plurals and word variations.
+        
+        Args:
+            query (str): Lowercase query text
+        
+        Returns:
+            Tuple[float, str]: (confidence_score, category_name)
         """
         max_matches = 0
-        best_category = None
+        best_category = "unknown"
         
         for category, keywords in self.DOMAIN_KEYWORDS.items():
-            category_matches = sum(1 for keyword in keywords if keyword.lower() in query)
+            # Count matches using substring approach (handles plurals better)
+            category_matches = 0
+            for keyword in keywords:
+                # Use word boundaries at start, but allow natural word endings
+                if re.search(r'\b' + re.escape(keyword.lower()), query):
+                    category_matches += 1
             
             if category_matches > max_matches:
                 max_matches = category_matches
                 best_category = category
         
-        # Normalize: 1 match = high confidence, more matches = even higher
+        # Convert matches to confidence score
         if max_matches == 0:
-            return 0.0
+            # Special case: empty query might still be in-scope (user just wants help)
+            if query.strip() == "":
+                return 0.5, "empty_query"
+            return 0.0, best_category
         elif max_matches == 1:
-            return 0.5
-        elif max_matches <= 3:
-            return 0.7
+            return 0.7, best_category  # Increased from 0.6
+        elif max_matches == 2:
+            return 0.85, best_category  # Increased from 0.8
         else:
-            return 0.9
+            return 0.95, best_category
     
     def get_scope_info(self, query: str, detected_intent: str = "", intent_confidence: float = 0.5) -> dict:
         """
