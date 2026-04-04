@@ -31,6 +31,10 @@ from database import ChatbotDatabase
 from time_context import TimeContext
 from scope_detector import ScopeDetector
 from prompt_engineering import PromptEngineer
+from session_greeter import SessionGreeter
+from error_recovery import ErrorRecovery
+from emotional_tone_detector import EmotionalToneDetector
+from intent_refiner import IntentRefiner
 from utils import (
     get_time_greeting, get_time_of_day, calculate_confidence_percentage,
     is_college_domain_query, truncate_text, get_current_timestamp
@@ -135,13 +139,23 @@ def initialize_models():
         scope_detector = ScopeDetector()
         prompt_engineer = PromptEngineer()
         
+        # Phase 2: Enhanced modules for faster, more accurate responses
+        session_greeter = SessionGreeter()
+        error_recovery = ErrorRecovery()
+        tone_detector = EmotionalToneDetector()
+        intent_refiner = IntentRefiner()
+        
         return {
             "intent_classifier": intent_classifier,
             "emotion_detector": emotion_detector,
             "llm_handler": llm_handler,
             "database": database,
             "scope_detector": scope_detector,
-            "prompt_engineer": prompt_engineer
+            "prompt_engineer": prompt_engineer,
+            "session_greeter": session_greeter,
+            "error_recovery": error_recovery,
+            "tone_detector": tone_detector,
+            "intent_refiner": intent_refiner
         }
     
     except Exception as e:
@@ -186,6 +200,10 @@ def chat_interface():
     database = models["database"]
     scope_detector = models["scope_detector"]
     prompt_engineer = models["prompt_engineer"]
+    session_greeter = models["session_greeter"]
+    error_recovery = models["error_recovery"]
+    tone_detector = models["tone_detector"]
+    intent_refiner = models["intent_refiner"]
     
     time_context = TimeContext()
     
@@ -278,42 +296,55 @@ def chat_interface():
     # Main content area
     st.markdown("---")
     
-    # First-time greeting and name collection
+    # First-time greeting and name collection (Claude-like, warm, no hallucinations)
     if not st.session_state.greeting_shown and len(st.session_state.messages) == 0:
-        st.markdown("### 👋 Welcome to Your College Assistant!")
-        st.info("I'm an AI assistant with advanced understanding of college queries. I can help with fees, exams, placements, faculty info, and much more. Let's start!")
+        col_greeting, col_info = st.columns([0.6, 0.4])
+        
+        with col_greeting:
+            st.markdown("### 👋 Welcome!")
+            greeting_text = session_greeter.greet(include_prompt=False)
+            st.markdown(greeting_text)
+        
+        with col_info:
+            st.info(session_greeter.quick_help())
+        
+        st.markdown("---")
         
         col1, col2 = st.columns([0.7, 0.3])
         with col1:
             user_name = st.text_input(
-                "What's your name?",
+                "Your name (optional):",
                 placeholder="Enter your name...",
                 key="name_input"
             )
         with col2:
             if st.button("✨ Start Chat", use_container_width=True):
-                if user_name.strip():
-                    st.session_state.user_name = user_name.strip()
-                    st.session_state.greeting_shown = True
-                    
-                    greeting = f"Hi {st.session_state.user_name}! 👋 Welcome to our college assistant. {time_context.get_intelligent_greeting()} What would you like to know?"
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": greeting,
-                        "debug_info": {
-                            "intent": "greeting",
-                            "confidence": 1.0,
-                            "emotion": "friendly",
-                            "llm_source": "system",
-                            "response_time": 0,
-                            "is_in_scope": True,
-                            "should_clarify": False,
-                            "scope_reason": "system_greeting"
-                        }
-                    })
-                    st.rerun()
-                else:
-                    st.warning("Please enter your name to continue!")
+                st.session_state.user_name = user_name.strip() if user_name else "there"
+                st.session_state.greeting_shown = True
+                st.session_state.session_start_time = time.time()
+                
+                # Use SessionGreeter for personalized greeting
+                session_greeter_instance = SessionGreeter(
+                    user_name=st.session_state.user_name,
+                    is_returning=False
+                )
+                greeting = session_greeter_instance.greet(include_prompt=True)
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": greeting,
+                    "debug_info": {
+                        "intent": "greeting",
+                        "confidence": 1.0,
+                        "emotion": "friendly",
+                        "llm_source": "session_greeter",
+                        "response_time": 0,
+                        "is_in_scope": True,
+                        "should_clarify": False,
+                        "scope_reason": "system_greeting"
+                    }
+                })
+                st.rerun()
         st.stop()
     
     # Display chat history
@@ -373,7 +404,7 @@ def chat_interface():
             "content": user_input
         })
         
-        with st.spinner("🤔 Analyzing your question..."):
+        with st.spinner("⚡ Processing your question..."):
             start_time = time.time()
             
             # STEP 1: Intent classification
@@ -385,28 +416,64 @@ def chat_interface():
             emotion_result = emotion_detector.detect_emotion(user_input)
             emotion = emotion_result.get("emotion", "neutral")
             
-            # STEP 3: Scope detection (NEW)
+            # STEP 3: PHASE 2 - Intent refinement using context (FAST & ACCURATE)
+            history = st.session_state.conversation_context.get_formatted_history()
+            refined_intent_result = intent_refiner.refine_intent(
+                predicted_intent=intent,
+                confidence=confidence,
+                user_input=user_input,
+                conversation_history=history,
+                emotion=emotion
+            )
+            intent = refined_intent_result["intent"]
+            confidence = refined_intent_result["confidence"]
+            was_refined = refined_intent_result["refined"]
+            
+            # STEP 4: PHASE 2 - Emotional tone detection for adaptive responses
+            tone_result = tone_detector.detect_tone(user_input, emotion, intent)
+            emotional_tone = tone_result["tone_name"]
+            tone_guidelines = tone_detector.get_response_guidelines(tone_result)
+            
+            # STEP 5: Scope detection
             scope_info = scope_detector.get_scope_info(user_input, intent, confidence)
             is_in_scope = scope_info["is_in_scope"]
             scope_reason = scope_info["reason"]
             
-            # STEP 4: Get conversation history for context
-            history = st.session_state.conversation_context.get_formatted_history()
+            # STEP 6: Error recovery check (for confidence issues)
+            if confidence < 0.4:
+                error_info = error_recovery.handle_confidence_error(confidence, intent)
+                if not error_info.get("should_proceed", True):
+                    emotion = "confused"  # Adjust emotion for clarification
             
-            # STEP 5: Generate response with ALL enhancements
-            llm_result = llm_handler.generate_response(
-                user_input=user_input,
-                intent=intent,
-                confidence=confidence,
-                emotion=emotion,
-                conversation_history=st.session_state.conversation_context.get_history()
-            )
+            # STEP 7: Generate response with ALL enhancements (LLM ALWAYS USED)
+            try:
+                llm_result = llm_handler.generate_response(
+                    user_input=user_input,
+                    intent=intent,
+                    confidence=confidence,
+                    emotion=emotion,
+                    conversation_history=history,
+                    tone_guidelines=tone_guidelines  # Pass tone for response adaptation
+                )
+                
+                response = llm_result["response"]
+                llm_source = llm_result.get("source", "unknown")
+                response_time = llm_result.get("time", 0.0)
+                should_clarify = llm_result.get("should_clarify", False)
+                is_in_scope_llm = llm_result.get("is_in_scope", True)
             
-            response = llm_result["response"]
-            llm_source = llm_result.get("source", "unknown")
-            response_time = llm_result.get("time", 0.0)
-            should_clarify = llm_result.get("should_clarify", False)
-            is_in_scope_llm = llm_result.get("is_in_scope", True)
+            except Exception as e:
+                # Error recovery: graceful fallback
+                error_recovery_result = error_recovery.handle_api_error(
+                    error=e,
+                    operation="llm_response_generation",
+                    context={"intent": intent, "user_input": user_input[:50]}
+                )
+                response = error_recovery_result.get("message", "Let me reconsider that. Could you rephrase?")
+                llm_source = "fallback"
+                response_time = 0.0
+                should_clarify = True
+                is_in_scope_llm = True
             
             total_time = time.time() - start_time
         
@@ -415,8 +482,12 @@ def chat_interface():
             "intent": intent,
             "confidence": confidence,
             "emotion": emotion,
+            "emotional_tone": emotional_tone,  # PHASE 2: Tone awareness
+            "intent_refined": was_refined,     # PHASE 2: Intent refinement
+            "tone_emphasis": tone_guidelines.get("emphasis"),  # PHASE 2: Response tone
             "llm_source": llm_source,
             "response_time": response_time,
+            "total_processing_time": f"{total_time:.2f}s",
             "is_in_scope": is_in_scope_llm,
             "should_clarify": should_clarify,
             "scope_reason": scope_reason,

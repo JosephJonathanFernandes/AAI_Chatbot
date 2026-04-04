@@ -64,7 +64,8 @@ class LLMHandler:
                          confidence: float,
                          emotion: str, 
                          conversation_history: List[Dict] = None,
-                         stream: bool = False) -> dict:
+                         stream: bool = False,
+                         tone_guidelines: dict = None) -> dict:
         """
         Generate response using LLM with ALWAYS-ON strategy (never bypass LLM).
         
@@ -79,6 +80,7 @@ class LLMHandler:
             emotion (str): Detected emotion
             conversation_history (List): Previous conversation turns
             stream (bool): Enable streaming
+            tone_guidelines (dict): Response tone guidelines (PHASE 2)
         
         Returns:
             dict: Response with metadata (response, source, time, is_in_scope, etc.)
@@ -116,17 +118,29 @@ class LLMHandler:
             time_context=time_context_str
         )
         
-        # STEP 6: Add confidence-based behavior instruction to system prompt
+        # STEP 6: PHASE 2 - Add tone guidelines if provided
+        if tone_guidelines:
+            tone_instruction = f"\n\nRESPONSE TONE: {tone_guidelines.get('tone', 'informative').upper()}\n"
+            tone_instruction += f"- Format: {tone_guidelines.get('length', 'standard')}\n"
+            tone_instruction += f"- Formality: {tone_guidelines.get('formality', 'professional')}\n"
+            tone_instruction += f"- Detail Level: {tone_guidelines.get('detail_level', 'appropriate')}\n"
+            if tone_guidelines.get('prefix'):
+                tone_instruction += f"- Start with: {tone_guidelines['prefix']}\n"
+            if tone_guidelines.get('suffix'):
+                tone_instruction += f"- End with: {tone_guidelines['suffix']}\n"
+            system_prompt += tone_instruction
+        
+        # STEP 7: Add confidence-based behavior instruction to system prompt
         if confidence < 0.3:
             # Low confidence → instruct LLM to ask clarification
             clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
             system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this clarification question before providing an answer:\n{clarification_guide}"
         
-        # STEP 7: Add scope instruction to system prompt
+        # STEP 8: Add scope instruction to system prompt
         if not is_in_scope:
             system_prompt += f"\n\nIMPORTANT: This query is OUT-OF-SCOPE. Respond with:\n'{scope_info['out_of_scope_response']}'"
         
-        # STEP 8: Try Groq API first
+        # STEP 9: Try Groq API first
         result = self._call_groq_api(system_prompt, user_prompt)
         response_time = time.time() - start_time
         
@@ -144,7 +158,7 @@ class LLMHandler:
                 "should_clarify": confidence < 0.3
             }
         
-        # STEP 9: Fallback to Ollama
+        # STEP 10: Fallback to Ollama
         print("⚠️ Groq API failed, falling back to Ollama...")
         result = self._call_ollama_api(system_prompt, user_prompt)
         response_time = time.time() - start_time

@@ -1,6 +1,7 @@
 """
 CLI runner for the college chatbot (optional).
 Provides a command-line interface for testing and interaction.
+Features Phase 2: Fast, accurate responses with emotion/intent improvements.
 """
 
 import argparse
@@ -9,6 +10,10 @@ from emotion_detector import EmotionDetector
 from llm_handler import LLMHandler
 from context_manager import ConversationContext
 from database import ChatbotDatabase
+from session_greeter import SessionGreeter
+from error_recovery import ErrorRecovery
+from emotional_tone_detector import EmotionalToneDetector
+from intent_refiner import IntentRefiner
 from utils import get_time_of_day, is_college_domain_query
 import time
 
@@ -27,6 +32,12 @@ class ChatbotCLI:
         self.database = ChatbotDatabase()
         self.context_manager = ConversationContext()
         
+        # Phase 2: Enhanced modules
+        self.session_greeter = SessionGreeter()
+        self.error_recovery = ErrorRecovery()
+        self.tone_detector = EmotionalToneDetector()
+        self.intent_refiner = IntentRefiner()
+        
         # Train model if needed
         if not self.intent_classifier.is_trained:
             print("Training intent classifier...")
@@ -36,7 +47,9 @@ class ChatbotCLI:
     
     def run(self):
         """Run the interactive CLI chatbot."""
-        print("=" * 60)
+        # Phase 2: Show contextual greeting
+        print(self.session_greeter.greet(include_prompt=True))
+        print("\n" + "=" * 60)
         print("College AI Assistant - CLI Mode")
         print("=" * 60)
         print("Type 'quit' to exit, 'help' for commands\n")
@@ -89,31 +102,69 @@ class ChatbotCLI:
         emotion = emotion_result.get("emotion", "neutral")
         emotion_conf = emotion_result.get("confidence", 0.0)
         
-        # Step 3: Check if in domain
+        # PHASE 2: Step 3 - Refine intent using context (FAST & ACCURATE)
+        history = self.context_manager.get_history()
+        refined_result = self.intent_refiner.refine_intent(
+            predicted_intent=intent,
+            confidence=confidence,
+            user_input=user_input,
+            conversation_history=history,
+            emotion=emotion
+        )
+        intent = refined_result["intent"]
+        confidence = refined_result["confidence"]
+        
+        # PHASE 2: Step 4 - Detect emotional tone for adaptive responses
+        tone_result = self.tone_detector.detect_tone(user_input, emotion, intent)
+        emotional_tone = tone_result["tone_name"]
+        tone_guidelines = self.tone_detector.get_response_guidelines(tone_result)
+        
+        # Step 5: Check if in domain
         is_in_domain = is_college_domain_query(intent, confidence)
         
-        # Step 4: Generate context
+        # PHASE 2: Step 6 - Error recovery check
+        if confidence < 0.4:
+            error_info = self.error_recovery.handle_confidence_error(confidence, intent)
+            if not error_info.get("should_proceed", True):
+                emotion = "confused"
+        
+        # Step 7: Generate context
         context = self.context_manager.get_prompt_context()
         
-        # Step 5: Generate response
-        if not is_in_domain or confidence < 0.5:
-            response = self.context_manager.get_clarification_prompt()
-            llm_source = "clarification"
-            response_time = 0.0
-        else:
-            llm_result = self.llm_handler.generate_response(
-                user_input,
-                intent,
-                confidence,
-                emotion,
-                context
-            )
-            response = llm_result["response"]
-            llm_source = llm_result.get("source", "unknown")
-            response_time = llm_result.get("time", 0.0)
+        # Step 8: Generate response with Phase 2 enhancements
+        try:
+            if not is_in_domain or confidence < 0.5:
+                response = self.context_manager.get_clarification_prompt()
+                llm_source = "clarification"
+                response_time = 0.0
+            else:
+                llm_result = self.llm_handler.generate_response(
+                    user_input,
+                    intent,
+                    confidence,
+                    emotion,
+                    context,
+                    tone_guidelines=tone_guidelines  # PHASE 2
+                )
+                response = llm_result["response"]
+                llm_source = llm_result.get("source", "unknown")
+                response_time = llm_result.get("time", 0.0)
         
-        # Display response
+        except Exception as e:
+            # PHASE 2: Error recovery - graceful fallback
+            error_recovery_result = self.error_recovery.handle_api_error(
+                error=e,
+                operation="llm_response_generation",
+                context={"intent": intent, "user_input": user_input[:50]}
+            )
+            response = error_recovery_result.get("message", "Let me reconsider that. Could you rephrase?")
+            llm_source = "fallback"
+            response_time = 0.0
+        
+        # Display response with tone indicator
         print(f"\nAssistant: {response}")
+        if emotional_tone != "neutral":
+            print(f"  📊 Tone: {emotional_tone.replace('_', ' ').title()}")
         
         # Update context
         self.context_manager.add_turn(
