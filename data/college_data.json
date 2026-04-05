@@ -9,59 +9,70 @@
     "email": "admissions@aai.edu",
     "office_hours": "Monday-Friday, 9:00 AM - 5:00 PM"
   },
+  "general": {
+    "description": "Advanced Academic Institute (AAI) is a premier educational institution established in 2010, committed to academic excellence and holistic development. We offer diverse programs in Engineering, Science, Commerce, and Liberal Arts with world-class faculty and infrastructure.",
+    "keywords": ["about", "college info", "institute", "courses", "programs"],
+    "courses_offered": ["B.Tech (Engineering)", "B.Sc (Science)", "B.Com (Commerce)", "B.A (Liberal Arts)", "M.Tech", "MBA", "Ph.D"],
+    "campus": {
+      "description": "Modern, green campus with state-of-the-art laboratories, computer centers, sports facilities, and recreational areas.",
+      "facilities": ["Air-conditioned classrooms", "Advanced labs", "Computer centers", "Auditorium", "Sports complex", "Cafeteria", "Medical center"]
+    },
+    "vision": "To be a globally recognized institution fostering innovation, integrity, and social responsibility.",
+    "mission": "To provide quality education that develops competent, ethical professionals contributing to society."
+  },
   "fees": {
     "description": "Comprehensive fee structure for all programs",
     "keywords": ["cost", "tuition", "payment", "scholarship", "financial aid"],
     "engineering": {
-      "annual": 120000,
-      "semester": 60000,
-      "currency": "USD",
+      "annual": 1200000,
+      "semester": 600000,
+      "currency": "INR (₹)",
       "payment_deadline": "Before start of semester",
       "description": "Engineering program fees (includes lab facilities)",
       "components": {
-        "tuition": 85000,
-        "hostel": 20000,
-        "lab_fee": 8000,
-        "library_fee": 2000,
-        "activity_fee": 5000
+        "tuition": 850000,
+        "hostel": 200000,
+        "lab_fee": 80000,
+        "library_fee": 20000,
+        "activity_fee": 50000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 3)"],
       "late_fee": "₹500 per day after deadline"
     },
     "arts": {
-      "annual": 45000,
-      "semester": 22500,
-      "currency": "USD",
+      "annual": 450000,
+      "semester": 225000,
+      "currency": "INR (₹)",
       "components": {
-        "tuition": 32000,
-        "hostel": 8000,
-        "library_fee": 2000,
-        "activity_fee": 3000
+        "tuition": 320000,
+        "hostel": 80000,
+        "library_fee": 20000,
+        "activity_fee": 30000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque"]
     },
     "science": {
-      "annual": 75000,
-      "semester": 37500,
-      "currency": "USD",
+      "annual": 750000,
+      "semester": 375000,
+      "currency": "INR (₹)",
       "components": {
-        "tuition": 55000,
-        "hostel": 12000,
-        "lab_fee": 6000,
-        "library_fee": 2000
+        "tuition": 550000,
+        "hostel": 120000,
+        "lab_fee": 60000,
+        "library_fee": 20000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 2)"]
     },
     "commerce": {
-      "annual": 55000,
-      "semester": 27500,
-      "currency": "USD",
+      "annual": 550000,
+      "semester": 275000,
+      "currency": "INR (₹)",
       "components": {
-        "tuition": 38000,
-        "hostel": 10000,
-        "software_fee": 4000,
-        "library_fee": 2000,
-        "activity_fee": 1000
+        "tuition": 380000,
+        "hostel": 100000,
+        "software_fee": 40000,
+        "library_fee": 20000,
+        "activity_fee": 10000
       }
     },
     "scholarships": {
@@ -283,5 +294,25 @@
       "answer": "Yes, WiFi with 100 Mbps speed is provided 24/7. Connectivity issues can be reported to hostel office.",
       "keywords": ["WiFi", "internet", "hostel", "connectivity"]
     }
-  ]
+  ],
+  "timetable": {
+    "description": "College working hours and class schedule",
+    "keywords": ["time", "schedule", "class timing", "working hours", "timetable"],
+    "academic_year": "July to June",
+    "working_days": "Monday to Friday",
+    "office_hours": "9:00 AM - 5:00 PM",
+    "class_timings": {
+      "morning_session": "9:00 AM - 1:00 PM (lectures)",
+      "lunch_break": "1:00 PM - 2:00 PM",
+      "afternoon_session": "2:00 PM - 5:00 PM (practicals/tutorials)",
+      "periods": "Each period is 50 minutes"
+    },
+    "semester_schedule": {
+      "odd_semester": "July - November (approx 5 months)",
+      "even_semester": "December - May (approx 6 months)",
+      "holidays": "National holidays + college-specific breaks"
+    },
+    "library_timings": "8:00 AM - 8:00 PM (Weekdays), 10:00 AM - 4:00 PM (Weekends)",
+    "lab_access": "Scheduled as per class timetable + after-hours access for approved research"
+  }
 }
