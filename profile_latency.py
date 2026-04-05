@@ -15,11 +15,11 @@ def profile_component(name, func, *args, **kwargs):
     try:
         result = func(*args, **kwargs)
         elapsed = (time.perf_counter() - start) * 1000  # ms
-        print(f"✓ {name:30} | {elapsed:7.2f}ms | Success")
+        print(f"[OK] {name:30} | {elapsed:7.2f}ms | Success")
         return elapsed, result
     except Exception as e:
         elapsed = (time.perf_counter() - start) * 1000
-        print(f"✗ {name:30} | {elapsed:7.2f}ms | Error: {str(e)[:40]}")
+        print(f"[FAIL] {name:30} | {elapsed:7.2f}ms | Error: {str(e)[:40]}")
         return elapsed, None
 
 print("\n" + "="*80)
