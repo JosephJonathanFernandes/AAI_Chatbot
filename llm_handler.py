@@ -94,13 +94,24 @@ class LLMHandler:
             # STEP 4: Format conversation history
             formatted_history = self._format_conversation_history(conversation_history)
             
+            # STEP 4B: Count prior clarifications to avoid clarification loops
+            clarification_count = 0
+            if conversation_history:
+                for turn in conversation_history:
+                    if isinstance(turn, dict):
+                        bot_resp = turn.get('bot_response', '').lower()
+                        # Count if bot asked a clarification question (?, or "are you asking")
+                        if ('are you' in bot_resp or 'could you' in bot_resp or '?' in bot_resp) and len(bot_resp) < 200:
+                            clarification_count += 1
+            
             # STEP 5: Build structured prompts
             system_prompt = self.prompt_engineer.build_system_prompt(
                 intent=intent,
                 confidence=confidence,
                 emotion=emotion,
                 is_in_scope=is_in_scope,
-                scope_reason=scope_info.get("reason", "")
+                scope_reason=scope_info.get("reason", ""),
+                clarification_count=clarification_count
             )
             
             user_prompt = self.prompt_engineer.build_user_prompt(
@@ -123,10 +134,12 @@ class LLMHandler:
                     tone_instruction += f"- End with: {tone_guidelines['suffix']}\n"
                 system_prompt += tone_instruction
             
-            # STEP 7: Add confidence-based behavior instruction
-            if confidence < 0.3:
+            # STEP 7: Add confidence-based behavior instruction (ONLY if no prior clarifications)
+            if confidence < 0.4 and clarification_count == 0:
                 clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
-                system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this clarification question:\n{clarification_guide}"
+                system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this ONE clarification question:\n{clarification_guide}"
+            elif clarification_count > 0:
+                system_prompt += "\n\nCLARIFICATION ALREADY DONE: Provide your best answer without asking again."
             
             # STEP 8: Add scope instruction
             if not is_in_scope:
@@ -147,7 +160,7 @@ class LLMHandler:
                     "intent": intent,
                     "confidence": confidence,
                     "emotion": emotion,
-                    "should_clarify": confidence < 0.3
+                    "should_clarify": confidence < 0.4 and clarification_count == 0
                 }
             
             # STEP 10: Fallback to Ollama
@@ -202,7 +215,7 @@ class LLMHandler:
     def _get_grounded_knowledge(self, intent: str, query: str) -> str:
         """
         Get relevant knowledge grounding from college_data based on intent.
-        This is RAG-lite - retrieve only relevant sections.
+        This is RAG-lite - retrieve only relevant sections + structured generic answers.
         
         Args:
             intent (str): Detected intent
@@ -213,7 +226,75 @@ class LLMHandler:
         """
         knowledge_parts = []
         
-        # Map intents to college_data sections
+        # Generic structured answers to provide when exact data is unavailable
+        generic_knowledge = {
+            "fees": """
+GENERIC COLLEGE FEE STRUCTURE (Use if exact data unavailable):
+- Academic fees: Charged per semester/year
+- Lab/Practical charges: For engineering/science programs
+- Library & Development fees: Typically included
+- Examination fees: For each exam/semester
+- Registration/Admission fee: Usually one-time payment
+
+Payment Options (typical):
+- Online portal: UPI, Card, Net Banking
+- Cheque/DD to college account
+- Installment plans: Available (contact admissions office)
+
+Admission fees are typically separate from tuition.
+            """,
+            "exams": """
+GENERIC EXAM SCHEDULE (Use if exact dates unavailable):
+- Mid-semester exams: Usually around 1/3rd through semester
+- End-semester exams: Final month of semester
+- Exam dates: Posted 2-3 weeks in advance
+- Results: Usually 2-3 weeks after exam ends
+
+Typical exam format:
+- Written exams: 2-3 hours
+- Practical exams: 3-4 hours
+- Projects/Internals: Continuous evaluation
+- Online exams: As per college schedule
+            """,
+            "placements": """
+GENERIC PLACEMENT PROCESS:
+- Eligibility: Usually min 60-70% CGPA
+- Recruitment season: August-November (peak)
+- Companies: 50-100+ companies typically visit
+- Average package: ₹5-15 LPA (varies by stream)
+- Placement rate: 85-95% (typical)
+- Process: Resume → Group Discussion → Interview → Offer
+
+Higher studies option: Available if not interested in campus placements
+            """,
+            "hostel": """
+GENERIC HOSTEL INFO:
+- Types: Single/Double/Triple sharing rooms
+- Capacity: Usually 70-90% of student strength
+- Facilities: WiFi, Water, Electricity, Common areas
+- Mess: Usually included in hostel fee
+- Rules: Curfew typically 10-11 PM, Visitor policy, ID required
+- Gender: Separate hostels for boys/girls
+- Fee: Usually ₹20,000-60,000/year (varies by city and room type)
+
+Off-campus options: Available with college approval
+            """,
+            "admission": """
+GENERIC ADMISSION PROCESS:
+1. Check eligibility (10+2 or equivalent)
+2. Fill application form (online)
+3. Merit-based selection (entrance exam or 12th marks)
+4. Document verification & counseling
+5. Fee payment & enrollment
+6. Orientation & classes begin
+
+Entrance exams: JEE/BITSAT/GATE (varies by program)
+Documents needed: 10th/12th marks, Aadhar, Address proof
+Application fee: Usually ₹500-2000
+            """
+        }
+        
+        # Get specific college data first
         intent_to_keys = {
             "fees": ["tuition_fees", "scholarships", "payment_plans"],
             "exams": ["exam_schedule", "grading_system", "exam_rules"],
@@ -228,9 +309,11 @@ class LLMHandler:
         }
         
         relevant_keys = intent_to_keys.get(intent, [])
+        has_specific_data = False
         
         for key in relevant_keys:
             if key in self.college_data and self.college_data[key]:
+                has_specific_data = True
                 content = self.college_data[key]
                 
                 # Format based on content type
@@ -245,6 +328,12 @@ class LLMHandler:
         
         if knowledge_parts:
             return "\n\n".join(knowledge_parts)
+        
+        # FALLBACK: Use generic knowledge if no specific college data found
+        # This ensures LLM always has structured answer patterns
+        if intent in generic_knowledge:
+            return f"[Using generic college knowledge pattern]\n{generic_knowledge[intent]}"
+        
         return ""
     
     def _get_time_context(self) -> str:
