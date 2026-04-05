@@ -68,128 +68,136 @@ class LLMHandler:
                          tone_guidelines: dict = None) -> dict:
         """
         Generate response using LLM with ALWAYS-ON strategy (never bypass LLM).
-        
-        CRITICAL: The LLM is ALWAYS used to generate the final response.
-        Low confidence → instruct LLM to ask clarification
-        Out-of-scope → instruct LLM to reply with standard message
-        
-        Args:
-            user_input (str): User's question
-            intent (str): Detected intent
-            confidence (float): Intent confidence score (0-1)
-            emotion (str): Detected emotion
-            conversation_history (List): Previous conversation turns
-            stream (bool): Enable streaming
-            tone_guidelines (dict): Response tone guidelines (PHASE 2)
-        
-        Returns:
-            dict: Response with metadata (response, source, time, is_in_scope, etc.)
         """
-        self.total_api_calls += 1
-        start_time = time.time()
-        
-        # STEP 1: Check scope (but don't bypass LLM - inform it about scope)
-        scope_info = self.scope_detector.get_scope_info(user_input, intent, confidence)
-        is_in_scope = scope_info["is_in_scope"]
-        
-        # STEP 2: Get relevant knowledge grounding (RAG-lite)
-        relevant_knowledge = self._get_grounded_knowledge(intent, user_input)
-        
-        # STEP 3: Get time context
-        time_context_str = self._get_time_context()
-        
-        # STEP 4: Format conversation history (last 3-5 turns)
-        formatted_history = self._format_conversation_history(conversation_history)
-        
-        # STEP 5: Build structured prompts (ALWAYS use LLM)
-        system_prompt = self.prompt_engineer.build_system_prompt(
-            intent=intent,
-            confidence=confidence,
-            emotion=emotion,
-            is_in_scope=is_in_scope,
-            scope_reason=scope_info["reason"]
-        )
-        
-        user_prompt = self.prompt_engineer.build_user_prompt(
-            user_input=user_input,
-            intent=intent,
-            conversation_history=conversation_history or [],
-            relevant_knowledge=relevant_knowledge,
-            time_context=time_context_str
-        )
-        
-        # STEP 6: PHASE 2 - Add tone guidelines if provided
-        if tone_guidelines:
-            tone_instruction = f"\n\nRESPONSE TONE: {tone_guidelines.get('tone', 'informative').upper()}\n"
-            tone_instruction += f"- Format: {tone_guidelines.get('length', 'standard')}\n"
-            tone_instruction += f"- Formality: {tone_guidelines.get('formality', 'professional')}\n"
-            tone_instruction += f"- Detail Level: {tone_guidelines.get('detail_level', 'appropriate')}\n"
-            if tone_guidelines.get('prefix'):
-                tone_instruction += f"- Start with: {tone_guidelines['prefix']}\n"
-            if tone_guidelines.get('suffix'):
-                tone_instruction += f"- End with: {tone_guidelines['suffix']}\n"
-            system_prompt += tone_instruction
-        
-        # STEP 7: Add confidence-based behavior instruction to system prompt
-        if confidence < 0.3:
-            # Low confidence → instruct LLM to ask clarification
-            clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
-            system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this clarification question before providing an answer:\n{clarification_guide}"
-        
-        # STEP 8: Add scope instruction to system prompt
-        if not is_in_scope:
-            system_prompt += f"\n\nIMPORTANT: This query is OUT-OF-SCOPE. Respond with:\n'{scope_info['out_of_scope_response']}'"
-        
-        # STEP 9: Try Groq API first
-        result = self._call_groq_api(system_prompt, user_prompt)
-        response_time = time.time() - start_time
-        
-        if result and not result.get("error"):
-            self.groq_success_count += 1
+        try:
+            # Safety check for user_input
+            if not user_input or not isinstance(user_input, str):
+                user_input = "Hello"
+            
+            self.total_api_calls += 1
+            start_time = time.time()
+            
+            # STEP 1: Check scope
+            scope_info = self.scope_detector.get_scope_info(user_input, intent, confidence)
+            if not isinstance(scope_info, dict):
+                print(f"ERROR: scope_info is {type(scope_info)}, not dict: {scope_info}")
+                scope_info = {"is_in_scope": True, "reason": "error", "out_of_scope_response": "", "should_clarify": False, "confidence": 0.5}
+            
+            is_in_scope = scope_info.get("is_in_scope", True)
+            
+            # STEP 2: Get relevant knowledge grounding
+            relevant_knowledge = self._get_grounded_knowledge(intent, user_input)
+            
+            # STEP 3: Get time context
+            time_context_str = self._get_time_context()
+            
+            # STEP 4: Format conversation history
+            formatted_history = self._format_conversation_history(conversation_history)
+            
+            # STEP 5: Build structured prompts
+            system_prompt = self.prompt_engineer.build_system_prompt(
+                intent=intent,
+                confidence=confidence,
+                emotion=emotion,
+                is_in_scope=is_in_scope,
+                scope_reason=scope_info.get("reason", "")
+            )
+            
+            user_prompt = self.prompt_engineer.build_user_prompt(
+                user_input=user_input,
+                intent=intent,
+                conversation_history=conversation_history or [],
+                relevant_knowledge=relevant_knowledge,
+                time_context=time_context_str
+            )
+            
+            # STEP 6: Add tone guidelines if provided
+            if tone_guidelines and isinstance(tone_guidelines, dict):
+                tone_instruction = f"\n\nRESPONSE TONE: {tone_guidelines.get('tone', 'informative').upper()}\n"
+                tone_instruction += f"- Format: {tone_guidelines.get('length', 'standard')}\n"
+                tone_instruction += f"- Formality: {tone_guidelines.get('formality', 'professional')}\n"
+                tone_instruction += f"- Detail Level: {tone_guidelines.get('detail_level', 'appropriate')}\n"
+                if tone_guidelines.get('prefix'):
+                    tone_instruction += f"- Start with: {tone_guidelines['prefix']}\n"
+                if tone_guidelines.get('suffix'):
+                    tone_instruction += f"- End with: {tone_guidelines['suffix']}\n"
+                system_prompt += tone_instruction
+            
+            # STEP 7: Add confidence-based behavior instruction
+            if confidence < 0.3:
+                clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
+                system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this clarification question:\n{clarification_guide}"
+            
+            # STEP 8: Add scope instruction
+            if not is_in_scope:
+                system_prompt += f"\n\nIMPORTANT: This query is OUT-OF-SCOPE. Respond with:\n'{scope_info.get('out_of_scope_response', '')}'"
+            
+            # STEP 9: Try Groq API first
+            result = self._call_groq_api(system_prompt, user_prompt)
+            response_time = time.time() - start_time
+            
+            if result and isinstance(result, dict) and not result.get("error"):
+                self.groq_success_count += 1
+                return {
+                    "response": result.get("response", ""),
+                    "error": None,
+                    "source": "groq",
+                    "time": response_time,
+                    "is_in_scope": is_in_scope,
+                    "intent": intent,
+                    "confidence": confidence,
+                    "emotion": emotion,
+                    "should_clarify": confidence < 0.3
+                }
+            
+            # STEP 10: Fallback to Ollama
+            print("⚠️ Groq API failed, falling back to Ollama...")
+            result = self._call_ollama_api(system_prompt, user_prompt)
+            response_time = time.time() - start_time
+            self.fallback_count += 1
+            
+            if result and isinstance(result, dict) and not result.get("error"):
+                return {
+                    "response": result.get("response", ""),
+                    "error": None,
+                    "source": "ollama",
+                    "time": response_time,
+                    "is_in_scope": is_in_scope,
+                    "intent": intent,
+                    "confidence": confidence,
+                    "emotion": emotion,
+                    "should_clarify": confidence < 0.3
+                }
+            
+            # STEP 11: If all fails, return fallback
+            fallback_response = self.prompt_engineer.build_fallback_prompt()
             return {
-                "response": result["response"],
-                "error": None,
-                "source": "groq",
+                "response": fallback_response,
+                "error": "Both APIs failed",
+                "source": "fallback",
                 "time": response_time,
                 "is_in_scope": is_in_scope,
                 "intent": intent,
                 "confidence": confidence,
                 "emotion": emotion,
-                "should_clarify": confidence < 0.3
+                "should_clarify": False
             }
         
-        # STEP 10: Fallback to Ollama
-        print("⚠️ Groq API failed, falling back to Ollama...")
-        result = self._call_ollama_api(system_prompt, user_prompt)
-        response_time = time.time() - start_time
-        self.fallback_count += 1
-        
-        if result and not result.get("error"):
+        except Exception as e:
+            print(f"CRITICAL ERROR in generate_response: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {
-                "response": result["response"],
-                "error": None,
-                "source": "ollama",
-                "time": response_time,
-                "is_in_scope": is_in_scope,
+                "response": "I'm having technical difficulties. Please try again.",
+                "error": str(e),
+                "source": "error",
+                "time": time.time() - start_time,
+                "is_in_scope": True,
                 "intent": intent,
-                "confidence": confidence,
+                "confidence": 0.0,
                 "emotion": emotion,
-                "should_clarify": confidence < 0.3
+                "should_clarify": True
             }
-        
-        # STEP 10: If all fails, return fallback response
-        fallback_response = self.prompt_engineer.build_fallback_prompt()
-        return {
-            "response": fallback_response,
-            "error": "Both Groq and Ollama failed",
-            "source": "fallback",
-            "time": response_time,
-            "is_in_scope": is_in_scope,
-            "intent": intent,
-            "confidence": confidence,
-            "emotion": emotion,
-            "should_clarify": False
-        }
     
     def _get_grounded_knowledge(self, intent: str, query: str) -> str:
         """
@@ -299,9 +307,18 @@ class LLMHandler:
             )
             
             if response.status_code == 200:
-                data = response.json()
-                response_text = data["choices"][0]["message"]["content"].strip()
-                return {"response": response_text}
+                try:
+                    data = response.json()
+                    if not isinstance(data, dict):
+                        return {"error": "Response is not JSON dict"}
+                    response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    if response_text:
+                        return {"response": response_text}
+                    else:
+                        return {"error": "Empty response from Groq"}
+                except (ValueError, KeyError, IndexError, TypeError) as parse_error:
+                    print(f"Error parsing Groq response: {parse_error}")
+                    return {"error": f"Parse error: {str(parse_error)}"}
             else:
                 print(f"Groq API error {response.status_code}")
                 return {"error": f"Status {response.status_code}"}
@@ -345,13 +362,18 @@ class LLMHandler:
             )
             
             if response.status_code == 200:
-                data = response.json()
-                response_text = data.get("response", "").strip()
-                
-                if response_text:
-                    return {"response": response_text}
-                else:
-                    return {"error": "Empty response"}
+                try:
+                    data = response.json()
+                    if not isinstance(data, dict):
+                        return {"error": "Response is not JSON dict"}
+                    response_text = data.get("response", "").strip()
+                    if response_text:
+                        return {"response": response_text}
+                    else:
+                        return {"error": "Empty response from Ollama"}
+                except (ValueError, TypeError) as parse_error:
+                    print(f"Error parsing Ollama response: {parse_error}")
+                    return {"error": f"Parse error: {str(parse_error)}"}
             else:
                 print(f"Ollama API error {response.status_code}")
                 return {"error": f"Status {response.status_code}"}

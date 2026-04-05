@@ -115,12 +115,64 @@ class ChatbotDatabase:
                 )
             """)
 
+            # Commit all table creation
             conn.commit()
+            
+            # Migration: Add missing columns if they don't exist (after commit)
+            self._migrate_database(conn)
+
             conn.close()
             print(f"Database initialized successfully: {self.db_path}")
 
         except sqlite3.Error as e:
             print(f"Error creating tables: {e}")
+
+    def _migrate_database(self, conn):
+        """
+        Migrate database schema - add missing columns to existing tables.
+        
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.cursor()
+            
+            # Verify logs table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='logs'")
+            if not cursor.fetchone():
+                print("Logs table doesn't exist yet, skipping migration")
+                return
+            
+            # Check if session_id column exists in logs table
+            cursor.execute("PRAGMA table_info(logs)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            # Add missing columns one by one
+            columns_to_add = [
+                ("session_id", "TEXT"),
+                ("llm_source", "TEXT DEFAULT 'groq'"),
+                ("is_in_scope", "INTEGER DEFAULT 1"),
+                ("should_clarify", "INTEGER DEFAULT 0"),
+                ("scope_reason", "TEXT"),
+            ]
+            
+            for col_name, col_type in columns_to_add:
+                if col_name not in columns:
+                    try:
+                        print(f"Adding {col_name} column to logs table...")
+                        cursor.execute(f"ALTER TABLE logs ADD COLUMN {col_name} {col_type}")
+                        columns.append(col_name)
+                    except sqlite3.OperationalError as e:
+                        if "duplicate column name" in str(e).lower():
+                            print(f"Column {col_name} already exists")
+                        else:
+                            print(f"Error adding {col_name}: {e}")
+            
+            conn.commit()
+            print("Database migration completed successfully")
+            
+        except sqlite3.Error as e:
+            print(f"Migration error: {e}")
 
     def log_interaction(self,
                         user_input: str,
@@ -232,6 +284,13 @@ class ChatbotDatabase:
                 return {}
 
             cursor = conn.cursor()
+            
+            # Verify logs table exists before querying
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='logs'")
+            if not cursor.fetchone():
+                print("Logs table doesn't exist. Recreating...")
+                self.create_tables()
+                return {}
 
             # Total interactions
             cursor.execute("SELECT COUNT(*) as count FROM logs")
@@ -267,14 +326,17 @@ class ChatbotDatabase:
                 "SELECT AVG(response_time) as avg_time FROM logs")
             avg_response_time = cursor.fetchone()['avg_time'] or 0
 
-            # LLM source distribution
-            cursor.execute("""
-                SELECT llm_source, COUNT(*) as count
-                FROM logs
-                GROUP BY llm_source
-            """)
-            llm_sources = {row['llm_source']: row['count']
-                           for row in cursor.fetchall()}
+            # LLM source distribution (with error handling for missing column)
+            try:
+                cursor.execute("""
+                    SELECT llm_source, COUNT(*) as count
+                    FROM logs
+                    GROUP BY llm_source
+                """)
+                llm_sources = {row['llm_source']: row['count']
+                               for row in cursor.fetchall()}
+            except sqlite3.OperationalError:
+                llm_sources = {}
 
             conn.close()
 

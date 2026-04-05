@@ -41,7 +41,7 @@ CRITICAL CONSTRAINTS:
 2. If a query is outside your scope, respond EXACTLY with: "This is beyond my scope as a college assistant. I can help with fees, exams, placements, faculty, admissions, library, hostel, and other college-related information."
 3. Do NOT hallucinate or invent information. Use ONLY provided knowledge or explicitly state uncertainty.
 4. Be polite, helpful, and student-friendly in all responses.
-5. Keep responses concise (2-3 sentences for direct answers, more for detailed explanations).
+5. ALWAYS keep responses SHORT: 1-2 sentences max for direct answers. NO elaborate explanations or background info unless specifically asked.
 
 QUERY ANALYSIS:
 - User Intent: {intent}
@@ -72,12 +72,7 @@ BEHAVIOR INSTRUCTIONS:
         # Add confidence-based instructions
         if confidence < 0.3 and is_in_scope:
             system_prompt += f"""
-- Intent confidence is LOW ({confidence:.1%}). Before answering:
-  1. Acknowledge the low clarity
-  2. Ask a polite CLARIFICATION QUESTION to better understand
-  3. Be open to follow-up questions
-
-Example: "I'm not entirely sure what you need. Are you asking about [option A], [option B], or something else?"
+- Intent confidence is LOW ({confidence:.1%}). Ask ONE short clarification: "Are you asking about [A] or [B]?"
 """
         
         # Add scope-based instructions
@@ -141,8 +136,16 @@ CONTEXT INFORMATION:
             prompt += f"\n- Conversation History ({len(conversation_history)} previous turns):\n"
             for i, turn in enumerate(conversation_history[-self.max_history_turns:], 1):
                 prompt += f"  Turn {i}:\n"
-                prompt += f"    User: {turn.get('user_input', '')[:200]}...\n"
-                prompt += f"    You: {turn.get('bot_response', '')[:200]}...\n"
+                # Defensive: handle both dict and non-dict turns
+                if isinstance(turn, dict):
+                    user_text = turn.get('user_input', '')[:200]
+                    bot_text = turn.get('bot_response', '')[:200]
+                else:
+                    user_text = str(turn)[:200] if turn else ""
+                    bot_text = ""
+                prompt += f"    User: {user_text}...\n"
+                if bot_text:
+                    prompt += f"    You: {bot_text}...\n"
         
         # Add relevant knowledge base information
         if relevant_knowledge:
@@ -174,12 +177,12 @@ RESPOND TO THE QUERY ABOVE:
             str: Clarification prompt template
         """
         clarification_templates = {
-            "fees": "Are you asking about:\n- Tuition fees and costs?\n- Scholarship and financial aid?\n- Payment plan options?\n- Course-specific fees?",
-            "exams": "Could you clarify:\n- Are you asking about exam dates?\n- Need exam preparation guidance?\n- Want to know about grading?\n- Confused about a specific subject?",
-            "timetable": "Do you want to know:\n- Class schedule for your course?\n- Lab or practical class timings?\n- Academic calendar dates?\n- When the semester starts/ends?",
-            "placements": "Are you interested in:\n- Placement statistics?\n- Companies visiting campus?\n- Internship opportunities?\n- Interview preparation tips?",
-            "library": "What about the library:\n- Access hours and location?\n- Book availability?\n- Digital resources and databases?\n- Study space reservations?",
-            "admission": "About admission:\n- How to apply?\n- Eligibility criteria?\n- Required documents?\n- Admission timelines or cutoff marks?"
+            "fees": "Are you asking about tuition costs, financial aid, or payment plans?",
+            "exams": "Are you asking about exam dates or preparation?",
+            "timetable": "Are you asking about class schedules or academic calendar dates?",
+            "placements": "Are you asking about placement stats or company hiring?",
+            "library": "Are you asking about access hours or book resources?",
+            "admission": "Are you asking about eligibility or application process?"
         }
         
         template = clarification_templates.get(intent, 

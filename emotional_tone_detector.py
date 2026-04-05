@@ -118,36 +118,51 @@ class EmotionalToneDetector:
         Returns:
             Dict: Tone detection result with confidence
         """
-        text_lower = text.lower()
+        try:
+            text_lower = text.lower()
+            
+            # Detect urgency
+            urgency_score = self._detect_urgency(text)
+            
+            # Detect primary tone
+            primary_tone = self._detect_primary_tone(text_lower, emotion)
+            
+            # Compute confidence
+            confidence = self._calculate_tone_confidence(text, primary_tone, urgency_score)
+            
+            # Adjust tone based on urgency
+            if urgency_score > 0.8 and primary_tone != EmotionalTone.URGENT:
+                adjusted_tone = EmotionalTone.URGENT
+            else:
+                adjusted_tone = primary_tone
+            
+            result = {
+                "tone": adjusted_tone,
+                "tone_name": adjusted_tone.value,
+                "confidence": confidence,
+                "urgency_score": urgency_score,
+                "emotion": emotion,
+                "intent": intent,
+                "modifiers": self.TONE_MODIFIERS.get(adjusted_tone.value, self.TONE_MODIFIERS["neutral"]),
+                "explanation": self._get_tone_explanation(adjusted_tone, urgency_score)
+            }
+            
+            self.detected_tones.append(result)
+            return result
         
-        # Detect urgency
-        urgency_score = self._detect_urgency(text)
-        
-        # Detect primary tone
-        primary_tone = self._detect_primary_tone(text_lower, emotion)
-        
-        # Compute confidence
-        confidence = self._calculate_tone_confidence(text, primary_tone, urgency_score)
-        
-        # Adjust tone based on urgency
-        if urgency_score > 0.8 and primary_tone != EmotionalTone.URGENT:
-            adjusted_tone = EmotionalTone.URGENT
-        else:
-            adjusted_tone = primary_tone
-        
-        result = {
-            "tone": adjusted_tone,
-            "tone_name": adjusted_tone.value,
-            "confidence": confidence,
-            "urgency_score": urgency_score,
-            "emotion": emotion,
-            "intent": intent,
-            "modifiers": self.TONE_MODIFIERS.get(adjusted_tone.value, self.TONE_MODIFIERS["neutral"]),
-            "explanation": self._get_tone_explanation(adjusted_tone, urgency_score)
-        }
-        
-        self.detected_tones.append(result)
-        return result
+        except Exception as e:
+            print(f"Error in detect_tone: {e}")
+            # Return safe default
+            return {
+                "tone": EmotionalTone.NEUTRAL,
+                "tone_name": "neutral",
+                "confidence": 0.0,
+                "urgency_score": 0.0,
+                "emotion": emotion or "neutral",
+                "intent": intent,
+                "modifiers": self.TONE_MODIFIERS.get("neutral", {"prefix": "", "suffix": "", "emphasis": "normal"}),
+                "explanation": "Default response"
+            }
     
     def get_response_guidelines(self, tone_result: Dict) -> Dict:
         """
@@ -159,20 +174,41 @@ class EmotionalToneDetector:
         Returns:
             Dict: Guidelines for LLM response generation
         """
-        tone_name = tone_result["tone_name"]
-        
-        guidelines = {
-            "tone": tone_name,
-            "length": self._get_recommended_length(tone_name),
-            "formality": self._get_formality_level(tone_name),
-            "detail_level": self._get_detail_level(tone_name),
-            "structure": self._get_response_structure(tone_name),
-            "emphasis": tone_result["modifiers"]["emphasis"],
-            "prefix": tone_result["modifiers"]["prefix"],
-            "suffix": tone_result["modifiers"]["suffix"],
-        }
-        
-        return guidelines
+        try:
+            if not tone_result or not isinstance(tone_result, dict):
+                tone_result = {
+                    "tone_name": "neutral",
+                    "modifiers": self.TONE_MODIFIERS.get("neutral", {"emphasis": "normal", "prefix": "", "suffix": ""})
+                }
+            
+            tone_name = tone_result.get("tone_name", "neutral")
+            modifiers = tone_result.get("modifiers", self.TONE_MODIFIERS.get("neutral", {"emphasis": "normal", "prefix": "", "suffix": ""}))
+            
+            guidelines = {
+                "tone": tone_name,
+                "length": self._get_recommended_length(tone_name),
+                "formality": self._get_formality_level(tone_name),
+                "detail_level": self._get_detail_level(tone_name),
+                "structure": self._get_response_structure(tone_name),
+                "emphasis": modifiers.get("emphasis", "normal"),
+                "prefix": modifiers.get("prefix", ""),
+                "suffix": modifiers.get("suffix", ""),
+            }
+            
+            return guidelines
+        except Exception as e:
+            print(f"Error in get_response_guidelines: {e}")
+            # Return safe default
+            return {
+                "tone": "neutral",
+                "length": "standard",
+                "formality": "professional",
+                "detail_level": "appropriate",
+                "structure": "linear",
+                "emphasis": "normal",
+                "prefix": "",
+                "suffix": "",
+            }
     
     def _detect_urgency(self, text: str) -> float:
         """Detect urgency indicators."""

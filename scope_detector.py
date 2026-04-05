@@ -28,7 +28,7 @@ class ScopeDetector:
         "admission": ["admission", "apply", "application", "cutoff", "entrance", "merit", 
                       "requirement", "eligibility", "document"],
         "college_info": ["college", "institution", "university", "campus", "curriculum",
-                         "course", "degree", "faculty", "facility", "location", "history"],
+                         "course", "degree", "faculty", "facility", "facilities", "location", "history"],
         "hostel": ["hostel", "accommodation", "room", "boarding", "residence", "stay", 
                    "mess"],
         "sports": ["sports", "cricket", "basketball", "gym", "athletics", "tournament"]
@@ -88,6 +88,10 @@ class ScopeDetector:
         Returns:
             Tuple[bool, str, float]: (is_in_scope, reason, scope_confidence)
         """
+        # Safety check: handle None or empty queries
+        if not query or not isinstance(query, str):
+            return True, "empty_query", 0.5
+        
         query_lower = query.lower()
         
         # Level 0: Check for college context FIRST (override ambiguous queries)
