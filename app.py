@@ -919,7 +919,12 @@ def chat_interface():
                 st.rerun()
         with col2:
             if st.button("🔄 Reset", use_container_width=True):
+                # Reset all session state
+                st.session_state.messages = []
+                st.session_state.conversation_context = ConversationContext()
                 st.session_state.greeting_shown = False
+                st.session_state.session_id = str(datetime.now().timestamp())
+                st.success("App reset to initial state!")
                 st.rerun()
         
         st.divider()
@@ -1163,9 +1168,7 @@ def chat_interface():
             start_time = time.time()
             
             # Intent classification
-            classification_result = intent_classifier.predict(message_to_process)
-            intent = classification_result.get("intent", "unknown")
-            confidence = classification_result.get("confidence", 0.0)
+            intent, confidence = intent_classifier.predict(message_to_process)
             
             # Emotion detection
             emotion_result = emotion_detector.detect_emotion(message_to_process)

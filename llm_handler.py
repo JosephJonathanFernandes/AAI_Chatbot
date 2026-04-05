@@ -123,6 +123,11 @@ class LLMHandler:
         
         return unique_keys
     
+    @property
+    def groq_api_key(self) -> Optional[str]:
+        """Property to access current Groq API key for backward compatibility."""
+        return self._get_current_groq_key()
+    
     def _get_current_groq_key(self) -> Optional[str]:
         """Get current active API key (with rotation on exhaustion)."""
         if not self.groq_api_keys:

@@ -258,6 +258,13 @@ class IntentClassifier:
         else:
             intent, confidence = self.classifier.predict(user_input)
         return intent, confidence
+    
+    def get_model_info(self) -> Dict:
+        """Get model information for status display."""
+        return {
+            "is_trained": self.is_trained,
+            "intents_count": len(self.classifier.intent_labels) if hasattr(self.classifier, 'intent_labels') else 0
+        }
 
 
 # Test suite
