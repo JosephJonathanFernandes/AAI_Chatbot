@@ -4,19 +4,29 @@
   "location": "Metropolitan City",
   "website": "www.aai.edu",
   "accreditation": "NAAC A+ Grade, ABET Accredited Engineering Programs",
+  "contact": {
+    "emergency_hotline": "555-1234",
+    "email": "admissions@aai.edu",
+    "office_hours": "Monday-Friday, 9:00 AM - 5:00 PM"
+  },
   "fees": {
+    "description": "Comprehensive fee structure for all programs",
+    "keywords": ["cost", "tuition", "payment", "scholarship", "financial aid"],
     "engineering": {
       "annual": 120000,
       "semester": 60000,
       "currency": "USD",
       "payment_deadline": "Before start of semester",
+      "description": "Engineering program fees (includes lab facilities)",
       "components": {
         "tuition": 85000,
         "hostel": 20000,
         "lab_fee": 8000,
         "library_fee": 2000,
         "activity_fee": 5000
-      }
+      },
+      "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 3)"],
+      "late_fee": "₹500 per day after deadline"
     },
     "arts": {
       "annual": 45000,
@@ -27,7 +37,8 @@
         "hostel": 8000,
         "library_fee": 2000,
         "activity_fee": 3000
-      }
+      },
+      "payment_modes": ["Online via college portal", "Bank DD", "Cheque"]
     },
     "science": {
       "annual": 75000,
@@ -38,7 +49,8 @@
         "hostel": 12000,
         "lab_fee": 6000,
         "library_fee": 2000
-      }
+      },
+      "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 2)"]
     },
     "commerce": {
       "annual": 55000,
@@ -53,240 +65,223 @@
       }
     },
     "scholarships": {
-      "merit_based": "Up to 50% tuition waiver based on entrance exam scores",
-      "need_based": "Up to 75% for economically disadvantaged students",
-      "sports_excellence": "Full scholarship for sports achievers",
-      "research": "Assistantships with monthly stipend for research activities"
-    }
+      "keywords": ["scholarship", "grant", "waiver", "financial assistance"],
+      "merit_based": {
+        "description": "Based on entrance exam scores",
+        "amount": "Up to 50% tuition waiver",
+        "eligibility": "Top 20% of entrance exam scorers"
+      },
+      "need_based": {
+        "description": "For economically disadvantaged students",
+        "amount": "Up to 75% financial assistance",
+        "eligibility": "Family income < ₹5 lakhs per annum"
+      },
+      "sports_excellence": {
+        "description": "For sports achievers",
+        "amount": "Full scholarship (tuition + hostel)",
+        "eligibility": "State/National level sports participants"
+      },
+      "research": {
+        "description": "Research assistantships",
+        "amount": "₹10,000 - ₹25,000 monthly stipend",
+        "eligibility": "M.Tech/Ph.D students with research interest"
+      }
+    },
+    "refund_policy": "100% refund if withdrawn before start of semester, 50% if within 2 weeks, no refund after"
   },
   "exams": {
+    "description": "Examination schedule and guidelines",
+    "keywords": ["exam", "test", "assessment", "quiz", "marks", "results", "grading"],
     "midterm": {
       "start_date": "2026-03-15",
       "end_date": "2026-04-05",
       "registration_deadline": "2026-03-08",
       "duration": "2 hours",
       "subjects": "5-6 subjects per semester",
-      "pattern": "75% theory, 25% practical (for lab courses)"
+      "pattern": "75% theory, 25% practical (for lab courses)",
+      "weight": "40% of final score"
     },
     "final": {
       "start_date": "2026-05-01",
       "end_date": "2026-06-15",
       "registration_deadline": "2026-04-20",
       "duration": "3 hours",
-      "weightage": "40% midterm + 60% final exam",
+      "weightage": "60% of final score",
       "pass_percentage": 40,
       "grade_distribution": "A (90-100), B (80-89), C (70-79), D (60-69), F (<60)"
     },
     "retake": {
       "available": true,
       "best_of": "Best of both attempts is considered",
-      "fee": 500
+      "fee": 500,
+      "timing": "Within next semester"
+    },
+    "result_declaration": "2-3 weeks after exam completion",
+    "rules": {
+      "allowed_materials": "Only stationary items, specific calculators",
+      "not_allowed": "Mobile phones, smart watches, notes, textbooks",
+      "malpractice_penalty": "Expulsion from exam + 'F' grade"
     }
-  },
-  "timetable": {
-    "start_time": "09:00 AM",
-    "end_time": "04:00 PM",
-    "lunch_break": "01:00 PM - 02:00 PM",
-    "working_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    "saturday": "Half day (09:00 AM - 12:30 PM)",
-    "class_duration": "50 minutes per lecture",
-    "break_between_classes": "10 minutes",
-    "session_start": "2026-01-15",
-    "semester_end": "2026-05-30"
   },
   "placements": {
-    "average_salary": 450000,
-    "median_salary": 380000,
-    "currency": "USD per annum",
-    "placement_rate": 92,
-    "highest_package": 1200000,
-    "lowest_package": 180000,
-    "top_companies": [
-      "Tech Corp (avg: 650k)",
-      "Global Solutions (avg: 520k)",
-      "Innovation Labs (avg: 580k)",
-      "Future Systems (avg: 470k)",
-      "Digital Enterprises (avg: 420k)",
-      "Cloud Masters (avg: 520k)",
-      "Data Analytics Inc (avg: 490k)",
-      "AI Ventures Ltd (avg: 720k)"
+    "description": "Campus recruitment and placement information",
+    "keywords": ["job", "company", "recruitment", "salary", "package", "internship", "career"],
+    "statistics": {
+      "placement_rate": "95%",
+      "average_package": "₹8.5 LPA",
+      "highest_package": "₹42 LPA",
+      "median_package": "₹7.2 LPA",
+      "companies_count": 120
+    },
+    "top_recruiters": [
+      "Google",
+      "Microsoft",
+      "Amazon",
+      "Infosys",
+      "TCS",
+      "Wipro",
+      "Accenture",
+      "Deloitte"
     ],
-    "recruitment_season": "August to November",
-    "pre_placement_talk": "Typically 2-3 weeks before placement",
-    "interview_rounds": "Average 3-4 rounds (online, group discussion, technical, HR)",
-    "average_offers_per_student": 2.3
-  },
-  "departments": {
-    "engineering": {
-      "branches": ["Computer Science", "Mechanical Engineering", "Electrical Engineering", "Civil Engineering"],
-      "duration_years": 4,
-      "seats": {"CS": 120, "ME": 100, "EE": 80, "CE": 60},
-      "specializations": ["AI & ML", "Data Science", "Cloud Computing", "Cybersecurity", "IoT"]
+    "process": {
+      "pre_placement_training": "Mock interviews, resume building, aptitude tests",
+      "recruitment_season": "August - November (peak)",
+      "eligible_criteria": "Minimum 60% CGPA (varies by company)",
+      "steps": ["Pre-placement talk", "Online test/Group Discussion", "Technical rounds", "HR round", "Offer"]
     },
-    "arts": {
-      "specializations": ["English Literature", "History", "Psychology", "Philosophy", "Sociology"],
-      "duration_years": 3,
-      "seats": 150
-    },
-    "science": {
-      "specializations": ["Physics", "Chemistry", "Biology", "Mathematics", "Biochemistry"],
-      "duration_years": 3,
-      "seats": 180,
-      "research_labs": 15
-    },
-    "commerce": {
-      "specializations": ["Accounting", "Finance", "Economics", "Business Management", "Taxation"],
-      "duration_years": 3,
-      "seats": 140
+    "internships": {
+      "available": true,
+      "duration": "6-12 weeks",
+      "stipend_range": "₹15,000 - ₹50,000 per month",
+      "timing": "Summer between 2nd and 3rd year"
     }
   },
-  "faculty": {
-    "total_faculty": 250,
-    "phd_holders": "78%",
-    "industry_experience": "Average 12+ years",
-    "student_teacher_ratio": "15:1",
-    "office_hours": "09:00 AM - 05:00 PM (By appointment)",
-    "average_class_size": 45,
-    "research_active_faculty": 120,
-    "international_collaborations": 25
-  },
-  "holidays": {
-    "summer_break": {
-      "start": "2026-05-15",
-      "end": "2026-07-31",
-      "duration_days": 78
+  "hostel": {
+    "description": "Residential accommodation facilities",
+    "keywords": ["hostel", "accommodation", "room", "boarding", "residence", "mess", "stay"],
+    "availability": "Yes, for boys and girls separately",
+    "capacity": "75% of student strength",
+    "room_types": {
+      "single_occupancy": "₹25,000/year",
+      "double_sharing": "₹20,000/year",
+      "triple_sharing": "₹15,000/year"
     },
-    "winter_break": {
-      "start": "2026-12-20",
-      "end": "2027-01-10",
-      "duration_days": 21
-    },
-    "semester_break": {
-      "duration_days": 15,
-      "typically_after": "Each semester"
-    },
-    "national_holidays": [
-      "Independence Day: August 15 (1 day)",
-      "Republic Day: January 26 (1 day)",
-      "Foundation Day: May 1 (1 day)",
-      "Labor Day: September 1 (1 day)",
-      "Thanksgiving: November (1 day)"
+    "facilities": [
+      "WiFi with 100 Mbps speed",
+      "24/7 water & electricity supply",
+      "Mess with vegetarian & non-vegetarian options",
+      "Common study areas",
+      "Gym & sports equipment",
+      "Laundry service",
+      "Medical facility on campus"
     ],
-    "festival_holidays": [
-      "Diwali (3 days)",
-      "Holi (2 days)",
-      "Christmas/New Year: December 25 - January 1 (1 week)"
+    "rules": {
+      "curfew": "11:00 PM on weekdays, 12:30 AM on weekends",
+      "visitor_policy": "Day visitors allowed 10 AM - 6 PM with ID verification",
+      "dress_code": "Casual but respectable within hostel"
+    },
+    "mess_charges": "₹5,000 per semester (included in hostel fee)",
+    "booking_process": "First come first serve after merit list release"
+  },
+  "admission": {
+    "description": "Admission process and eligibility criteria",
+    "keywords": ["admission", "apply", "application", "entrance exam", "merit", "eligibility", "documents"],
+    "eligibility": {
+      "bachelor": "10+2 or equivalent with 45% marks",
+      "master": "Bachelor's degree with 50% marks",
+      "phd": "Master's degree or equivalent"
+    },
+    "entrance_exams": {
+      "engineering": "JEE Main/Advanced",
+      "other_programs": "Merit-based on 12th/graduation marks"
+    },
+    "application_process": [
+      "Fill online form on college website",
+      "Upload scanned documents",
+      "Pay application fee (₹1,000)",
+      "Register for entrance exam/merit list",
+      "Appear for counseling",
+      "Select program and college",
+      "Submit bonafides and document verification",
+      "Pay admission fee",
+      "Hostel allotment (if applied)",
+      "Orientation program"
+    ],
+    "application_deadline": "Usually in July",
+    "required_documents": [
+      "10th mark sheet",
+      "12th mark sheet",
+      "Birth certificate",
+      "Aadhar card",
+      "Category certificate (if applicable)",
+      "Valid ID proof"
+    ]
+  },
+  "faculty": {
+    "description": "Faculty information and academic support",
+    "keywords": ["faculty", "professor", "teacher", "department", "office hours", "mentor"],
+    "contact_method": "Email or office hours",
+    "office_hours": "Tuesday & Thursday, 2:00 PM - 4:00 PM",
+    "departments": [
+      "Engineering",
+      "Liberal Arts",
+      "Science",
+      "Commerce"
     ]
   },
   "library": {
-    "opening_time": "08:00 AM",
-    "closing_time": "06:00 PM",
-    "saturday_hours": "09:00 AM - 02:00 PM",
-    "total_books": 150000,
-    "journals": 2500,
-    "digital_resources": true,
-    "ebooks": 45000,
-    "online_databases": 12,
-    "computer_lab": {
-      "systems": 100,
-      "free_access": true,
-      "internet_speed": "100 Mbps",
-      "software": ["MATLAB", "Python IDE", "R Studio", "Microsoft Office"]
-    },
-    "issue_limit": 5,
-    "issue_period": "14 days",
-    "fine_per_day": 2,
-    "reference_section": "Open access, no borrowing",
-    "study_halls": 6,
-    "group_study_rooms": 12
-  },
-  "admission": {
-    "academic_year": "2026-2027",
-    "application_deadline": "2026-05-30",
-    "merit_list_date": "2026-06-30",
-    "final_admission": "2026-07-15",
-    "entrance_exam": {
-      "name": "AAI Entrance Test (AAIT)",
-      "date": "2026-06-10",
-      "qualifying_marks": 40,
-      "total_marks": 100,
-      "duration": "2 hours",
-      "subjects": "Mathematics, Physics, Chemistry, English"
-    },
-    "required_documents": [
-      "10+2 and 10 Academic transcripts",
-      "Valid ID proof (Passport/Aadhar)",
-      "Address proof (Utility bill/Driver's License)",
-      "Photos (6 passport size)",
-      "Application form",
-      "Medical certificate"
+    "description": "Library resources and access information",
+    "keywords": ["library", "book", "resource", "journal", "database", "study room"],
+    "access_hours": "8:00 AM - 8:00 PM (Weekdays), 10:00 AM - 4:00 PM (Weekends)",
+    "resources": [
+      "2.5 lakh+ physical books",
+      "50+ online journals",
+      "Digital databases",
+      "Audiovisual materials"
     ],
-    "counseling": "Individual counseling based on rank",
-    "payment": "Refundable acceptance fee of $500"
+    "services": ["Book issuance", "E-resource access", "Study rooms", "WiFi access"],
+    "member_benefits": "Free access for all enrolled students"
   },
-  "campus": {
-    "area_acres": 50,
-    "total_buildings": 35,
-    "hostels": {
-      "boys": "5 hostels, 800 capacity, AC/non-AC rooms",
-      "girls": "3 hostels, 500 capacity, secure premises",
-      "accommodation_fee": 20000,
-      "mess_fee": "3000-4000 per month"
+  "faq": [
+    {
+      "question": "What is the highest package in placements?",
+      "answer": "The highest package is ₹42 LPA. Average package is ₹8.5 LPA.",
+      "keywords": ["package", "salary", "placement"]
     },
-    "sports_facilities": [
-      "Basketball courts (4)",
-      "Tennis courts (6)",
-      "Cricket ground (2)",
-      "Swimming pool (Olympic size)",
-      "Gymnasium (fully equipped)",
-      "Badminton halls (3)",
-      "Table tennis (6 tables)",
-      "Volleyball court (2)"
-    ],
-    "medical_center": {
-      "available": true,
-      "hours": "24/7",
-      "doctors": 3,
-      "ambulance": "On-site"
+    {
+      "question": "Is hostel available for all students?",
+      "answer": "Hostel is available but capacity is 75% of student strength. Allocation is first come first serve.",
+      "keywords": ["hostel", "accommodation", "available"]
     },
-    "cafeteria": {
-      "count": 4,
-      "vegetarian_options": true,
-      "vegan_options": true,
-      "international_cuisine": true
+    {
+      "question": "Can I pay fees in installments?",
+      "answer": "Yes, installments are available (max 3 for engineering, 2 for science). Extra fee of ₹500 per installment applies.",
+      "keywords": ["fees", "payment", "installments"]
     },
-    "auditorium": {
-      "capacity": 2500,
-      "equipped_with": "Latest AV system, stage, sound system"
+    {
+      "question": "What if I fail an exam?",
+      "answer": "You can retake the exam in the next semester. Best of both attempts is considered. Retake fee is ₹500.",
+      "keywords": ["fail", "exam", "retake", "fail"]
+    },
+    {
+      "question": "Are scholarships available?",
+      "answer": "Yes, merit-based (50%), need-based (75%), sports excellence (full), and research assistantships are available.",
+      "keywords": ["scholarship", "financial aid", "waiver"]
+    },
+    {
+      "question": "What is the placement eligibility?",
+      "answer": "Minimum 60% CGPA, but varies by company. Some companies may have different cutoffs.",
+      "keywords": ["placement", "eligibility", "CGPA"]
+    },
+    {
+      "question": "When are exam results declared?",
+      "answer": "Results are typically declared 2-3 weeks after exam completion. Check your student portal for updates.",
+      "keywords": ["results", "exam", "declaration", "marks"]
+    },
+    {
+      "question": "Is WiFi available in hostel?",
+      "answer": "Yes, WiFi with 100 Mbps speed is provided 24/7. Connectivity issues can be reported to hostel office.",
+      "keywords": ["WiFi", "internet", "hostel", "connectivity"]
     }
-  },
-  "contact": {
-    "main_office": "+1-555-0123",
-    "admissions": "+1-555-0124",
-    "student_services": "+1-555-0125",
-    "placements": "+1-555-0126",
-    "library": "+1-555-0127",
-    "email": "info@aai.edu",
-    "admission_email": "admissions@aai.edu",
-    "placement_email": "placements@aai.edu"
-  },
-  "student_life": {
-    "clubs": 35,
-    "sports_teams": 15,
-    "cultural_events": "Monthly",
-    "technical_fests": "Annual - TechFest (3 days)",
-    "cultural_fests": "Annual - CulturFest (3 days)",
-    "industry_visits": 8,
-    "guest_lectures": "Weekly",
-    "internship_opportunities": "100+ per year",
-    "exchange_programs": 5
-  },
-  "online_learning": {
-    "lms_platform": "Moodle",
-    "recorded_lectures": true,
-    "hybrid_classes": true,
-    "video_conferencing": "Zoom/Teams",
-    "online_exams": true,
-    "digital_notes": true
-  }
+  ]
 }
