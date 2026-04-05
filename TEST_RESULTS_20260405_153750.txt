@@ -2,7 +2,7 @@
 CHATBOT TEST EXECUTION REPORT
 ====================================================================================================
 
-Execution Time: 2026-04-05 15:25:59
+Execution Time: 2026-04-05 15:37:50
 Total Tests: 35
 Successful: 33 (94.3%)
 Failed: 2 (5.7%)
@@ -10,20 +10,20 @@ Out-of-Scope Detected: 6
 
 [LATENCY METRICS (milliseconds)]
   Min:         0.0ms
-  Max:     12399.9ms
-  Avg:      4139.8ms
-  Median:   1757.4ms
-  Stdev:    4031.3ms
+  Max:     13011.8ms
+  Avg:      4370.6ms
+  Median:   2046.8ms
+  Stdev:    4214.2ms
 
 [TEST RESULTS BY CATEGORY]
-  admission       | Pass:  1/ 1 (100.0%) | Avg:  11094ms
+  admission       | Pass:  1/ 1 (100.0%) | Avg:   6862ms
   boundary        | Pass:  0/ 2 (  0.0%) | Avg:      0ms
-  exams           | Pass:  5/ 5 (100.0%) | Avg:   4282ms
-  fees            | Pass: 12/12 (100.0%) | Avg:   2715ms
-  hostel          | Pass:  3/ 3 (100.0%) | Avg:   4507ms
-  hybrid          | Pass:  2/ 2 (100.0%) | Avg:   6780ms
-  out_of_scope    | Pass:  4/ 4 (100.0%) | Avg:   6706ms
-  placements      | Pass:  6/ 6 (100.0%) | Avg:   4318ms
+  exams           | Pass:  5/ 5 (100.0%) | Avg:   5472ms
+  fees            | Pass: 12/12 (100.0%) | Avg:   3442ms
+  hostel          | Pass:  3/ 3 (100.0%) | Avg:   5221ms
+  hybrid          | Pass:  2/ 2 (100.0%) | Avg:   4933ms
+  out_of_scope    | Pass:  4/ 4 (100.0%) | Avg:   4403ms
+  placements      | Pass:  6/ 6 (100.0%) | Avg:   5716ms
 
 [DETAILED TEST RESULTS]
 ----------------------------------------------------------------------------------------------------
@@ -32,144 +32,183 @@ Test ID: FEES-001
   Query:      What are the admission fees?
   Type:       direct
   Status:     PASS
-  Latency:    1969.3ms
+  Latency:    1879.3ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   Since it's a weekend day and most college offices are closed, I'll provide general information about...
+  Response:   ALREADY CLARIFIED
+
+Given the context, I'm assuming you're asking about the admission fees for our co...
 
 Test ID: FEES-004
   Query:      How much does it cost?
   Type:       vague
   Status:     PASS
-  Latency:    1628.9ms
+  Latency:    1873.8ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
   Response:   ALREADY CLARIFIED
 
-Since I don't have enough information about what you're asking "how much does it ...
+Since you're asking about the cost, I'm assuming you're referring to tuition fees...
 
 Test ID: FEES-012
   Query:      Wht r the fess?
   Type:       typo
   Status:     PASS
-  Latency:    1622.0ms
+  Latency:    1638.4ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   False
-  Response:   I'm not sure what you're asking. Could you provide more details about what you're asking, like what ...
+  Response:   ALREADY CLARIFIED
+
+It seems like you're asking about fees. I'd be happy to help you with that. 
+
+As ...
 
 Test ID: FEES-013
   Query:      How much money do I gotta pay?
   Type:       casual
   Status:     PASS
-  Latency:    1757.4ms
+  Latency:    1636.7ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   I'm not sure what you're referring to when you say "how much money do I gotta pay." Could you provid...
+  Response:   I'd be happy to help you with your question. However, I need a bit more information to provide an ac...
 
 Test ID: FEES-014
   Query:      This is way too expensive! Why are fees so high?!
   Type:       emotion_angry
   Status:     PASS
-  Latency:    1223.7ms
+  Latency:    1835.9ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   I can see that you're concerned about the high fees. I'm here to help you understand the situation.
-...
+  Response:   I understand your concern about the high fees. However, I need a bit more information to provide a h...
 
 Test ID: FEES-EDGE-1
   Query:      fees?
   Type:       ultra_short
   Status:     PASS
-  Latency:    1394.9ms
+  Latency:    1643.4ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   Since you're asking about fees, I'll provide some general information. However, I need a bit more co...
+  Response:   Considering it's a weekend day and most college offices are closed, I'll provide some general inform...
 
 Test ID: FEES-EDGE-2
   Query:      FEES FEES FEES FEES
   Type:       repetition
   Status:     PASS
-  Latency:    1735.6ms
+  Latency:    1638.3ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   It seems like you're asking about fees, but I'm not entirely sure what you're referring to. Could yo...
+  Response:   I'm not sure what you're looking for with your query "Fees Fees Fees Fees." It seems a bit unclear. ...
 
 Test ID: EXAM-001
   Query:      When are the exams scheduled?
   Type:       direct
   Status:     PASS
-  Latency:    2082.4ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   ALREADY CLARIFIED
-
-Since you're asking about exam schedules, I'll do my best to provide you with som...
-
-Test ID: EXAM-002
-  Query:      When is the math exam?
-  Type:       specific
-  Status:     PASS
-  Latency:    1441.2ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   It seems like the intent of your question is unclear. Could you provide more details about what you'...
-
-Test ID: EXAM-008
-  Query:      I didn't understand the exam schedule
-  Type:       clarification
-  Status:     PASS
-  Latency:    7210.1ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   I'd be happy to help you understand the exam schedule. However, I need a bit more information from y...
-
-Test ID: EXAM-EDGE-1
-  Query:      exam exam exam exam
-  Type:       repetition
-  Status:     PASS
-  Latency:    4062.4ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   It seems like you're asking about exams, but I'm not entirely sure what you're looking for. Could yo...
-
-Test ID: EXAM-EDGE-2
-  Query:      when when when
-  Type:       ultra_short
-  Status:     PASS
-  Latency:    6611.8ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   It seems like you're asking a question, but I'm not quite sure what you're looking for. Could you pr...
-
-Test ID: PLACE-001
-  Query:      Tell me about placements
-  Type:       direct
-  Status:     PASS
-  Latency:    6998.5ms
+  Latency:    2046.8ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
   Response:   **ALREADY CLARIFIED**
 
-Since your intent isn't specified, I'll provide general information about pla...
+Since you're asking about exam schedules, I'll provide some general informati...
+
+Test ID: EXAM-002
+  Query:      When is the math exam?
+  Type:       specific
+  Status:     PASS
+  Latency:    6575.0ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   It seems like you're asking about the math exam schedule. However, I don't have enough information t...
+
+Test ID: EXAM-008
+  Query:      I didn't understand the exam schedule
+  Type:       clarification
+  Status:     PASS
+  Latency:    5851.2ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'm happy to help clarify the exam schedule for you. 
+
+Since it's a weekend, most college offices ar...
+
+Test ID: EXAM-EDGE-1
+  Query:      exam exam exam exam
+  Type:       repetition
+  Status:     PASS
+  Latency:    12053.7ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   QUERY ANALYSIS:
+- Detected Intent: None
+
+Test ID: EXAM-EDGE-2
+  Query:      when when when
+  Type:       ultra_short
+  Status:     PASS
+  Latency:    834.2ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'm not sure what you're asking about. Could you provide more details about what you're asking? This...
+
+Test ID: PLACE-001
+  Query:      Tell me about placements
+  Type:       direct
+  Status:     PASS
+  Latency:    1103.0ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   Given the current context, I'm not sure what you're asking about "placements." Could you provide mor...
 
 Test ID: PLACE-002
   Query:      What's the average salary for placements?
   Type:       specific
   Status:     PASS
-  Latency:    12399.9ms
+  Latency:    12287.4ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   QUERY ANALYSIS:
+- Detected Intent
+
+Test ID: PLACE-010
+  Query:      I'm worried the package might be too low for me
+  Type:       emotion_worried
+  Status:     PASS
+  Latency:    1024.0ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I'm not sure what you're referring to. Could you provide more details about what you're worried abou...
+
+Test ID: PLACE-EDGE-1
+  Query:      placements?
+  Type:       ultra_short
+  Status:     PASS
+  Latency:    1228.4ms
+  Intent:     None (0.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **ALREADY CLARIFIED**
+
+Since you asked about placements, I'm assuming you're referring to career pla...
+
+Test ID: HOSTEL-001
+  Query:      Is hostel accommodation available?
+  Type:       direct
+  Status:     PASS
+  Latency:    11466.7ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
@@ -179,64 +218,33 @@ Test ID: PLACE-002
 - User Emotion: Neutral
 - Scope: ✓...
 
-Test ID: PLACE-010
-  Query:      I'm worried the package might be too low for me
-  Type:       emotion_worried
-  Status:     PASS
-  Latency:    908.3ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   False
-  Response:   It's not clear what you're referring to as a "package." Could you provide more details about what yo...
-
-Test ID: PLACE-EDGE-1
-  Query:      placements?
-  Type:       ultra_short
-  Status:     PASS
-  Latency:    2662.8ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   I'd be happy to help with your query about placements. However, I'm not entirely sure what you mean ...
-
-Test ID: HOSTEL-001
-  Query:      Is hostel accommodation available?
-  Type:       direct
-  Status:     PASS
-  Latency:    10647.8ms
-  Intent:     None (0.0%)
-  Emotion:    neutral
-  In-Scope:   True
-  Response:   QUERY ANALYSIS:
-- Detected Intent: Accommodation Inquiry
-- Confidence Level: 50.0%
-- User Emotion: N...
-
 Test ID: HOSTEL-004
   Query:      What facilities are provided in the hostel?
   Type:       facilities
   Status:     PASS
-  Latency:    1722.3ms
+  Latency:    1438.5ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   Since the detected intent is not specified, I'll provide general information about college hostels. ...
+  Response:   Since the intent is not specified, I'll provide general information about college hostels. 
+
+As a st...
 
 Test ID: HOSTEL-EDGE-1
   Query:      hostel hostel hostel
   Type:       repetition
   Status:     PASS
-  Latency:    1152.4ms
+  Latency:    2759.3ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   It seems like you're interested in learning about the hostel on campus. However, I'm not sure what y...
+  Response:   It seems like you're interested in learning about the hostel on campus. However, I'd like to clarify...
 
 Test ID: OOS-001
   Query:      What's the weather like?
   Type:       weather
   Status:     PASS
-  Latency:    11276.1ms
+  Latency:    11362.1ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   False
@@ -246,17 +254,21 @@ Test ID: OOS-002
   Query:      Tell me a joke
   Type:       entertainment
   Status:     PASS
-  Latency:    1188.6ms
+  Latency:    1087.6ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   False
-  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+  Response:   I'd love to share a joke with you. Here's one:
+
+Why did the student bring a ladder to class?
+
+Becaus...
 
 Test ID: OOS-003
   Query:      What's your favorite color?
   Type:       personal
   Status:     PASS
-  Latency:    3227.4ms
+  Latency:    2702.6ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   False
@@ -266,72 +278,67 @@ Test ID: OOS-004
   Query:      Can you help me with calculus?
   Type:       general_help
   Status:     PASS
-  Latency:    11130.4ms
+  Latency:    2458.3ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   False
-  Response:   This is beyond my scope as a college assistant. I can help with fees, exams, placements, faculty, li...
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
 
 Test ID: CONTEXT-001
   Query:      What are placements?
   Type:       context_first
   Status:     PASS
-  Latency:    1328.9ms
+  Latency:    5640.1ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   ALREADY CLARIFIED
-
-I'm not sure what you mean by "placements." It could refer to various things in a...
+  Response:   It seems like the intent is unclear, and the confidence level is low. To better assist you, could yo...
 
 Test ID: CONTEXT-002
   Query:      And what about fees?
   Type:       context_second
   Status:     PASS
-  Latency:    900.9ms
+  Latency:    10991.5ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   Considering it's a weekend day and most college offices are typically closed, I'd like to clarify: 
-...
+  Response:   QUERY ANALYSIS:
+- Detected Intent:
 
 Test ID: TYPO-001
   Query:      wot r the fees
   Type:       typo_lowercase
   Status:     PASS
-  Latency:    11855.4ms
+  Latency:    1201.0ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   QUERY ANALYSIS:
-- Detected Intent: None
-- Confidence Level: 50.0%
-- User Emotion: Neutral
-- Scope: ✓...
+  Response:   ALREADY CLARIFIED
+
+Since it's a weekend day and most college offices are closed, I'll provide genera...
 
 Test ID: TYPO-002
   Query:      FEES
   Type:       uppercase
   Status:     PASS
-  Latency:    1345.8ms
+  Latency:    3157.8ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   Since the detected intent is "None" and the confidence level is low, I'll ask for clarification to b...
+  Response:   You're interested in learning about fees. I'd be happy to help.
+
+However, I'd like to ask for a bit ...
 
 Test ID: TYPO-003
   Query:      tution fees
   Type:       typo_misspell
   Status:     PASS
-  Latency:    1525.8ms
+  Latency:    12047.0ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   I'd be happy to help you with your query about tuition fees.
-
-**ALREADY CLARIFIED**
-
-Since you didn'...
+  Response:   QUERY ANALYSIS:
+- Detected Intent: None
 
 Test ID: BOUNDARY-001
   Query:         
@@ -357,63 +364,56 @@ Test ID: HYBRID-001
   Query:      What are the fees and when are exams?
   Type:       multi_intent
   Status:     PASS
-  Latency:    10482.2ms
+  Latency:    3107.8ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   [Unable to answer: What are the fees]
-
-I'd be happy to help you with your query about exams. However...
+  Response:   Since the query is quite vague, I'll need a bit more information to give you the most accurate answe...
 
 Test ID: HYBRID-002
   Query:      Tell me about placements and hostel facilities
   Type:       multi_intent
   Status:     PASS
-  Latency:    3076.9ms
+  Latency:    6758.5ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   **ALREADY CLARIFIED**
-
-Since your intent isn't specified, I'll provide general information about pla...
+  Response:   Given the current context, I'm not sure what you're asking about "placements." Could you provide mor...
 
 Test ID: OPTIM-001
   Query:      admission process engineering
   Type:       keywords_only
   Status:     PASS
-  Latency:    11093.6ms
+  Latency:    6862.3ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   QUERY ANALYSIS:
-- Detected Intent: None
-- Confidence Level: 50.0%
-- User Emotion: Neutral
-- Scope: ✓...
+  Response:   **ALREADY CLARIFIED**
+
+Since you're asking about the admission process for engineering, I'll provide...
 
 Test ID: OPTIM-002
   Query:      placement average package salary
   Type:       keywords_only
   Status:     PASS
-  Latency:    1607.4ms
+  Latency:    13011.8ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   ALREADY CLARIFIED
-
-Since it's a weekend day and most college offices are typically closed, I'll prov...
+  Response:   QUERY ANALYSIS:
+- Detected Intent: None
 
 Test ID: OPTIM-003
   Query:      Can I know about fees?
   Type:       polite
   Status:     PASS
-  Latency:    5622.3ms
+  Latency:    1766.7ms
   Intent:     None (0.0%)
   Emotion:    neutral
   In-Scope:   True
-  Response:   ✗ OUT-OF-SCOPE (no specific college intent detected)
+  Response:   **ALREADY CLARIFIED** 
 
-However, I'll provide general information abou...
+Since the detected intent is "None" with a low confidence level of 50.0%, I'...
 
 [EDGE CASE ANALYSIS]
 ----------------------------------------------------------------------------------------------------
@@ -444,8 +444,8 @@ ULTRA_SHORT: 3/3 passed
 
 [SUMMARY STATISTICS]
 ----------------------------------------------------------------------------------------------------
-Average Response Latency: 4139.8ms
-P95 Latency: 11855.4ms
+Average Response Latency: 4370.6ms
+P95 Latency: 12287.4ms
 Success Rate: 33/35 (94.3%)
 Out-of-Scope Detection Rate: 17.1%
 
