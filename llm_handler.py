@@ -86,7 +86,7 @@ class LLMHandler:
     def _load_groq_keys(self, provided_key: Optional[str] = None) -> List[str]:
         """
         Load multiple Groq API keys from environment variables.
-        Priority: provided_key > GROQ_API_KEY_1/2/3/4 > GROQ_API_KEY (legacy)
+        Priority: provided_key > GROQ_API_KEY_1/2/3/4/5 > GROQ_API_KEY (legacy)
         
         Returns:
             List[str]: Non-empty API keys (at least one required)
@@ -98,7 +98,7 @@ class LLMHandler:
             keys.append(provided_key)
         
         # Load numbered keys (GROQ_API_KEY_1, GROQ_API_KEY_2, etc.)
-        for i in range(1, 5):  # Support up to 4 keys
+        for i in range(1, 6):  # Support up to 5 keys
             key = os.getenv(f"GROQ_API_KEY_{i}")
             if key and key.strip():
                 keys.append(key.strip())
