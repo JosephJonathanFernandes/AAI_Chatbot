@@ -1,7 +1,7 @@
 {
   "college_name": "Advanced Academic Institute (AAI)",
   "established": 2010,
-  "location": "Metropolitan City",
+  "location": "Goa, India",
   "website": "www.aai.edu",
   "accreditation": "NAAC A+ Grade, ABET Accredited Engineering Programs",
   "contact": {
@@ -24,55 +24,55 @@
     "description": "Comprehensive fee structure for all programs",
     "keywords": ["cost", "tuition", "payment", "scholarship", "financial aid"],
     "engineering": {
-      "annual": 1200000,
-      "semester": 600000,
+      "annual": 120000,
+      "semester": 60000,
       "currency": "INR (₹)",
       "payment_deadline": "Before start of semester",
       "description": "Engineering program fees (includes lab facilities)",
       "components": {
-        "tuition": 850000,
-        "hostel": 200000,
-        "lab_fee": 80000,
-        "library_fee": 20000,
-        "activity_fee": 50000
+        "tuition": 85000,
+        "hostel": 20000,
+        "lab_fee": 8000,
+        "library_fee": 2000,
+        "activity_fee": 5000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 3)"],
       "late_fee": "₹500 per day after deadline"
     },
     "arts": {
-      "annual": 450000,
-      "semester": 225000,
+      "annual": 45000,
+      "semester": 22500,
       "currency": "INR (₹)",
       "components": {
-        "tuition": 320000,
-        "hostel": 80000,
-        "library_fee": 20000,
-        "activity_fee": 30000
+        "tuition": 32000,
+        "hostel": 8000,
+        "library_fee": 2000,
+        "activity_fee": 3000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque"]
     },
     "science": {
-      "annual": 750000,
-      "semester": 375000,
+      "annual": 75000,
+      "semester": 37500,
       "currency": "INR (₹)",
       "components": {
-        "tuition": 550000,
-        "hostel": 120000,
-        "lab_fee": 60000,
-        "library_fee": 20000
+        "tuition": 55000,
+        "hostel": 12000,
+        "lab_fee": 6000,
+        "library_fee": 2000
       },
       "payment_modes": ["Online via college portal", "Bank DD", "Cheque", "Installments (max 2)"]
     },
     "commerce": {
-      "annual": 550000,
-      "semester": 275000,
+      "annual": 55000,
+      "semester": 27500,
       "currency": "INR (₹)",
       "components": {
-        "tuition": 380000,
-        "hostel": 100000,
-        "software_fee": 40000,
-        "library_fee": 20000,
-        "activity_fee": 10000
+        "tuition": 38000,
+        "hostel": 10000,
+        "software_fee": 4000,
+        "library_fee": 2000,
+        "activity_fee": 1000
       }
     },
     "scholarships": {
@@ -238,6 +238,58 @@
       "Liberal Arts",
       "Science",
       "Commerce"
+    ],
+    "departments_detail": {
+      "Engineering": {
+        "specializations": ["Computer Science", "Mechanical", "Civil", "Electrical"],
+        "faculty_count": 45
+      },
+      "Science": {
+        "specializations": ["Physics", "Chemistry", "Mathematics", "Biology"],
+        "faculty_count": 32
+      },
+      "Commerce": {
+        "specializations": ["Accounting", "Economics", "Business Management", "Finance"],
+        "faculty_count": 28
+      },
+      "Liberal Arts": {
+        "specializations": ["English", "History", "Philosophy", "Social Sciences"],
+        "faculty_count": 25
+      }
+    },
+    "faculty_profiles": [
+      {
+        "name": "Dr. Rajesh Sharma",
+        "department": "Engineering (CSE)",
+        "qualification": "Ph.D in Computer Science, IIT Mumbai",
+        "experience": "15 years in AI/ML research",
+        "email": "rsharma@aai.edu",
+        "office_location": "Engineering Block, Room 302"
+      },
+      {
+        "name": "Prof. Priya Verma",
+        "department": "Science (Physics)",
+        "qualification": "M.Sc Physics, Ph.D from University of Pune",
+        "experience": "12 years in experimental physics",
+        "email": "pverma@aai.edu",
+        "office_location": "Science Block, Room 215"
+      },
+      {
+        "name": "Dr. Anil Kumar",
+        "department": "Commerce (Economics)",
+        "qualification": "Ph.D in Economics, Delhi University",
+        "experience": "18 years in econometrics and policy research",
+        "email": "akumar@aai.edu",
+        "office_location": "Commerce Block, Room 110"
+      },
+      {
+        "name": "Ms. Sneha Patel",
+        "department": "Liberal Arts (English)",
+        "qualification": "M.A English Literature, Pune University",
+        "experience": "8 years in academic writing and critical analysis",
+        "email": "spatel@aai.edu",
+        "office_location": "Arts Block, Room 405"
+      }
     ]
   },
   "library": {
