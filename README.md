@@ -179,7 +179,7 @@ This architecture demonstrates:
 
 ### Evaluation Metrics (Production-Ready - Viva Approved ✅):
 
-- **Ensemble Intent Classification Accuracy**: 93-100% on typos/Hinglish/slang (70% semantic + 30% TF-IDF)
+- **Ensemble Intent Classification Accuracy**: 93-100% on typos/Hinglish/slang (75% semantic + 25% TF-IDF) [IMPROVED]
 - **Pattern Distribution**: 410 total patterns across 18 intents (avg 22.8 per intent, range 10-36) - optimal for ML robustness
 - **Out-of-Scope Detection**: 89% precision/recall with unknown fallback
 - **Hallucination Reduction**: 70% fewer false claims vs. unguided LLM

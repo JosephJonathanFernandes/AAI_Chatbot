@@ -1167,15 +1167,20 @@ def chat_interface():
         with st.spinner("✨ Thinking..."):
             start_time = time.time()
             
+            # Get conversation history once for context-aware operations
+            history = st.session_state.conversation_context.get_history()  # Get list of dicts
+            
             # Intent classification
             intent, confidence = intent_classifier.predict(message_to_process)
             
-            # Emotion detection
-            emotion_result = emotion_detector.detect_emotion(message_to_process)
+            # Emotion detection with context awareness
+            emotion_result = emotion_detector.detect_emotion(
+                message_to_process,
+                conversation_history=history
+            )
             emotion = emotion_result.get("emotion", "neutral")
             
             # Intent refinement
-            history = st.session_state.conversation_context.get_history()  # Get list of dicts
             refined_intent_result = intent_refiner.refine_intent(
                 predicted_intent=intent,
                 confidence=confidence,
@@ -1201,11 +1206,15 @@ def chat_interface():
             is_in_scope = scope_info["is_in_scope"]
             scope_reason = scope_info["reason"]
             
-            # Error recovery
-            if confidence < 0.4:
+            # Error recovery - use dynamic threshold check
+            # IMPROVED: Don't override detected emotion; let emotion detection handle it naturally
+            low_confidence_detected = False
+            if confidence < 0.50:  # Increased minimum threshold
                 error_info = error_recovery.handle_confidence_error(confidence, intent)
                 if not error_info.get("should_proceed", True):
-                    emotion = "confused"
+                    low_confidence_detected = True
+                    # Don't force "confused" - let the LLM handle ambiguity gracefully
+                    # The emotion was already detected in context above
             
             # Generate response
             try:
@@ -1215,7 +1224,8 @@ def chat_interface():
                     confidence=confidence,
                     emotion=emotion,
                     conversation_history=history,
-                    tone_guidelines=tone_guidelines
+                    tone_guidelines=tone_guidelines,
+                    low_confidence_detected=low_confidence_detected
                 )
                 
                 response = llm_result["response"]

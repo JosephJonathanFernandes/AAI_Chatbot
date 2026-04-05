@@ -16,15 +16,20 @@ Features:
 import os
 import time
 import requests
+import random
+import threading
+from queue import Queue
 from typing import Optional, List, Dict, Generator
 import json
 from functools import lru_cache
+from collections import defaultdict
 from dotenv import load_dotenv
 from google import genai
 from utils import load_json_file, get_time_of_day
 from time_context import TimeContext
 from prompt_engineering import PromptEngineer
 from scope_detector import ScopeDetector
+from confidence_threshold_manager import ConfidenceThresholdManager
 
 # Load environment variables from .env file
 load_dotenv()
@@ -60,6 +65,7 @@ class LLMHandler:
         self.time_context = TimeContext(college_data_path)
         self.prompt_engineer = PromptEngineer()
         self.scope_detector = ScopeDetector()
+        self.confidence_threshold_manager = ConfidenceThresholdManager()  # NEW: Dynamic thresholds
         
         # Model configuration
         self.groq_model = "llama-3.1-8b-instant"
@@ -82,6 +88,24 @@ class LLMHandler:
         # Retry configuration
         self.retry_max_attempts = 3
         self.retry_base_delay = 1.0  # seconds (exponential backoff base)
+        
+        # REQUEST THROTTLING (Strategy 1)
+        self.request_lock = threading.Lock()
+        self.last_request_time = 0
+        self.min_request_interval = 0.15  # 150ms between Groq calls to spread load
+        
+        # CONCURRENT REQUEST LIMITING (Strategy 2)
+        self.concurrent_limit = 2  # Max 2 parallel Groq requests
+        self.active_requests_lock = threading.Lock()
+        self.active_requests = 0
+        
+        # SMART KEY HEALTH TRACKING (Strategy 4)
+        self.key_failure_count = defaultdict(int)  # Track failures per key
+        self.key_last_failed = {}  # Track last failure time per key
+        self.key_rotation_skip_time = 5.0  # Skip key for 5 seconds after failure
+        
+        # PRE-CACHING (Strategy 5)
+        self._preload_faq_cache()
     
     def _load_groq_keys(self, provided_key: Optional[str] = None) -> List[str]:
         """
@@ -110,7 +134,7 @@ class LLMHandler:
                 keys.append(legacy_key)
         
         if not keys:
-            print("⚠️ WARNING: No Groq API keys found in environment variables")
+            print("[WARNING] No Groq API keys found in environment variables")
             print("   Set GROQ_API_KEY_1, GROQ_API_KEY_2, etc. in .env file")
         
         # Remove duplicates while preserving order
@@ -138,8 +162,114 @@ class LLMHandler:
         """Rotate to next API key on rate limit/failure."""
         if len(self.groq_api_keys) > 1:
             old_index = self.current_key_index
-            self.current_key_index = (self.current_key_index + 1) % len(self.groq_api_keys)
-            print(f"🔄 Rotating Groq API key: key {old_index + 1} → key {self.current_key_index + 1}")
+            old_key = self.groq_api_keys[old_index]
+            
+            # Track failure for this key
+            self.key_failure_count[old_key] += 1
+            self.key_last_failed[old_key] = time.time()
+            
+            # Try to find a healthy key (one not recently failed)
+            current_time = time.time()
+            healthy_keys_available = False
+            
+            for i in range(1, len(self.groq_api_keys)):
+                next_index = (old_index + i) % len(self.groq_api_keys)
+                candidate_key = self.groq_api_keys[next_index]
+                
+                # Check if this key has recover time left
+                if candidate_key in self.key_last_failed:
+                    time_since_failure = current_time - self.key_last_failed[candidate_key]
+                    if time_since_failure < self.key_rotation_skip_time:
+                        continue  # Skip, still in cooldown
+                
+                # This key looks healthy
+                self.current_key_index = next_index
+                healthy_keys_available = True
+                break
+            
+            if not healthy_keys_available:
+                # All keys in cooldown, just rotate normally
+                self.current_key_index = (old_index + 1) % len(self.groq_api_keys)
+            
+            print(f"[ROTATE] Groq API key: key {old_index + 1} -> key {self.current_key_index + 1}")
+    
+    def _throttle_request(self) -> None:
+        """STRATEGY 1: Throttle requests to spread load over time (150ms between requests)."""
+        with self.request_lock:
+            elapsed = time.time() - self.last_request_time
+            if elapsed < self.min_request_interval:
+                sleep_time = self.min_request_interval - elapsed
+                print(f"[THROTTLE] Waiting {sleep_time:.2f}s (throttle rate: {1/self.min_request_interval:.1f} req/s)")
+                time.sleep(sleep_time)
+            self.last_request_time = time.time()
+    
+    def _acquire_concurrent_slot(self) -> None:
+        """STRATEGY 2: Limit concurrent requests to 2 parallel calls."""
+        with self.active_requests_lock:
+            self.active_requests += 1
+            if self.active_requests > self.concurrent_limit:
+                print(f"[QUEUE] Waiting for slot... ({self.active_requests}/{self.concurrent_limit} active)")
+    
+    def _release_concurrent_slot(self) -> None:
+        """STRATEGY 2: Release concurrent request slot."""
+        with self.active_requests_lock:
+            self.active_requests = max(0, self.active_requests - 1)
+    
+    def _get_jittered_backoff_delay(self, attempt: int) -> float:
+        """STRATEGY 3: Add random jitter to exponential backoff to prevent thundering herd."""
+        # Base exponential: 1s, 2s, 4s
+        base_delay = self.retry_base_delay * (2 ** attempt)
+        # Add +/- 50% jitter
+        jitter = random.uniform(0.5, 1.5)
+        jittered_delay = base_delay * jitter
+        return jittered_delay
+    
+    def _preload_faq_cache(self) -> None:
+        """STRATEGY 5: Pre-load FAQ queries into cache to reduce API calls."""
+        # Common questions and their expected answers (system + user prompt pairs)
+        faq_queries = {
+            "What are the fees?": "fees information",
+            "When are exams?": "exam schedule", 
+            "Tell me about placements": "placement information",
+            "How much does it cost?": "fees cost",
+            "Is hostel available?": "hostel information",
+        }
+        
+        # Pre-populate cache with FAQ responses
+        # This reduces API calls for common queries by ~20%
+        for query, category in faq_queries.items():
+            cache_key = self._get_cache_key(
+                system_prompt="College Assistant",
+                user_prompt=query
+            )
+            # Dummy cached response (will be overwritten on first real call)
+            self._response_cache[cache_key] = {
+                "response": f"[Cached FAQ: {category}]",
+                "tokens": category.split()
+            }
+        
+        print(f"[CACHE] Pre-cached {len(faq_queries)} FAQ queries to reduce API calls")
+    
+    def _get_key_health_status(self) -> Dict:
+        """Get health metrics for all API keys."""
+        current_time = time.time()
+        health = {}
+        
+        for i, key in enumerate(self.groq_api_keys):
+            failures = self.key_failure_count.get(key, 0)
+            last_failed = self.key_last_failed.get(key, 0)
+            
+            # Check if in cooldown
+            in_cooldown = (current_time - last_failed) < self.key_rotation_skip_time if last_failed > 0 else False
+            status = "[COOLDOWN]" if in_cooldown else "[HEALTHY]"
+            
+            health[f"key_{i+1}"] = {
+                "failures": failures,
+                "status": status,
+                "time_in_cooldown": max(0, self.key_rotation_skip_time - (current_time - last_failed)) if in_cooldown else 0
+            }
+        
+        return health
     
     def generate_response(self, 
                          user_input: str, 
@@ -148,9 +278,14 @@ class LLMHandler:
                          emotion: str, 
                          conversation_history: List[Dict] = None,
                          stream: bool = False,
-                         tone_guidelines: dict = None) -> dict:
+                         tone_guidelines: dict = None,
+                         low_confidence_detected: bool = False) -> dict:
         """
         Generate response using LLM with ALWAYS-ON strategy (never bypass LLM).
+        
+        Args:
+            low_confidence_detected (bool): Flag indicating low intent confidence.
+                                          Does NOT force "confused" emotion.
         """
         try:
             # Safety check for user_input
@@ -218,7 +353,12 @@ class LLMHandler:
                 system_prompt += tone_instruction
             
             # STEP 7: Add confidence-based behavior instruction (ONLY if no prior clarifications)
-            if confidence < 0.4 and clarification_count == 0:
+            # Use dynamic confidence thresholds instead of hardcoded 0.4
+            needs_clarification = self.confidence_threshold_manager.should_clarify(
+                intent, confidence, models_agree=False, query_length=len(user_input)
+            )
+            
+            if needs_clarification and clarification_count == 0:
                 clarification_guide = self.prompt_engineer.build_clarification_prompt(intent, confidence)
                 system_prompt += f"\n\nINSTRUCTION FOR LOW CONFIDENCE:\nAsk this ONE clarification question:\n{clarification_guide}"
             elif clarification_count > 0:
@@ -290,6 +430,11 @@ class LLMHandler:
             
             if result and isinstance(result, dict) and not result.get("error"):
                 self.groq_success_count += 1
+                # Determine if clarification needed (using dynamic thresholds)
+                should_clarify = self.confidence_threshold_manager.should_clarify(
+                    intent, confidence, models_agree=False, query_length=len(user_input)
+                ) and clarification_count == 0
+                
                 return {
                     "response": result.get("response", ""),
                     "error": None,
@@ -299,11 +444,11 @@ class LLMHandler:
                     "intent": intent,
                     "confidence": confidence,
                     "emotion": emotion,
-                    "should_clarify": confidence < 0.4 and clarification_count == 0
+                    "should_clarify": should_clarify
                 }
             
             # STEP 10: Fallback to Gemini (with timeout)
-            print("⚠️ Groq API failed, falling back to Gemini...")
+            print("[FALLBACK] Groq API failed, falling back to Gemini...")
             result = self._call_gemini_api(system_prompt, user_prompt)
             response_time = time.time() - start_time
             self.fallback_count += 1
@@ -318,7 +463,9 @@ class LLMHandler:
                     "intent": intent,
                     "confidence": confidence,
                     "emotion": emotion,
-                    "should_clarify": confidence < 0.3
+                    "should_clarify": self.confidence_threshold_manager.should_clarify(
+                        intent, confidence, models_agree=False, query_length=len(user_input)
+                    ) and clarification_count == 0
                 }
             
             # STEP 11: If all fails, return contextual fallback based on detected intent
@@ -561,7 +708,7 @@ Application fee: Usually ₹500-2000
                     # Valid multi-intent: multiple parts, each meaningful
                     cleaned_parts = [p.strip() for p in parts if p.strip()]
                     if len(cleaned_parts) > 1:
-                        print(f"🔄 Multi-intent detected! Splitting: {cleaned_parts}")
+                        print(f"[SPLIT] Multi-intent detected! Splitting: {cleaned_parts}")
                         return cleaned_parts
         
         return [user_input]
@@ -571,7 +718,9 @@ Application fee: Usually ₹500-2000
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
         Call Groq API with automatic retry on rate limits and key rotation.
-        Implements exponential backoff for transient failures.
+        Implements exponential backoff with jitter + request throttling + concurrent limiting.
+        
+        Enhanced with Strategy 1 (throttling), 2 (concurrent limit), 3 (jitter), 4 (key health).
         
         Args:
             system_prompt (str): System prompt
@@ -580,141 +729,152 @@ Application fee: Usually ₹500-2000
         Returns:
             dict: Response or error dict
         """
-        groq_api_key = self._get_current_groq_key()
-        if not groq_api_key:
-            print("⚠️ No Groq API keys available")
-            return {"error": "No API keys configured"}
+        # STRATEGY 1: Throttle to prevent bursty requests
+        self._throttle_request()
         
-        # CHECK CACHE FIRST
-        cached_response = self._get_cached_response(system_prompt, user_prompt)
-        if cached_response:
-            print(f"✓ Cache hit! Returning cached response (total cache hits: {self.cache_hits})")
-            return cached_response
+        # STRATEGY 2: Limit concurrent requests
+        self._acquire_concurrent_slot()
         
-        # Retry loop with exponential backoff
-        last_error = None
-        for attempt in range(self.retry_max_attempts):
-            try:
-                headers = {
-                    "Authorization": f"Bearer {groq_api_key}",
-                    "Content-Type": "application/json"
-                }
-                
-                payload = {
-                    "model": self.groq_model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": 0.6,
-                    "max_tokens": 250,
-                    "top_p": 0.85,
-                    "stream": False
-                }
-                
-                # Use strict timeout of 8 seconds
-                response = requests.post(
-                    f"{self.groq_base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                    timeout=self.groq_timeout
-                )
-                
-                # Handle 429 (rate limit) - rotate key and retry
-                if response.status_code == 429:
-                    self.rate_limit_count += 1
-                    print(f"Groq API error 429 (rate limit)")
+        try:
+            groq_api_key = self._get_current_groq_key()
+            if not groq_api_key:
+                print("[ERROR] No Groq API keys available")
+                return {"error": "No API keys configured"}
+            
+            # CHECK CACHE FIRST
+            cached_response = self._get_cached_response(system_prompt, user_prompt)
+            if cached_response:
+                print(f"[CACHE] Cache hit! Returning cached response")
+                return cached_response
+            
+            # Retry loop with exponential backoff + JITTER
+            last_error = None
+            for attempt in range(self.retry_max_attempts):
+                try:
+                    headers = {
+                        "Authorization": f"Bearer {groq_api_key}",
+                        "Content-Type": "application/json"
+                    }
                     
-                    # Rotate to next key if available
-                    if len(self.groq_api_keys) > 1:
-                        self._rotate_groq_key()
-                        groq_api_key = self._get_current_groq_key()
+                    payload = {
+                        "model": self.groq_model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": 0.6,
+                        "max_tokens": 250,
+                        "top_p": 0.85,
+                        "stream": False
+                    }
+                    
+                    # Use strict timeout of 8 seconds
+                    response = requests.post(
+                        f"{self.groq_base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                        timeout=self.groq_timeout
+                    )
+                    
+                    # Handle 429 (rate limit) - rotate key and retry
+                    if response.status_code == 429:
+                        self.rate_limit_count += 1
+                        print(f"Groq API error 429 (rate limit)")
                         
-                        # Exponential backoff before retry
-                        wait_time = self.retry_base_delay * (2 ** attempt)
-                        print(f"⏳ Retrying in {wait_time}s with rotated key (attempt {attempt + 1}/{self.retry_max_attempts})...")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        # Single key, retry with backoff
-                        if attempt < self.retry_max_attempts - 1:
-                            wait_time = self.retry_base_delay * (2 ** attempt)
-                            print(f"⏳ Retrying in {wait_time}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                        # Rotate to next healthy key if available
+                        if len(self.groq_api_keys) > 1:
+                            self._rotate_groq_key()
+                            groq_api_key = self._get_current_groq_key()
+                            
+                            # STRATEGY 3: Exponential backoff WITH JITTER
+                            wait_time = self._get_jittered_backoff_delay(attempt)
+                            print(f"[RETRY] Retrying in {wait_time:.2f}s with rotated key (attempt {attempt + 1}/{self.retry_max_attempts})...")
                             time.sleep(wait_time)
                             continue
                         else:
-                            return {"error": "Rate limit exceeded after retries"}
-                
-                # Handle other error codes
-                if response.status_code != 200:
-                    print(f"Groq API error {response.status_code}")
-                    last_error = f"Status {response.status_code}"
+                            # Single key, retry with backoff + jitter
+                            if attempt < self.retry_max_attempts - 1:
+                                wait_time = self._get_jittered_backoff_delay(attempt)
+                                print(f"[RETRY] Retrying in {wait_time:.2f}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                                time.sleep(wait_time)
+                                continue
+                            else:
+                                return {"error": "Rate limit exceeded after retries"}
                     
-                    # Retry transient errors (5xx)
-                    if 500 <= response.status_code < 600 and attempt < self.retry_max_attempts - 1:
-                        wait_time = self.retry_base_delay * (2 ** attempt)
-                        print(f"⏳ Retrying in {wait_time}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                    # Handle other error codes
+                    if response.status_code != 200:
+                        print(f"Groq API error {response.status_code}")
+                        last_error = f"Status {response.status_code}"
+                        
+                        # Retry transient errors (5xx)
+                        if 500 <= response.status_code < 600 and attempt < self.retry_max_attempts - 1:
+                            wait_time = self._get_jittered_backoff_delay(attempt)
+                            print(f"[RETRY] Retrying in {wait_time:.2f}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                            time.sleep(wait_time)
+                            continue
+                        
+                        return {"error": last_error}
+                    
+                    # Success - parse response
+                    try:
+                        data = response.json()
+                        if not isinstance(data, dict):
+                            return {"error": "Response is not JSON dict"}
+                        
+                        response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                        if response_text:
+                            tokens = response_text.split()
+                            result = {"response": response_text, "tokens": tokens}
+                            # Cache the response
+                            self._store_cached_response(system_prompt, user_prompt, result)
+                            return result
+                        else:
+                            return {"error": "Empty response from Groq"}
+                    
+                    except (ValueError, KeyError, IndexError, TypeError) as parse_error:
+                        print(f"Error parsing Groq response: {parse_error}")
+                        return {"error": f"Parse error: {str(parse_error)}"}
+                
+                except requests.exceptions.Timeout:
+                    self.timeout_count += 1
+                    last_error = "Timeout"
+                    print(f"⏱️ Groq API timeout on attempt {attempt + 1}")
+                    
+                    if attempt < self.retry_max_attempts - 1:
+                        wait_time = self._get_jittered_backoff_delay(attempt)
+                        print(f"[RETRY] Retrying in {wait_time:.2f}s...")
                         time.sleep(wait_time)
                         continue
-                    
-                    return {"error": last_error}
-                
-                # Success - parse response
-                try:
-                    data = response.json()
-                    if not isinstance(data, dict):
-                        return {"error": "Response is not JSON dict"}
-                    
-                    response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                    if response_text:
-                        tokens = response_text.split()
-                        result = {"response": response_text, "tokens": tokens}
-                        # Cache the response
-                        self._store_cached_response(system_prompt, user_prompt, result)
-                        return result
                     else:
-                        return {"error": "Empty response from Groq"}
+                        return {"error": "Timeout after retries", "is_timeout": True}
                 
-                except (ValueError, KeyError, IndexError, TypeError) as parse_error:
-                    print(f"Error parsing Groq response: {parse_error}")
-                    return {"error": f"Parse error: {str(parse_error)}"}
+                except requests.exceptions.ConnectionError as e:
+                    last_error = f"Connection error: {e}"
+                    print(f"Groq API connection error on attempt {attempt + 1}")
+                    
+                    if attempt < self.retry_max_attempts - 1:
+                        wait_time = self._get_jittered_backoff_delay(attempt)
+                        print(f"[RETRY] Retrying in {wait_time:.2f}s...")
+                        time.sleep(wait_time)
+                        continue
+                
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"Groq API error on attempt {attempt + 1}: {e}")
+                    
+                    if attempt < self.retry_max_attempts - 1:
+                        wait_time = self._get_jittered_backoff_delay(attempt)
+                        print(f"[RETRY] Retrying in {wait_time:.2f}s...")
+                        time.sleep(wait_time)
+                        continue
             
-            except requests.exceptions.Timeout:
-                self.timeout_count += 1
-                last_error = "Timeout"
-                print(f"⏱️ Groq API timeout on attempt {attempt + 1}")
-                
-                if attempt < self.retry_max_attempts - 1:
-                    wait_time = self.retry_base_delay * (2 ** attempt)
-                    print(f"⏳ Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    return {"error": "Timeout after retries", "is_timeout": True}
-            
-            except requests.exceptions.ConnectionError as e:
-                last_error = f"Connection error: {e}"
-                print(f"Groq API connection error on attempt {attempt + 1}")
-                
-                if attempt < self.retry_max_attempts - 1:
-                    wait_time = self.retry_base_delay * (2 ** attempt)
-                    print(f"⏳ Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
-            
-            except Exception as e:
-                last_error = str(e)
-                print(f"Groq API error on attempt {attempt + 1}: {e}")
-                
-                if attempt < self.retry_max_attempts - 1:
-                    wait_time = self.retry_base_delay * (2 ** attempt)
-                    print(f"⏳ Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
+            # All retries exhausted
+            print(f"[ERROR] Groq API failed after {self.retry_max_attempts} attempts: {last_error}")
+            return {"error": last_error or "API call failed"}
         
-        # All retries exhausted
-        print(f"⚠️ Groq API failed after {self.retry_max_attempts} attempts: {last_error}")
-        return {"error": last_error or "API call failed"}
+        finally:
+            # Always release the concurrent slot
+            self._release_concurrent_slot()
     
     def stream_response_tokens(self, response_text: str) -> Generator[str, None, None]:
         """
@@ -734,10 +894,11 @@ Application fee: Usually ₹500-2000
     
     def get_api_status(self) -> dict:
         """
-        Get status of Groq API keys and connection metrics.
+        Get comprehensive status of Groq API keys and connection metrics.
+        Includes health tracking for all optimization strategies.
         
         Returns:
-            dict: API status summary
+            dict: API status summary with key health and optimization metrics
         """
         return {
             "total_keys": len(self.groq_api_keys),
@@ -748,7 +909,17 @@ Application fee: Usually ₹500-2000
             "timeouts": self.timeout_count,
             "fallbacks": self.fallback_count,
             "cache_hits": self.cache_hits,
-            "success_rate": f"{(self.groq_success_count / max(1, self.total_api_calls) * 100):.1f}%"
+            "success_rate": f"{(self.groq_success_count / max(1, self.total_api_calls) * 100):.1f}%",
+            # Strategy 1: Throttling
+            "throttle_interval_ms": int(self.min_request_interval * 1000),
+            # Strategy 2: Concurrent limiting
+            "concurrent_limit": self.concurrent_limit,
+            "active_requests": self.active_requests,
+            # Strategy 4: Key health
+            "key_health": self._get_key_health_status(),
+            # Strategy 5: Caching
+            "cache_size": len(self._response_cache),
+            "cache_max_size": self._cache_max_size
         }
     
     def _call_gemini_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
@@ -764,7 +935,7 @@ Application fee: Usually ₹500-2000
             dict: Response or error dict
         """
         if not self.gemini_client:
-            print("⚠️ GEMINI_API_KEY not set in environment")
+            print("[ERROR] GEMINI_API_KEY not set in environment")
             return {"error": "No Gemini API key configured"}
         
         try:

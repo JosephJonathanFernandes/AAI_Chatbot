@@ -35,27 +35,36 @@ class EmotionalToneDetector:
         "urgent": {
             "keywords": ["urgent", "asap", "immediately", "emergency", "critical", "now"],
             "patterns": [r"!!+", r"\?\?+", r"URGENT|EMERGENCY"],
-            "context": ["placement", "result", "deadline", "admission"]
+            "context": ["placement", "result", "deadline", "admission"],
+            "min_confidence": 0.75
         },
         "confused": {
-            "keywords": ["confused", "don't understand", "unclear", "help", "what does", "how", "why"],
-            "patterns": [r"(\?{2,})", r"confused|unclear|don't understand"],
-            "context": ["process", "requirement", "meaning"]
+            # IMPROVED: Much stricter patterns for confused
+            # Removed generic "what", "how", "why" - these are just questions
+            # Confused requires explicit statements of not understanding
+            "keywords": ["confused", "don't understand", "unclear", "don't know", "bewildered", "lost"],
+            "patterns": [r"i don't understand", r"(unclear|confused|lost|bewildered)", r"can't figure out"],
+            "context": [],  # Don't filter - if keyword matches, it's likely genuine
+            "min_confidence": 0.80,  # High threshold
+            "exclude_patterns": [r"can you.*help", r"what.*is", r"how.*to", r"where.*can"]
         },
         "frustrated": {
             "keywords": ["frustrated", "annoyed", "stuck", "problem", "issue", "not working"],
             "patterns": [r"(!{2,})", r"frustrated|annoyed|stuck"],
-            "context": ["process", "system", "issue"]
+            "context": ["process", "system", "issue"],
+            "min_confidence": 0.70
         },
         "happy": {
             "keywords": ["thank", "great", "excellent", "happy", "thanks", "good"],
             "patterns": [r"(:D)|(\^_\^)"],
-            "context": ["admission", "placement", "result"]
+            "context": ["admission", "placement", "result"],
+            "min_confidence": 0.70
         },
         "stressed": {
             "keywords": ["stressed", "anxious", "worried", "pressure", "deadline"],
             "patterns": [r":/\s|worried|stressed"],
-            "context": ["exam", "placement", "result"]
+            "context": ["exam", "placement", "result"],
+            "min_confidence": 0.70
         }
     }
     
@@ -211,55 +220,80 @@ class EmotionalToneDetector:
             }
     
     def _detect_urgency(self, text: str) -> float:
-        """Detect urgency indicators."""
+        """Detect urgency indicators with improved calibration."""
         score = 0.0
         text_lower = text.lower()
         
-        # Check for urgent keywords
+        # Check for urgent keywords (stricter)
         urgent_keywords = ["urgent", "asap", "emergency", "immediately", "critical", "now"]
-        matches = sum(1 for kw in urgent_keywords if kw in text_lower)
-        score += matches * 0.2
+        matches = sum(1 for kw in urgent_keywords if f" {kw} " in f" {text_lower} ")
+        score += matches * 0.25  # Increased from 0.2 to be more selective
         
-        # Check for punctuation intensity
+        # Check for punctuation intensity (more conservative)
         exc_count = text.count("!")
         question_count = text.count("?")
-        score += min(exc_count * 0.15, 0.3)
-        score += min(question_count * 0.1, 0.2)
+        # Reduce contribution from mere punctuation
+        score += min(exc_count * 0.10, 0.25)  # Reduced from 0.15
+        score += min(question_count * 0.05, 0.10)  # Reduced from 0.1
         
-        # Check for caps intensity
+        # Check for caps intensity (more conservative)
         caps_ratio = sum(1 for c in text if c.isupper()) / max(len(text), 1)
-        score += min(caps_ratio * 0.4, 0.3)
+        # Long all-caps messages are less likely; short ones might be typos
+        if caps_ratio > 0.5 and len(text) > 15:
+            score += min(caps_ratio * 0.3, 0.25)  # Reduced from 0.4
         
         return min(score, 1.0)
     
     def _detect_primary_tone(self, text_lower: str, emotion: str) -> EmotionalTone:
-        """Detect primary emotional tone."""
+        """Detect primary emotional tone with improved threshold checking."""
         # Check tone patterns
         for tone_name, patterns in self.TONE_PATTERNS.items():
+            min_confidence = patterns.get("min_confidence", 0.5)
+            exclude_patterns = patterns.get("exclude_patterns", [])
+            
+            # Check for exclusion patterns first (especially for "confused")
+            should_exclude = False
+            for exclude_pattern in exclude_patterns:
+                if re.search(exclude_pattern, text_lower):
+                    should_exclude = True
+                    break
+            
+            if should_exclude:
+                continue
+            
             # Check keywords
-            for keyword in patterns["keywords"]:
+            found_keyword = False
+            for keyword in patterns.get("keywords", []):
                 if keyword in text_lower:
-                    # Map tone_name to EmotionalTone enum
-                    tone_map = {
-                        "urgent": EmotionalTone.URGENT,
-                        "confused": EmotionalTone.CONFUSED,
-                        "frustrated": EmotionalTone.NEGATIVE,
-                        "happy": EmotionalTone.POSITIVE,
-                        "stressed": EmotionalTone.NEGATIVE,
-                    }
-                    return tone_map.get(tone_name, EmotionalTone.NEUTRAL)
+                    found_keyword = True
+                    break
+            
+            if found_keyword:
+                tone_map = {
+                    "urgent": EmotionalTone.URGENT,
+                    "confused": EmotionalTone.CONFUSED,
+                    "frustrated": EmotionalTone.NEGATIVE,
+                    "happy": EmotionalTone.POSITIVE,
+                    "stressed": EmotionalTone.NEGATIVE,
+                }
+                return tone_map.get(tone_name, EmotionalTone.NEUTRAL)
             
             # Check regex patterns
-            for pattern in patterns["patterns"]:
+            found_pattern = False
+            for pattern in patterns.get("patterns", []):
                 if re.search(pattern, text_lower):
-                    tone_map = {
-                        "urgent": EmotionalTone.URGENT,
-                        "confused": EmotionalTone.CONFUSED,
-                        "frustrated": EmotionalTone.NEGATIVE,
-                        "happy": EmotionalTone.POSITIVE,
-                        "stressed": EmotionalTone.NEGATIVE,
-                    }
-                    return tone_map.get(tone_name, EmotionalTone.NEUTRAL)
+                    found_pattern = True
+                    break
+            
+            if found_pattern:
+                tone_map = {
+                    "urgent": EmotionalTone.URGENT,
+                    "confused": EmotionalTone.CONFUSED,
+                    "frustrated": EmotionalTone.NEGATIVE,
+                    "happy": EmotionalTone.POSITIVE,
+                    "stressed": EmotionalTone.NEGATIVE,
+                }
+                return tone_map.get(tone_name, EmotionalTone.NEUTRAL)
         
         # Fall back to emotion-based mapping
         emotion_to_tone = {
@@ -274,7 +308,7 @@ class EmotionalToneDetector:
         return emotion_to_tone.get(emotion, EmotionalTone.NEUTRAL)
     
     def _calculate_tone_confidence(self, text: str, tone: EmotionalTone, urgency: float) -> float:
-        """Calculate confidence in tone detection."""
+        """Calculate confidence in tone detection with minimum thresholds."""
         base_confidence = 0.6
         
         # Boost confidence for urgent tone with high urgency score
@@ -284,6 +318,19 @@ class EmotionalToneDetector:
         # Boost confidence for longer contextualized text
         if len(text) > 50:
             base_confidence += 0.15
+        
+        # IMPROVED: Reduce confidence for confused tone (was too high)
+        # to prevent false positives on simple questions
+        if tone == EmotionalTone.CONFUSED:
+            # Only high confidence for genuine confusion signals
+            text_lower = text.lower()
+            has_genuine_confusion = any(
+                phrase in text_lower 
+                for phrase in ["don't understand", "unclear", "confused", "lost", "bewildered"]
+            )
+            if not has_genuine_confusion and len(text) <= 10:
+                # Short messages without explicit confusion keyword
+                base_confidence = 0.3
         
         return min(base_confidence, 1.0)
     

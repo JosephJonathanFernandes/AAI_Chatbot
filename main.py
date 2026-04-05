@@ -247,7 +247,7 @@ def train_model():
         tfidf_result = result.get('tfidf', {})
         print(f"  Intents: {sem_result.get('intents', 'N/A')}")
         print(f"  Patterns: {sem_result.get('patterns', 'N/A')} (semantic) + {tfidf_result.get('patterns', 'N/A')} (TF-IDF)")
-        print(f"  Status: Ensemble classifier ready (70% semantic + 30% TF-IDF)")
+        print(f"  Status: Ensemble classifier ready (75% semantic + 25% TF-IDF) [IMPROVED]")
     else:
         print(f"✗ Training failed: {result.get('error')}")
 

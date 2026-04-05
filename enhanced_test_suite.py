@@ -284,7 +284,7 @@ class ChatbotTestSuite:
                 pass_count = sum(1 for c in cases if c["success"])
                 report.append(f"\n{case_type.upper()}: {pass_count}/{len(cases)} passed")
                 for case in cases:
-                    status = "[✓]" if case["success"] else "[✗]"
+                    status = "[PASS]" if case["success"] else "[FAIL]"
                     report.append(f"  {status} {case['test_id']:15} | {case['query'][:50]:50}")
         
         # SUMMARY STATS
@@ -313,7 +313,7 @@ class ChatbotTestSuite:
             print(f"\n[OK] Report saved: {filename}")
             return filename
         except Exception as e:
-            print(f"✗ Failed to save report: {e}")
+            print(f"[ERROR] Failed to save report: {e}")
             return None
 
 def main():
@@ -337,12 +337,19 @@ def main():
     
     # Generate and save report
     report = suite.generate_report()
+    
+    # Force UTF-8 encoding for output
+    import sys
+    import io
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    
     print("\n" + report)
     
     # Save to file
     output_file = suite.save_report()
     
-    print(f"\n✓ Test suite complete: {suite.successful_count}/{len(results)} passed")
+    print(f"\n[OK] Test suite complete: {suite.successful_count}/{len(results)} passed")
 
 if __name__ == "__main__":
     main()
