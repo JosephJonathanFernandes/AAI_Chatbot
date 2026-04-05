@@ -243,9 +243,11 @@ def train_model():
     
     if result.get("success"):
         print(f"✓ Training successful!")
-        print(f"  Samples: {result.get('samples_count')}")
-        print(f"  Intents: {result.get('intents_count')}")
-        print(f"  Accuracy: {result.get('training_accuracy'):.1%}")
+        sem_result = result.get('semantic', {})
+        tfidf_result = result.get('tfidf', {})
+        print(f"  Intents: {sem_result.get('intents', 'N/A')}")
+        print(f"  Patterns: {sem_result.get('patterns', 'N/A')} (semantic) + {tfidf_result.get('patterns', 'N/A')} (TF-IDF)")
+        print(f"  Status: Ensemble classifier ready (70% semantic + 30% TF-IDF)")
     else:
         print(f"✗ Training failed: {result.get('error')}")
 
