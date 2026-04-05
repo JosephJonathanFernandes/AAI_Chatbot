@@ -310,7 +310,7 @@ class ChatbotTestSuite:
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(report_content)
-            print(f"\n✓ Report saved: {filename}")
+            print(f"\n[OK] Report saved: {filename}")
             return filename
         except Exception as e:
             print(f"✗ Failed to save report: {e}")
@@ -327,9 +327,9 @@ def main():
     # Run tests
     print("\nInitializing chatbot components...")
     if suite.intent_classifier.is_trained:
-        print("✓ Intent classifier loaded")
+        print("[OK] Intent classifier loaded")
     else:
-        print("⚠ Training intent classifier...")
+        print("[TRAINING] Intent classifier training...")
         suite.intent_classifier.train()
     
     # Execute all tests

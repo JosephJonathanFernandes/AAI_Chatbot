@@ -1,5 +1,5 @@
 """
-LLM handler for Groq API with Ollama fallback.
+LLM handler for Groq API with Gemini fallback.
 Enhanced with structured prompt engineering, knowledge grounding (RAG-lite), 
 and scope detection for controlled LLM responses.
 
@@ -9,6 +9,8 @@ Features:
 - Scope detection catches out-of-domain queries
 - Emotion-aware response toning
 - Structured prompt engineering with context injection
+- Automatic Groq key rotation with exponential backoff
+- Fast fallback to Google Gemini API
 """
 
 import os
@@ -18,6 +20,7 @@ from typing import Optional, List, Dict, Generator
 import json
 from functools import lru_cache
 from dotenv import load_dotenv
+from google import genai
 from utils import load_json_file, get_time_of_day
 from time_context import TimeContext
 from prompt_engineering import PromptEngineer
@@ -28,19 +31,27 @@ load_dotenv()
 
 
 class LLMHandler:
-    """Handles LLM interactions with Groq API and Ollama fallback with knowledge grounding."""
+    """Handles LLM interactions with Groq API and Gemini fallback with knowledge grounding."""
     
     def __init__(self, groq_api_key: Optional[str] = None, college_data_path: str = "data/college_data.json"):
         """
         Initialize LLM handler with enhanced prompt engineering and scope detection.
+        Supports multiple Groq API keys with automatic rotation on rate limits.
         
         Args:
             groq_api_key (str): Groq API key (uses env var if not provided)
             college_data_path (str): Path to college knowledge base JSON
         """
-        self.groq_api_key = groq_api_key or os.getenv("GROQ_API_KEY")
+        # Load multiple API keys for rotation (supports GROQ_API_KEY_1, GROQ_API_KEY_2, etc.)
+        self.groq_api_keys = self._load_groq_keys(groq_api_key)
+        self.current_key_index = 0
         self.groq_base_url = "https://api.groq.com/openai/v1"
-        self.ollama_base_url = "http://localhost:11434/api/generate"
+        
+        # Initialize Gemini API for fallback
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        self.gemini_client = None
+        if self.gemini_api_key:
+            self.gemini_client = genai.Client(api_key=self.gemini_api_key)
         
         # Load college knowledge base for RAG-lite
         self.college_data = load_json_file(college_data_path)
@@ -52,12 +63,78 @@ class LLMHandler:
         
         # Model configuration
         self.groq_model = "llama-3.1-8b-instant"
-        self.ollama_model = "mistral"
+        self.gemini_model = "gemini-2.5-flash"
         
         # Track metrics
         self.fallback_count = 0
         self.groq_success_count = 0
         self.total_api_calls = 0
+        self.rate_limit_count = 0  # Track 429 errors
+        
+        # Response caching (reduces API calls for repeated queries)
+        self._response_cache = {}
+        self._cache_max_size = 256
+        self.cache_hits = 0
+        self.timeout_count = 0
+        self.groq_timeout = 8  # seconds
+        self.gemini_timeout = 10  # seconds
+        
+        # Retry configuration
+        self.retry_max_attempts = 3
+        self.retry_base_delay = 1.0  # seconds (exponential backoff base)
+    
+    def _load_groq_keys(self, provided_key: Optional[str] = None) -> List[str]:
+        """
+        Load multiple Groq API keys from environment variables.
+        Priority: provided_key > GROQ_API_KEY_1/2/3/4 > GROQ_API_KEY (legacy)
+        
+        Returns:
+            List[str]: Non-empty API keys (at least one required)
+        """
+        keys = []
+        
+        # If key provided directly, use it first
+        if provided_key:
+            keys.append(provided_key)
+        
+        # Load numbered keys (GROQ_API_KEY_1, GROQ_API_KEY_2, etc.)
+        for i in range(1, 5):  # Support up to 4 keys
+            key = os.getenv(f"GROQ_API_KEY_{i}")
+            if key and key.strip():
+                keys.append(key.strip())
+        
+        # Fallback to legacy GROQ_API_KEY
+        if not keys:
+            legacy_key = os.getenv("GROQ_API_KEY")
+            if legacy_key:
+                keys.append(legacy_key)
+        
+        if not keys:
+            print("⚠️ WARNING: No Groq API keys found in environment variables")
+            print("   Set GROQ_API_KEY_1, GROQ_API_KEY_2, etc. in .env file")
+        
+        # Remove duplicates while preserving order
+        unique_keys = []
+        seen = set()
+        for key in keys:
+            if key not in seen:
+                unique_keys.append(key)
+                seen.add(key)
+        
+        return unique_keys
+    
+    def _get_current_groq_key(self) -> Optional[str]:
+        """Get current active API key (with rotation on exhaustion)."""
+        if not self.groq_api_keys:
+            return None
+        return self.groq_api_keys[self.current_key_index % len(self.groq_api_keys)]
+    
+    def _rotate_groq_key(self) -> None:
+        """Rotate to next API key on rate limit/failure."""
+        if len(self.groq_api_keys) > 1:
+            old_index = self.current_key_index
+            self.current_key_index = (self.current_key_index + 1) % len(self.groq_api_keys)
+            print(f"🔄 Rotating Groq API key: key {old_index + 1} → key {self.current_key_index + 1}")
     
     def generate_response(self, 
                          user_input: str, 
@@ -146,9 +223,65 @@ class LLMHandler:
             if not is_in_scope:
                 system_prompt += f"\n\nIMPORTANT: This query is OUT-OF-SCOPE. Respond with:\n'{scope_info.get('out_of_scope_response', '')}'"
             
-            # STEP 9: Try Groq API first
+            # STEP 9: Detect multi-intent queries and handle appropriately
+            intent_parts = self._detect_multi_intent(user_input)
+            
+            if len(intent_parts) > 1:
+                # Multi-intent query: process each part separately to avoid timeout
+                print(f"Processing {len(intent_parts)} sub-queries separately...")
+                responses = []
+                for i, part in enumerate(intent_parts):
+                    print(f"  Sub-query {i+1}/{len(intent_parts)}: {part}")
+                    # Recursively process each part (without multi-intent detection to avoid loops)
+                    sub_user_prompt = self.prompt_engineer.build_user_prompt(
+                        user_input=part,
+                        intent=intent,
+                        conversation_history=[],
+                        relevant_knowledge=self._get_grounded_knowledge(intent, part),
+                        time_context=time_context_str
+                    )
+                    sub_result = self._call_groq_api(system_prompt, sub_user_prompt)
+                    
+                    if sub_result and not sub_result.get("error"):
+                        responses.append(sub_result.get("response", ""))
+                    else:
+                        responses.append(f"[Unable to answer: {part}]")
+                
+                response_time = time.time() - start_time
+                combined_response = "\n\n".join(responses)
+                self.groq_success_count += 1
+                return {
+                    "response": combined_response,
+                    "error": None,
+                    "source": "groq_multi",
+                    "time": response_time,
+                    "is_in_scope": is_in_scope,
+                    "intent": intent,
+                    "confidence": confidence,
+                    "emotion": emotion,
+                    "should_clarify": False
+                }
+            
+            # STEP 9: Single-intent: Try Groq API first
             result = self._call_groq_api(system_prompt, user_prompt)
             response_time = time.time() - start_time
+            
+            # Check for timeout specifically
+            if result and result.get("is_timeout"):
+                print("⏱️ Timeout detected on Groq API - returning graceful fallback...")
+                fallback_response = self.prompt_engineer.build_fallback_prompt(intent)
+                self.fallback_count += 1
+                return {
+                    "response": fallback_response,
+                    "error": "Timeout - fallback used",
+                    "source": "fallback_timeout",
+                    "time": response_time,
+                    "is_in_scope": is_in_scope,
+                    "intent": intent,
+                    "confidence": confidence,
+                    "emotion": emotion,
+                    "should_clarify": False
+                }
             
             if result and isinstance(result, dict) and not result.get("error"):
                 self.groq_success_count += 1
@@ -164,9 +297,9 @@ class LLMHandler:
                     "should_clarify": confidence < 0.4 and clarification_count == 0
                 }
             
-            # STEP 10: Fallback to Ollama
-            print("⚠️ Groq API failed, falling back to Ollama...")
-            result = self._call_ollama_api(system_prompt, user_prompt)
+            # STEP 10: Fallback to Gemini (with timeout)
+            print("⚠️ Groq API failed, falling back to Gemini...")
+            result = self._call_gemini_api(system_prompt, user_prompt)
             response_time = time.time() - start_time
             self.fallback_count += 1
             
@@ -174,7 +307,7 @@ class LLMHandler:
                 return {
                     "response": result.get("response", ""),
                     "error": None,
-                    "source": "ollama",
+                    "source": "gemini",
                     "time": response_time,
                     "is_in_scope": is_in_scope,
                     "intent": intent,
@@ -375,74 +508,208 @@ Application fee: Usually ₹500-2000
         # Each turn ~ 100-150 tokens; limiting to 1-2 saves 150-300 tokens
         return history[-1:] if len(history) > 1 else history
     
+    def _get_cache_key(self, system_prompt: str, user_prompt: str) -> str:
+        """Generate cache key from prompts using hash."""
+        combined = f"{system_prompt}:::{user_prompt}"
+        return str(hash(combined))
+    
+    def _get_cached_response(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
+        """Check if response exists in cache."""
+        cache_key = self._get_cache_key(system_prompt, user_prompt)
+        if cache_key in self._response_cache:
+            self.cache_hits += 1
+            return self._response_cache[cache_key]
+        return None
+    
+    def _store_cached_response(self, system_prompt: str, user_prompt: str, response: dict) -> None:
+        """Store response in cache with LRU eviction."""
+        cache_key = self._get_cache_key(system_prompt, user_prompt)
+        
+        # Evict oldest entry if cache is full
+        if len(self._response_cache) >= self._cache_max_size:
+            oldest_key = next(iter(self._response_cache))
+            del self._response_cache[oldest_key]
+        
+        self._response_cache[cache_key] = response
+    
+    def _detect_multi_intent(self, user_input: str) -> List[str]:
+        """
+        Detect if query contains multiple intents separated by 'and', 'plus', ','.
+        Multi-intent queries can cause timeouts; splitting them helps.
+        
+        Args:
+            user_input (str): User query
+        
+        Returns:
+            List[str]: List of individual queries (split if multi-intent, else single query)
+        """
+        if not user_input or len(user_input) < 5:
+            return [user_input]
+        
+        # Look for separators indicating multiple intents
+        separators = [" and ", " plus ", ", ", " & "]
+        
+        for sep in separators:
+            if sep.lower() in user_input.lower():
+                parts = user_input.split(sep)
+                if len(parts) > 1 and all(len(p.strip()) > 3 for p in parts):
+                    # Valid multi-intent: multiple parts, each meaningful
+                    cleaned_parts = [p.strip() for p in parts if p.strip()]
+                    if len(cleaned_parts) > 1:
+                        print(f"🔄 Multi-intent detected! Splitting: {cleaned_parts}")
+                        return cleaned_parts
+        
+        return [user_input]
+    
+    
+    
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
-        Call Groq API for response generation with streaming support.
+        Call Groq API with automatic retry on rate limits and key rotation.
+        Implements exponential backoff for transient failures.
         
         Args:
             system_prompt (str): System prompt
             user_prompt (str): User prompt
         
         Returns:
-            dict: Response or None on error
+            dict: Response or error dict
         """
-        if not self.groq_api_key:
-            print("⚠️ GROQ_API_KEY not set in environment")
-            return {"error": "No API key"}
+        groq_api_key = self._get_current_groq_key()
+        if not groq_api_key:
+            print("⚠️ No Groq API keys available")
+            return {"error": "No API keys configured"}
         
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.groq_api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": self.groq_model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.6,
-                "max_tokens": 250,
-                "top_p": 0.85,
-                "stream": False  # Collect full response, but can be streamed in UI
-            }
-            
-            response = requests.post(
-                f"{self.groq_base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
+        # CHECK CACHE FIRST
+        cached_response = self._get_cached_response(system_prompt, user_prompt)
+        if cached_response:
+            print(f"✓ Cache hit! Returning cached response (total cache hits: {self.cache_hits})")
+            return cached_response
+        
+        # Retry loop with exponential backoff
+        last_error = None
+        for attempt in range(self.retry_max_attempts):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                payload = {
+                    "model": self.groq_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": 0.6,
+                    "max_tokens": 250,
+                    "top_p": 0.85,
+                    "stream": False
+                }
+                
+                # Use strict timeout of 8 seconds
+                response = requests.post(
+                    f"{self.groq_base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=self.groq_timeout
+                )
+                
+                # Handle 429 (rate limit) - rotate key and retry
+                if response.status_code == 429:
+                    self.rate_limit_count += 1
+                    print(f"Groq API error 429 (rate limit)")
+                    
+                    # Rotate to next key if available
+                    if len(self.groq_api_keys) > 1:
+                        self._rotate_groq_key()
+                        groq_api_key = self._get_current_groq_key()
+                        
+                        # Exponential backoff before retry
+                        wait_time = self.retry_base_delay * (2 ** attempt)
+                        print(f"⏳ Retrying in {wait_time}s with rotated key (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        # Single key, retry with backoff
+                        if attempt < self.retry_max_attempts - 1:
+                            wait_time = self.retry_base_delay * (2 ** attempt)
+                            print(f"⏳ Retrying in {wait_time}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            return {"error": "Rate limit exceeded after retries"}
+                
+                # Handle other error codes
+                if response.status_code != 200:
+                    print(f"Groq API error {response.status_code}")
+                    last_error = f"Status {response.status_code}"
+                    
+                    # Retry transient errors (5xx)
+                    if 500 <= response.status_code < 600 and attempt < self.retry_max_attempts - 1:
+                        wait_time = self.retry_base_delay * (2 ** attempt)
+                        print(f"⏳ Retrying in {wait_time}s (attempt {attempt + 1}/{self.retry_max_attempts})...")
+                        time.sleep(wait_time)
+                        continue
+                    
+                    return {"error": last_error}
+                
+                # Success - parse response
                 try:
                     data = response.json()
                     if not isinstance(data, dict):
                         return {"error": "Response is not JSON dict"}
+                    
                     response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                    # Return response with tokens split for streaming in UI
                     if response_text:
                         tokens = response_text.split()
-                        return {"response": response_text, "tokens": tokens}
+                        result = {"response": response_text, "tokens": tokens}
+                        # Cache the response
+                        self._store_cached_response(system_prompt, user_prompt, result)
+                        return result
                     else:
                         return {"error": "Empty response from Groq"}
+                
                 except (ValueError, KeyError, IndexError, TypeError) as parse_error:
                     print(f"Error parsing Groq response: {parse_error}")
                     return {"error": f"Parse error: {str(parse_error)}"}
-            else:
-                print(f"Groq API error {response.status_code}")
-                return {"error": f"Status {response.status_code}"}
+            
+            except requests.exceptions.Timeout:
+                self.timeout_count += 1
+                last_error = "Timeout"
+                print(f"⏱️ Groq API timeout on attempt {attempt + 1}")
+                
+                if attempt < self.retry_max_attempts - 1:
+                    wait_time = self.retry_base_delay * (2 ** attempt)
+                    print(f"⏳ Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return {"error": "Timeout after retries", "is_timeout": True}
+            
+            except requests.exceptions.ConnectionError as e:
+                last_error = f"Connection error: {e}"
+                print(f"Groq API connection error on attempt {attempt + 1}")
+                
+                if attempt < self.retry_max_attempts - 1:
+                    wait_time = self.retry_base_delay * (2 ** attempt)
+                    print(f"⏳ Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+            
+            except Exception as e:
+                last_error = str(e)
+                print(f"Groq API error on attempt {attempt + 1}: {e}")
+                
+                if attempt < self.retry_max_attempts - 1:
+                    wait_time = self.retry_base_delay * (2 ** attempt)
+                    print(f"⏳ Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
         
-        except requests.exceptions.Timeout:
-            print("Groq API timeout")
-            return {"error": "Timeout"}
-        except requests.exceptions.ConnectionError:
-            print("Groq API connection error")
-            return {"error": "Connection error"}
-        except Exception as e:
-            print(f"Groq API error: {e}")
-            return {"error": str(e)}
+        # All retries exhausted
+        print(f"⚠️ Groq API failed after {self.retry_max_attempts} attempts: {last_error}")
+        return {"error": last_error or "API call failed"}
     
     def stream_response_tokens(self, response_text: str) -> Generator[str, None, None]:
         """
@@ -460,57 +727,68 @@ Application fee: Usually ₹500-2000
             yield token + (" " if i < len(tokens) - 1 else "")
             time.sleep(0.02)  # Small delay for smoother streaming (optional)
     
-    def _call_ollama_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
+    def get_api_status(self) -> dict:
         """
-        Call Ollama API (local) for response generation.
+        Get status of Groq API keys and connection metrics.
+        
+        Returns:
+            dict: API status summary
+        """
+        return {
+            "total_keys": len(self.groq_api_keys),
+            "current_key_index": self.current_key_index,
+            "total_api_calls": self.total_api_calls,
+            "groq_successes": self.groq_success_count,
+            "rate_limit_errors": self.rate_limit_count,
+            "timeouts": self.timeout_count,
+            "fallbacks": self.fallback_count,
+            "cache_hits": self.cache_hits,
+            "success_rate": f"{(self.groq_success_count / max(1, self.total_api_calls) * 100):.1f}%"
+        }
+    
+    def _call_gemini_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
+        """
+        Call Google Gemini API for response generation as fallback.
+        Uses modern google.genai SDK.
         
         Args:
             system_prompt (str): System prompt
             user_prompt (str): User prompt
         
         Returns:
-            dict: Response or None on error
+            dict: Response or error dict
         """
+        if not self.gemini_client:
+            print("⚠️ GEMINI_API_KEY not set in environment")
+            return {"error": "No Gemini API key configured"}
+        
         try:
+            # Combine prompts for Gemini
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
-            payload = {
-                "model": self.ollama_model,
-                "prompt": full_prompt,
-                "stream": False,
-                "temperature": 0.7,
-                "num_predict": 500
-            }
-            
-            response = requests.post(
-                self.ollama_base_url,
-                json=payload,
-                timeout=15
+            # Generate response using the client
+            response = self.gemini_client.models.generate_content(
+                model=self.gemini_model,
+                contents=full_prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=0.6,
+                    max_output_tokens=250,
+                    top_p=0.85
+                )
             )
             
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    if not isinstance(data, dict):
-                        return {"error": "Response is not JSON dict"}
-                    response_text = data.get("response", "").strip()
-                    if response_text:
-                        return {"response": response_text}
-                    else:
-                        return {"error": "Empty response from Ollama"}
-                except (ValueError, TypeError) as parse_error:
-                    print(f"Error parsing Ollama response: {parse_error}")
-                    return {"error": f"Parse error: {str(parse_error)}"}
+            if response.text:
+                return {"response": response.text.strip()}
             else:
-                print(f"Ollama API error {response.status_code}")
-                return {"error": f"Status {response.status_code}"}
+                return {"error": "Empty response from Gemini"}
         
-        except requests.exceptions.ConnectionError:
-            print("Ollama not running. Start with: ollama serve")
-            return {"error": "Ollama not available"}
         except Exception as e:
-            print(f"Ollama error: {e}")
-            return {"error": str(e)}
+            error_str = str(e)
+            if "timeout" in error_str.lower():
+                print(f"⏱️ Gemini API timeout ({self.gemini_timeout}s limit)")
+                return {"error": "Timeout", "is_timeout": True}
+            print(f"Gemini API error: {e}")
+            return {"error": error_str}
     
     def get_stats(self) -> dict:
         """Get handler statistics."""
