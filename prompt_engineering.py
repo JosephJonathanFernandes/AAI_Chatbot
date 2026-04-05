@@ -181,14 +181,40 @@ RESPOND TO THE QUERY ABOVE:
         
         return template
     
-    def build_fallback_prompt(self) -> str:
-        """Build a fallback prompt for handling errors."""
-        return """I'm having trouble processing your request at the moment. 
-Could you please try asking again? If the issue persists, please contact the college administration office.
+    def build_fallback_prompt(self, intent: str = None) -> str:
+        """Build a contextual fallback prompt for unclear or low-confidence queries."""
+        
+        # Contextual fallback messages based on detected intent
+        context_messages = {
+            "fees": "Could you clarify what you'd like to know about fees? For example: tuition costs, scholarships, payment plans, or financial aid?",
+            "exams": "Are you asking about exam dates, exam syllabus, passing criteria, or exam preparation tips?",
+            "placements": "Could you specify what placement information you need? For example: placement rate, salary ranges, companies, or internship opportunities?",
+            "admission": "Would you like to know about admission requirements, eligibility criteria, application process, or application deadlines?",
+            "hostel": "Are you interested in hostel accommodation, facilities, fees, or how to apply for hostel?",
+            "campus_life": "Are you asking about clubs, sports, cultural events, or general campus activities?",
+            "library": "Could you clarify what you'd like to know about the library? For example: books, e-resources, study areas, or library timing?",
+            "faculty": "Would you like information about faculty qualifications, accessibility, or specific departments?",
+            "general_info": "Could you be more specific? For example: college overview, departments, infrastructure, or contact information?",
+            "timetable": "Are you looking for class scheduling, exam timings, or academic calendar information?",
+            "eligibility": "Could you clarify: eligibility for which program? (Engineering, Science, Commerce, etc.)",
+            "comparison": "Which two things would you like to compare? For example: branches, colleges, or streams?",
+        }
+        
+        # Return contextual message if intent is known
+        if intent and intent in context_messages:
+            return context_messages[intent]
+        
+        # Generic fallback if intent is unknown
+        return """I didn't quite catch that. Let me help you better. What would you like to know about?
 
-In the meantime, you can ask me about:
-- Fees and financial aid
-- Exams and academic schedules
-- Placements and career services
-- Faculty and department information
-- Library and campus facilities"""
+I can assist with:
+- Admissions & eligibility criteria
+- Fees, scholarships & financial aid  
+- Exam schedules & academic calendar
+- Placements & career opportunities
+- Hostel & campus facilities
+- Faculty & departments
+- Campus life & clubs
+- Library & resources
+
+Feel free to ask!"""

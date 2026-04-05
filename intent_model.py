@@ -1,271 +1,208 @@
 """
-Intent classification using scikit-learn (TF-IDF + Logistic Regression).
-Trains and predicts user intents from input text.
+Semantic Intent Classifier using sentence-transformers.
+Provides robust intent detection for typos, slang, Hinglish, and casual variations.
 """
 
 import json
-import pickle
-from pathlib import Path
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import Pipeline
 import numpy as np
+from pathlib import Path
+from typing import Tuple, Dict, List
+from sentence_transformers import SentenceTransformer, util
+from text_preprocessor import TextPreprocessor
 from utils import load_json_file
 
 
-class IntentClassifier:
-    """Classifies user intents using TF-IDF + Logistic Regression."""
+class SemanticIntentClassifier:
+    """
+    Classifies user intents using sentence embeddings and semantic similarity.
+    MUCH more robust than TF-IDF for handling typos, slang, Hinglish.
+    """
     
-    def __init__(self, model_path="intent_model.pkl", vectorizer_path="tfidf_vectorizer.pkl"):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """
-        Initialize intent classifier.
+        Initialize semantic classifier.
         
         Args:
-            model_path (str): Path to save/load trained model
-            vectorizer_path (str): Path to save/load TF-IDF vectorizer
+            model_name (str): Sentence-transformers model name (default: fast, multilingual-capable)
         """
-        self.model_path = model_path
-        self.vectorizer_path = vectorizer_path
-        self.model = None
-        self.vectorizer = None
+        self.model_name = model_name
+        self.model = SentenceTransformer(model_name)
+        self.intent_embeddings = {}  # intent -> list of embeddings
         self.intent_labels = []
         self.is_trained = False
-        
-        # Try to load existing model
-        if self._model_exists():
-            self.load_model()
-        else:
-            self._initialize_model()
+        self.threshold = 0.35  # Similarity threshold (lower = more confident on harder queries)
     
-    def _initialize_model(self):
-        """Initialize a new untrained model."""
-        self.vectorizer = TfidfVectorizer(
-            max_features=1000,
-            lowercase=True,
-            stop_words='english',
-            ngram_range=(1, 2),
-            min_df=1,
-            max_df=0.9
-        )
-        
-        self.model = LogisticRegression(
-            max_iter=200,
-            random_state=42,
-            solver='lbfgs',
-            C=1.0
-        )
-    
-    def train(self, intents_json_path="data/intents.json"):
+    def train(self, intents_json_path: str = "data/intents.json") -> Dict:
         """
-        Train the intent classifier from JSON dataset.
+        Train the classifier by embedding all intent patterns.
         
         Args:
-            intents_json_path (str): Path to intents.json file
+            intents_json_path (str): Path to intents.json
         
         Returns:
-            dict: Training results and statistics
+            dict: Training results
         """
-        print("Loading intent dataset...")
+        print(f"Loading intent dataset from {intents_json_path}...")
         intents_data = load_json_file(intents_json_path)
         
         if not intents_data.get("intents"):
-            print("Error: No intents found in dataset")
-            return {"success": False, "error": "No training data"}
+            return {"success": False, "error": "No intents found"}
         
-        # Prepare training data
-        texts = []
-        labels = []
-        intent_labels_set = set()
-        
+        # Preprocess and embed all patterns
+        total_patterns = 0
         for intent in intents_data["intents"]:
             tag = intent.get("tag")
             patterns = intent.get("patterns", [])
             
-            intent_labels_set.add(tag)
+            if not tag or not patterns:
+                continue
             
-            for pattern in patterns:
-                texts.append(pattern)
-                labels.append(tag)
+            self.intent_labels.append(tag)
+            
+            # Preprocess all patterns for this intent
+            preprocessed = [TextPreprocessor.preprocess(p) for p in patterns]
+            
+            # Embed them
+            embeddings = self.model.encode(preprocessed, convert_to_tensor=True)
+            self.intent_embeddings[tag] = embeddings
+            
+            total_patterns += len(patterns)
+            print(f"  ✓ {tag}: {len(patterns)} patterns")
         
-        self.intent_labels = sorted(list(intent_labels_set))
-        
-        print(f"Training on {len(texts)} samples from {len(self.intent_labels)} intents...")
-        print(f"Intents: {self.intent_labels}")
-        
-        try:
-            # Vectorize texts
-            X = self.vectorizer.fit_transform(texts)
-            y = np.array(labels)
-            
-            # Train model
-            self.model.fit(X, y)
-            self.is_trained = True
-            
-            # Save model
-            self.save_model()
-            
-            # Calculate training accuracy
-            train_accuracy = self.model.score(X, y)
-            
-            result = {
-                "success": True,
-                "samples_count": len(texts),
-                "intents_count": len(self.intent_labels),
-                "training_accuracy": round(train_accuracy, 3),
-                "intents": self.intent_labels
-            }
-            
-            print(f"✓ Model trained successfully with {train_accuracy:.1%} accuracy")
-            return result
-        
-        except Exception as e:
-            print(f"Error during training: {e}")
-            return {"success": False, "error": str(e)}
-    
-    def predict(self, text, confidence_threshold=0.0):
-        """
-        Predict intent for given text.
-        
-        Args:
-            text (str): User input text
-            confidence_threshold (float): Minimum confidence to return prediction
-        
-        Returns:
-            dict: Contains 'intent', 'confidence', 'all_probs' keys
-        """
-        if not self.is_trained or not self.model or not self.vectorizer:
-            return {
-                "intent": "unknown",
-                "confidence": 0.0,
-                "all_probs": {},
-                "error": "Model not trained"
-            }
-        
-        try:
-            # Vectorize input
-            X = self.vectorizer.transform([text])
-            
-            # Get predictions
-            probabilities = self.model.predict_proba(X)[0]
-            predicted_label = self.model.predict(X)[0]
-            predicted_confidence = float(max(probabilities))
-            
-            # Create probability map for all intents
-            all_probs = {label: float(prob) for label, prob in zip(self.model.classes_, probabilities)}
-            
-            # Apply confidence threshold
-            if predicted_confidence < confidence_threshold:
-                return {
-                    "intent": "uncertain",
-                    "confidence": 0.0,
-                    "all_probs": all_probs,
-                    "error": f"Confidence {predicted_confidence:.2f} below threshold {confidence_threshold}"
-                }
-            
-            return {
-                "intent": predicted_label,
-                "confidence": round(predicted_confidence, 3),
-                "all_probs": {k: round(v, 3) for k, v in all_probs.items()}
-            }
-        
-        except Exception as e:
-            print(f"Error during prediction: {e}")
-            return {
-                "intent": "error",
-                "confidence": 0.0,
-                "all_probs": {},
-                "error": str(e)
-            }
-    
-    def batch_predict(self, texts):
-        """
-        Predict intents for multiple texts.
-        
-        Args:
-            texts (list): List of input texts
-        
-        Returns:
-            list: List of prediction results
-        """
-        return [self.predict(text) for text in texts]
-    
-    def save_model(self):
-        """Save trained model and vectorizer to disk."""
-        try:
-            Path(self.model_path).parent.mkdir(parents=True, exist_ok=True)
-            Path(self.vectorizer_path).parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(self.model_path, 'wb') as f:
-                pickle.dump(self.model, f)
-            
-            with open(self.vectorizer_path, 'wb') as f:
-                pickle.dump(self.vectorizer, f)
-            
-            # Also save intent labels
-            labels_path = self.model_path.replace('.pkl', '_labels.json')
-            with open(labels_path, 'w') as f:
-                json.dump(self.intent_labels, f)
-            
-            print(f"Model saved to {self.model_path}")
-        except Exception as e:
-            print(f"Error saving model: {e}")
-    
-    def load_model(self):
-        """Load pre-trained model and vectorizer from disk."""
-        try:
-            if not self._model_exists():
-                print("Model files not found")
-                return False
-            
-            with open(self.model_path, 'rb') as f:
-                self.model = pickle.load(f)
-            
-            with open(self.vectorizer_path, 'rb') as f:
-                self.vectorizer = pickle.load(f)
-            
-            # Load intent labels
-            labels_path = self.model_path.replace('.pkl', '_labels.json')
-            if Path(labels_path).exists():
-                with open(labels_path, 'r') as f:
-                    self.intent_labels = json.load(f)
-            
-            self.is_trained = True
-            print(f"Model loaded from {self.model_path}")
-            return True
-        
-        except Exception as e:
-            print(f"Error loading model: {e}")
-            return False
-    
-    def _model_exists(self):
-        """Check if model files exist."""
-        return Path(self.model_path).exists() and Path(self.vectorizer_path).exists()
-    
-    def get_model_info(self):
-        """
-        Get information about the trained model.
-        
-        Returns:
-            dict: Model information
-        """
-        return {
-            "is_trained": self.is_trained,
+        self.is_trained = True
+        result = {
+            "success": True,
             "intents_count": len(self.intent_labels),
-            "intents": self.intent_labels,
-            "model_type": "LogisticRegression",
-            "vectorizer_type": "TF-IDF"
+            "total_patterns": total_patterns,
+            "model": self.model_name,
+            "intents": self.intent_labels
         }
+        
+        print(f"\n✓ Training complete: {len(self.intent_labels)} intents, {total_patterns} patterns")
+        return result
     
-    def retrain_from_new_data(self, intents_json_path="data/intents.json"):
+    def predict(self, user_input: str) -> Tuple[str, float, str]:
         """
-        Retrain the model with new or updated intent data.
+        Predict intent for user input using semantic similarity.
         
         Args:
-            intents_json_path (str): Path to updated intents.json
+            user_input (str): Raw user input
         
         Returns:
-            dict: Retraining results
+            Tuple[str, float, str]: (intent, confidence, debug_info)
+                - intent: Detected intent tag
+                - confidence: Similarity score (0-1)
+                - debug_info: Processing information
         """
-        self._initialize_model()  # Reset model
-        return self.train(intents_json_path)
+        if not self.is_trained:
+            return "unknown", 0.0, "Model not trained"
+        
+        # Preprocess input
+        processed_input = TextPreprocessor.preprocess(user_input)
+        
+        if not processed_input:
+            return "unknown", 0.0, f"Empty after preprocessing: '{user_input}'"
+        
+        # Embed the input
+        input_embedding = self.model.encode(processed_input, convert_to_tensor=True)
+        
+        # Find best matching intent
+        best_intent = None
+        best_score = -1
+        scores_by_intent = {}
+        
+        for intent_tag, intent_embeddings in self.intent_embeddings.items():
+            # Calculate cosine similarity with all patterns for this intent
+            similarities = util.pytorch_cos_sim(input_embedding, intent_embeddings)[0]
+            
+            # Take max similarity (best matching pattern for this intent)
+            max_similarity = float(similarities.max().item())
+            scores_by_intent[intent_tag] = max_similarity
+            
+            if max_similarity > best_score:
+                best_score = max_similarity
+                best_intent = intent_tag
+        
+        # Confidence is the max similarity score
+        confidence = max(0.0, min(1.0, best_score))
+        
+        # Debug info with top 3 matches
+        sorted_scores = sorted(scores_by_intent.items(), key=lambda x: x[1], reverse=True)[:3]
+        debug_lines = [
+            f"Input: '{user_input}' → '{processed_input}'",
+            f"Top 3 matches: {', '.join([f'{i}({s:.2f})' for i, s in sorted_scores])}",
+            f"Best: {best_intent} with confidence {confidence:.2f}"
+        ]
+        debug_info = " | ".join(debug_lines)
+        
+        return best_intent or "unknown", confidence, debug_info
+    
+    def predict_batch(self, user_inputs: List[str]) -> List[Tuple[str, float]]:
+        """
+        Predict intents for batch of inputs.
+        
+        Args:
+            user_inputs (List[str]): List of user inputs
+        
+        Returns:
+            List[Tuple[str, float]]: List of (intent, confidence) tuples
+        """
+        return [self.predict(inp)[0:2] for inp in user_inputs]
+
+
+# Backward compatibility with old IntentClassifier interface
+class IntentClassifier:
+    """Wrapper for backward compatibility with existing code."""
+    
+    def __init__(self, model_path: str = "intent_model.pkl", vectorizer_path: str = "tfidf_vectorizer.pkl"):
+        """Initialize classifier - now uses semantic approach."""
+        self.semantic_classifier = SemanticIntentClassifier()
+        self.is_trained = False
+    
+    def train(self, intents_json_path: str = "data/intents.json") -> Dict:
+        """Train the semantic classifier."""
+        result = self.semantic_classifier.train(intents_json_path)
+        self.is_trained = result.get("success", False)
+        return result
+    
+    def predict(self, user_input: str) -> Tuple[str, float]:
+        """Predict intent (backward compatible)."""
+        intent, confidence, _ = self.semantic_classifier.predict(user_input)
+        return intent, confidence
+
+
+if __name__ == "__main__":
+    # Test the classifier
+    print("SEMANTIC INTENT CLASSIFIER TEST")
+    print("=" * 80)
+    
+    classifier = SemanticIntentClassifier()
+    
+    print("\n1. Training classifier...")
+    result = classifier.train("data/intents.json")
+    print(f"   Result: {result}")
+    
+    print("\n2. Testing with various inputs (typos, Hinglish, slang)...")
+    test_cases = [
+        ("Tell me about placements", "placements"),  # Normal
+        ("wht are placements", "placements"),  # Typo
+        ("cn i get info on placements", "placements"),  # Abbreviated
+        ("Kya placements hain", "placements"),  # Hinglish
+        ("fees kitne hain", "fees"),  # Hinglish
+        ("How much do engineering fees cost?", "fees"),  # Normal
+        ("Fee structure?", "fees"),  # Short
+        ("exam schedule pls", "exams"),  # Casual
+        ("When r exams?", "exams"),  # Very casual
+        ("Tell me about the college", "general_info"),  # Broad query
+        ("Politics", "out_of_scope"),  # Out of scope
+    ]
+    
+    print()
+    for user_input, expected in test_cases:
+        intent, confidence, debug_info = classifier.predict(user_input)
+        match = "✓" if intent == expected else "✗"
+        print(f"{match} '{user_input}'")
+        print(f"   Expected: {expected}, Got: {intent} (confidence: {confidence:.2f})")
+        if intent != expected:
+            print(f"   Debug: {debug_info}")
+        print()

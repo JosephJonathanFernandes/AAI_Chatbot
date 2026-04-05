@@ -182,8 +182,8 @@ class LLMHandler:
                     "should_clarify": confidence < 0.3
                 }
             
-            # STEP 11: If all fails, return fallback
-            fallback_response = self.prompt_engineer.build_fallback_prompt()
+            # STEP 11: If all fails, return contextual fallback based on detected intent
+            fallback_response = self.prompt_engineer.build_fallback_prompt(intent)
             return {
                 "response": fallback_response,
                 "error": "Both APIs failed",
