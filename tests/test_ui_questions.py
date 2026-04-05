@@ -171,7 +171,8 @@ class UIQuestionsTesters:
             "response_generated": False,
             "response_text": "",
             "time_taken": 0,
-            "logged_to_db": False
+            "logged_to_db": False,
+            "should_clarify": False
         }
 
         try:
@@ -184,9 +185,9 @@ class UIQuestionsTesters:
             result["scope_reason"] = scope_reason
 
             # 2. Intent Classification
-            intent_result = self.intent_classifier.predict(question)
-            result["intent"] = intent_result.get('intent', 'general')
-            result["confidence"] = intent_result.get('confidence', 0)
+            intent, confidence = self.intent_classifier.predict(question)
+            result["intent"] = intent or 'general'
+            result["confidence"] = confidence or 0.0
 
             # 3. Emotion Detection
             emotion_result = self.emotion_detector.detect_emotion(question)
@@ -206,8 +207,7 @@ class UIQuestionsTesters:
                 intent=result["intent"],
                 confidence=result["confidence"],
                 emotion=result["emotion"],
-                is_in_scope=result["scope_detected"],
-                conversation_context=self.context.get_prompt_context()
+                conversation_history=self.context.get_history()
             )
 
             result["response_generated"] = True
