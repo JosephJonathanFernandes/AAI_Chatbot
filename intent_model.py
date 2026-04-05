@@ -1,6 +1,11 @@
 """
-Semantic Intent Classifier using sentence-transformers.
+Ensemble Intent Classifier (Semantic + TF-IDF with weighted voting).
 Provides robust intent detection for typos, slang, Hinglish, and casual variations.
+
+Architecture:
+- Primary: Sentence-transformers semantic similarity (70% weight, best for typos/slang)
+- Fallback: TF-IDF + Logistic Regression (30% weight, catches edge cases)
+- Ensemble: Weighted voting for maximum accuracy
 """
 
 import json
@@ -8,47 +13,33 @@ import numpy as np
 from pathlib import Path
 from typing import Tuple, Dict, List
 from sentence_transformers import SentenceTransformer, util
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 from text_preprocessor import TextPreprocessor
 from utils import load_json_file
 
 
 class SemanticIntentClassifier:
     """
-    Classifies user intents using sentence embeddings and semantic similarity.
-    MUCH more robust than TF-IDF for handling typos, slang, Hinglish.
+    Classifies user intents using sentence embeddings (transformers).
+    Robust to typos, slang, Hinglish, and casual variations.
     """
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        """
-        Initialize semantic classifier.
-        
-        Args:
-            model_name (str): Sentence-transformers model name (default: fast, multilingual-capable)
-        """
         self.model_name = model_name
         self.model = SentenceTransformer(model_name)
-        self.intent_embeddings = {}  # intent -> list of embeddings
+        self.intent_embeddings = {}
         self.intent_labels = []
         self.is_trained = False
-        self.threshold = 0.35  # Similarity threshold (lower = more confident on harder queries)
     
     def train(self, intents_json_path: str = "data/intents.json") -> Dict:
-        """
-        Train the classifier by embedding all intent patterns.
-        
-        Args:
-            intents_json_path (str): Path to intents.json
-        
-        Returns:
-            dict: Training results
-        """
-        print(f"Loading intent dataset from {intents_json_path}...")
+        """Train by embedding all intent patterns."""
+        print(f"  Loading semantic patterns from {intents_json_path}...")
         intents_data = load_json_file(intents_json_path)
         
         if not intents_data.get("intents"):
             return {"success": False, "error": "No intents found"}
         
-        # Preprocess and embed all patterns
         total_patterns = 0
         for intent in intents_data["intents"]:
             tag = intent.get("tag")
@@ -58,151 +49,268 @@ class SemanticIntentClassifier:
                 continue
             
             self.intent_labels.append(tag)
-            
-            # Preprocess all patterns for this intent
             preprocessed = [TextPreprocessor.preprocess(p) for p in patterns]
-            
-            # Embed them
             embeddings = self.model.encode(preprocessed, convert_to_tensor=True)
             self.intent_embeddings[tag] = embeddings
-            
             total_patterns += len(patterns)
-            print(f"  ✓ {tag}: {len(patterns)} patterns")
         
         self.is_trained = True
-        result = {
-            "success": True,
-            "intents_count": len(self.intent_labels),
-            "total_patterns": total_patterns,
-            "model": self.model_name,
-            "intents": self.intent_labels
-        }
-        
-        print(f"\n✓ Training complete: {len(self.intent_labels)} intents, {total_patterns} patterns")
-        return result
+        return {"success": True, "patterns": total_patterns, "intents": len(self.intent_labels)}
     
-    def predict(self, user_input: str) -> Tuple[str, float, str]:
-        """
-        Predict intent for user input using semantic similarity.
-        
-        Args:
-            user_input (str): Raw user input
-        
-        Returns:
-            Tuple[str, float, str]: (intent, confidence, debug_info)
-                - intent: Detected intent tag
-                - confidence: Similarity score (0-1)
-                - debug_info: Processing information
-        """
+    def predict(self, user_input: str) -> Tuple[str, float]:
+        """Predict intent using semantic similarity."""
         if not self.is_trained:
-            return "unknown", 0.0, "Model not trained"
+            return "unknown", 0.0
         
-        # Preprocess input
         processed_input = TextPreprocessor.preprocess(user_input)
-        
         if not processed_input:
-            return "unknown", 0.0, f"Empty after preprocessing: '{user_input}'"
+            return "unknown", 0.0
         
-        # Embed the input
         input_embedding = self.model.encode(processed_input, convert_to_tensor=True)
-        
-        # Find best matching intent
         best_intent = None
         best_score = -1
-        scores_by_intent = {}
         
         for intent_tag, intent_embeddings in self.intent_embeddings.items():
-            # Calculate cosine similarity with all patterns for this intent
             similarities = util.pytorch_cos_sim(input_embedding, intent_embeddings)[0]
-            
-            # Take max similarity (best matching pattern for this intent)
             max_similarity = float(similarities.max().item())
-            scores_by_intent[intent_tag] = max_similarity
             
             if max_similarity > best_score:
                 best_score = max_similarity
                 best_intent = intent_tag
         
-        # Confidence is the max similarity score
         confidence = max(0.0, min(1.0, best_score))
-        
-        # Debug info with top 3 matches
-        sorted_scores = sorted(scores_by_intent.items(), key=lambda x: x[1], reverse=True)[:3]
-        debug_lines = [
-            f"Input: '{user_input}' → '{processed_input}'",
-            f"Top 3 matches: {', '.join([f'{i}({s:.2f})' for i, s in sorted_scores])}",
-            f"Best: {best_intent} with confidence {confidence:.2f}"
-        ]
-        debug_info = " | ".join(debug_lines)
-        
-        return best_intent or "unknown", confidence, debug_info
-    
-    def predict_batch(self, user_inputs: List[str]) -> List[Tuple[str, float]]:
-        """
-        Predict intents for batch of inputs.
-        
-        Args:
-            user_inputs (List[str]): List of user inputs
-        
-        Returns:
-            List[Tuple[str, float]]: List of (intent, confidence) tuples
-        """
-        return [self.predict(inp)[0:2] for inp in user_inputs]
+        return best_intent or "unknown", confidence
 
 
-# Backward compatibility with old IntentClassifier interface
-class IntentClassifier:
-    """Wrapper for backward compatibility with existing code."""
+class TFIDFIntentClassifier:
+    """
+    Classifies user intents using TF-IDF + Logistic Regression.
+    Used as fallback/ensemble partner to catch edge cases.
+    """
     
-    def __init__(self, model_path: str = "intent_model.pkl", vectorizer_path: str = "tfidf_vectorizer.pkl"):
-        """Initialize classifier - now uses semantic approach."""
-        self.semantic_classifier = SemanticIntentClassifier()
+    def __init__(self):
+        self.vectorizer = TfidfVectorizer(
+            max_features=1000, lowercase=True, stop_words='english',
+            ngram_range=(1, 2), min_df=1, max_df=0.9
+        )
+        self.model = LogisticRegression(max_iter=200, random_state=42)
+        self.intent_labels = []
         self.is_trained = False
     
     def train(self, intents_json_path: str = "data/intents.json") -> Dict:
-        """Train the semantic classifier."""
-        result = self.semantic_classifier.train(intents_json_path)
+        """Train TF-IDF classifier."""
+        print(f"  Loading TF-IDF patterns from {intents_json_path}...")
+        intents_data = load_json_file(intents_json_path)
+        
+        if not intents_data.get("intents"):
+            return {"success": False, "error": "No intents found"}
+        
+        all_patterns = []
+        all_labels = []
+        total_patterns = 0
+        
+        for intent in intents_data["intents"]:
+            tag = intent.get("tag")
+            patterns = intent.get("patterns", [])
+            
+            if not tag or not patterns:
+                continue
+            
+            self.intent_labels.append(tag)
+            
+            for pattern in patterns:
+                preprocessed = TextPreprocessor.preprocess(pattern)
+                all_patterns.append(preprocessed)
+                all_labels.append(tag)
+                total_patterns += 1
+        
+        X_tfidf = self.vectorizer.fit_transform(all_patterns)
+        self.model.fit(X_tfidf, all_labels)
+        self.is_trained = True
+        
+        return {"success": True, "patterns": total_patterns, "intents": len(self.intent_labels)}
+    
+    def predict(self, user_input: str) -> Tuple[str, float]:
+        """Predict intent using TF-IDF."""
+        if not self.is_trained:
+            return "unknown", 0.0
+        
+        processed_input = TextPreprocessor.preprocess(user_input)
+        if not processed_input:
+            return "unknown", 0.0
+        
+        X_tfidf = self.vectorizer.transform([processed_input])
+        pred_proba = self.model.predict_proba(X_tfidf)[0]
+        pred_idx = np.argmax(pred_proba)
+        
+        intent = self.model.classes_[pred_idx]
+        confidence = float(pred_proba[pred_idx])
+        
+        return intent, confidence
+
+
+class EnsembleIntentClassifier:
+    """
+    Weighted ensemble combining Semantic (70%) + TF-IDF (30%).
+    
+    Predicts with high accuracy by leveraging both model strengths:
+    - Semantic: Understands intent meaning, robust to typos/slang
+    - TF-IDF: Pattern matching, catches edge cases
+    """
+    
+    def __init__(self, semantic_weight: float = 0.70, tfidf_weight: float = 0.30):
+        self.semantic_classifier = SemanticIntentClassifier()
+        self.tfidf_classifier = TFIDFIntentClassifier()
+        self.semantic_weight = semantic_weight
+        self.tfidf_weight = tfidf_weight
+        self.intent_labels = []
+        self.is_trained = False
+    
+    def train(self, intents_json_path: str = "data/intents.json") -> Dict:
+        """Train both classifiers."""
+        print("\n" + "="*80)
+        print("TRAINING ENSEMBLE INTENT CLASSIFIER")
+        print(f"  Semantic: {self.semantic_weight*100:.0f}% | TF-IDF: {self.tfidf_weight*100:.0f}%")
+        print("="*80)
+        
+        sem_result = self.semantic_classifier.train(intents_json_path)
+        tfidf_result = self.tfidf_classifier.train(intents_json_path)
+        
+        if sem_result.get("success") and tfidf_result.get("success"):
+            self.intent_labels = self.semantic_classifier.intent_labels
+            self.is_trained = True
+            
+            print("\n[OK] ENSEMBLE TRAINED:")
+            print(f"  Intents: {sem_result['intents']} | Patterns: {sem_result['patterns']} (semantic) + {tfidf_result['patterns']} (TF-IDF)")
+            print("="*80 + "\n")
+            
+            return {"success": True, "semantic": sem_result, "tfidf": tfidf_result}
+        
+        return {"success": False}
+    
+    def predict(self, user_input: str) -> Tuple[str, float, Dict]:
+        """
+        Predict intent using ensemble weighted voting.
+        
+        Returns: (intent, confidence, detailed_scores)
+        """
+        if not self.is_trained:
+            return "unknown", 0.0, {}
+        
+        # Get predictions from both models
+        sem_intent, sem_conf = self.semantic_classifier.predict(user_input)
+        tfidf_intent, tfidf_conf = self.tfidf_classifier.predict(user_input)
+        
+        # Apply weights
+        sem_weighted = sem_conf * self.semantic_weight
+        tfidf_weighted = tfidf_conf * self.tfidf_weight
+        
+        # Ensemble decision logic
+        if sem_intent == tfidf_intent and min(sem_conf, tfidf_conf) > 0.5:
+            # Both agree strongly → high confidence
+            final_intent = sem_intent
+            final_confidence = max(sem_conf, tfidf_conf)
+        elif sem_weighted > tfidf_weighted:
+            # Semantic dominates (expected ~70% of time)
+            final_intent = sem_intent
+            final_confidence = sem_weighted
+        else:
+            # TF-IDF edges it out
+            final_intent = tfidf_intent
+            final_confidence = tfidf_weighted
+        
+        detailed_scores = {
+            "semantic": {"intent": sem_intent, "confidence": sem_conf, "weighted": sem_weighted},
+            "tfidf": {"intent": tfidf_intent, "confidence": tfidf_conf, "weighted": tfidf_weighted},
+            "ensemble": {"intent": final_intent, "confidence": final_confidence}
+        }
+        
+        return final_intent or "unknown", final_confidence, detailed_scores
+    
+    def predict_batch(self, user_inputs: List[str]) -> List[Tuple[str, float]]:
+        """Predict batch of inputs."""
+        return [(intent, conf) for intent, conf, _ in [self.predict(inp) for inp in user_inputs]]
+
+
+# Backward compatibility: IntentClassifier now uses ensemble by default
+class IntentClassifier:
+    """Backward-compatible wrapper using ensemble by default."""
+    
+    def __init__(self, model_path: str = "intent_model.pkl", vectorizer_path: str = "tfidf_vectorizer.pkl", use_ensemble: bool = True):
+        """Initialize classifier."""
+        if use_ensemble:
+            self.classifier = EnsembleIntentClassifier()
+        else:
+            # Fallback to semantic only
+            self.classifier = SemanticIntentClassifier()
+        self.is_trained = False
+    
+    def train(self, intents_json_path: str = "data/intents.json") -> Dict:
+        """Train the classifier."""
+        result = self.classifier.train(intents_json_path)
         self.is_trained = result.get("success", False)
         return result
     
     def predict(self, user_input: str) -> Tuple[str, float]:
         """Predict intent (backward compatible)."""
-        intent, confidence, _ = self.semantic_classifier.predict(user_input)
+        if isinstance(self.classifier, EnsembleIntentClassifier):
+            intent, confidence, _ = self.classifier.predict(user_input)
+        else:
+            intent, confidence = self.classifier.predict(user_input)
         return intent, confidence
 
 
+# Test suite
 if __name__ == "__main__":
-    # Test the classifier
-    print("SEMANTIC INTENT CLASSIFIER TEST")
-    print("=" * 80)
+    print("ENSEMBLE INTENT CLASSIFIER - COMPREHENSIVE TEST")
+    print("="*80)
     
-    classifier = SemanticIntentClassifier()
+    classifier = IntentClassifier(use_ensemble=True)
     
-    print("\n1. Training classifier...")
+    print("\n1. Training ensemble classifier...")
     result = classifier.train("data/intents.json")
     print(f"   Result: {result}")
     
-    print("\n2. Testing with various inputs (typos, Hinglish, slang)...")
+    print("\n2. Testing with challenging inputs...")
     test_cases = [
-        ("Tell me about placements", "placements"),  # Normal
-        ("wht are placements", "placements"),  # Typo
-        ("cn i get info on placements", "placements"),  # Abbreviated
-        ("Kya placements hain", "placements"),  # Hinglish
-        ("fees kitne hain", "fees"),  # Hinglish
-        ("How much do engineering fees cost?", "fees"),  # Normal
-        ("Fee structure?", "fees"),  # Short
-        ("exam schedule pls", "exams"),  # Casual
-        ("When r exams?", "exams"),  # Very casual
-        ("Tell me about the college", "general_info"),  # Broad query
-        ("Politics", "out_of_scope"),  # Out of scope
+        # Normal queries
+        ("Tell me about placements", "placements"),
+        ("How much do engineering fees cost?", "fees"),
+        ("When are exams scheduled?", "exams"),
+        
+        # Typos
+        ("wht are placements", "placements"),
+        ("cn i get info on placements", "placements"),
+        ("fee kitne hain", "fees"),
+        
+        # Hinglish
+        ("Kya fees hain?", "fees"),
+        ("Placement ke liye kya karna?", "placements"),
+        
+        # Slang
+        ("wht bout placements bc", "placements"),
+        ("fees?", "fees"),
+        ("When r exams?", "exams"),
+        
+        # Broad queries
+        ("Tell me about the college", "general_info"),
+        
+        # Out of scope
+        ("Politics", "out_of_scope"),
+        ("Tell me a joke", "out_of_scope"),
     ]
     
-    print()
+    passed = 0
     for user_input, expected in test_cases:
-        intent, confidence, debug_info = classifier.predict(user_input)
-        match = "✓" if intent == expected else "✗"
+        intent, confidence = classifier.predict(user_input)
+        match = "[OK]" if intent == expected else "[FAIL]"
+        
+        if intent == expected:
+            passed += 1
+        
         print(f"{match} '{user_input}'")
-        print(f"   Expected: {expected}, Got: {intent} (confidence: {confidence:.2f})")
-        if intent != expected:
-            print(f"   Debug: {debug_info}")
-        print()
+        print(f"   Expected: {expected:15} | Got: {intent:15} (conf: {confidence:.2f})")
+    
+    print(f"\n{'='*80}")
+    print(f"RESULTS: {passed}/{len(test_cases)} passed ({100*passed/len(test_cases):.0f}%)")
+    print("="*80)
