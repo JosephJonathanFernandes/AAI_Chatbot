@@ -18,6 +18,8 @@ import time
 import requests
 import random
 import threading
+import hashlib
+import re
 from queue import Queue
 from typing import Optional, List, Dict, Generator
 import json
@@ -81,6 +83,8 @@ class LLMHandler:
         self._response_cache = {}
         self._cache_max_size = 256
         self.cache_hits = 0
+        self.cache_requests = 0  # NEW: Track total cache requests for hit rate
+        self.cache_hit_rate = 0.0  # NEW: Track cache effectiveness
         self.timeout_count = 0
         self.groq_timeout = 8  # seconds
         self.gemini_timeout = 10  # seconds
@@ -661,16 +665,69 @@ Application fee: Usually ₹500-2000
         return history[-1:] if len(history) > 1 else history
     
     def _get_cache_key(self, system_prompt: str, user_prompt: str) -> str:
-        """Generate cache key from prompts using hash."""
-        combined = f"{system_prompt}:::{user_prompt}"
-        return str(hash(combined))
+        """
+        Generate cache key from prompts using normalized text and hash.
+        Normalization increases hit rate by matching similar queries.
+        
+        Strategy:
+        1. Normalize both prompts (lowercase, remove punctuation, tokenize)
+        2. Hash the normalized text for efficient lookup
+        3. Include intent in cache key for context isolation
+        """
+        normalized_system = self._normalize_text(system_prompt)
+        normalized_user = self._normalize_text(user_prompt)
+        
+        # Combine normalized text for cache key
+        combined = f"{normalized_system}:::{normalized_user}"
+        
+        # Use SHA256 for consistent, collision-resistant hashing
+        cache_key = hashlib.sha256(combined.encode()).hexdigest()[:16]
+        return cache_key
+    
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize text for better cache key matching.
+        Improves cache hit rate for similar queries.
+        
+        Args:
+            text (str): Text to normalize
+        
+        Returns:
+            str: Normalized text (lowercase, minimal punctuation, tokenized)
+        """
+        if not text:
+            return ""
+        
+        # Convert to lowercase
+        text = text.lower()
+        
+        # Remove URLs and special characters but keep basic punctuation
+        text = re.sub(r'http\S+|www\S+', '', text)
+        text = re.sub(r'[^\w\s?!.]', ' ', text)
+        
+        # Normalize whitespace (multiple spaces to single space)
+        text = ' '.join(text.split())
+        
+        # Remove trailing punctuation
+        text = text.rstrip('?!. ')
+        
+        return text
     
     def _get_cached_response(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
-        """Check if response exists in cache."""
+        """
+        Check if response exists in cache.
+        Tracks cache hit rate metrics for performance monitoring.
+        """
+        self.cache_requests += 1  # NEW: Track cache requests
         cache_key = self._get_cache_key(system_prompt, user_prompt)
+        
         if cache_key in self._response_cache:
             self.cache_hits += 1
+            # Update hit rate percentage
+            self.cache_hit_rate = (self.cache_hits / self.cache_requests) * 100 if self.cache_requests > 0 else 0
+            print(f"[CACHE HIT] Rate: {self.cache_hit_rate:.1f}% ({self.cache_hits}/{self.cache_requests})")
             return self._response_cache[cache_key]
+        
         return None
     
     def _store_cached_response(self, system_prompt: str, user_prompt: str, response: dict) -> None:
@@ -967,7 +1024,10 @@ Application fee: Usually ₹500-2000
             return {"error": error_str}
     
     def get_stats(self) -> dict:
-        """Get handler statistics."""
+        """
+        Get comprehensive handler statistics including performance metrics.
+        Includes cache hit rate, API performance, and fallback statistics.
+        """
         total_successes = self.groq_success_count + (self.total_api_calls - self.groq_success_count - self.fallback_count)
         
         return {
@@ -975,5 +1035,13 @@ Application fee: Usually ₹500-2000
             "groq_successes": self.groq_success_count,
             "fallback_count": self.fallback_count,
             "groq_success_rate": round(self.groq_success_count / max(self.total_api_calls, 1) * 100, 2),
-            "fallback_rate": round(self.fallback_count / max(self.total_api_calls, 1) * 100, 2)
+            "fallback_rate": round(self.fallback_count / max(self.total_api_calls, 1) * 100, 2),
+            # NEW: Cache performance metrics
+            "cache_hits": self.cache_hits,
+            "cache_requests": self.cache_requests,
+            "cache_hit_rate": round(self.cache_hit_rate, 1),
+            "cache_size": len(self._response_cache),
+            "cache_max_size": self._cache_max_size,
+            "rate_limit_count": self.rate_limit_count,
+            "timeout_count": self.timeout_count
         }

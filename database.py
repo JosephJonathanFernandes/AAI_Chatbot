@@ -1,15 +1,98 @@
 """
 SQLite database handler for logging chatbot interactions.
-Manages schema creation, logging, and analytics.
+Manages schema creation, logging, analytics, and connection pooling.
 """
 
 import sqlite3
+import threading
 from datetime import datetime
+from queue import Queue
 from utils import get_current_timestamp
 
 
+class SimpleConnectionPool:
+    """
+    Simple connection pool for SQLite.
+    Maintains a queue of reusable database connections to reduce connection overhead.
+    """
+    
+    def __init__(self, db_path="chatbot.db", pool_size=5):
+        """
+        Initialize connection pool.
+        
+        Args:
+            db_path (str): Path to SQLite database
+            pool_size (int): Number of connections to maintain
+        """
+        self.db_path = db_path
+        self.pool_size = pool_size
+        self.connections = Queue(maxsize=pool_size)
+        self.lock = threading.Lock()
+        self.created_count = 0
+        
+        # Pre-populate the pool with connections
+        for _ in range(pool_size):
+            try:
+                conn = self._create_connection()
+                self.connections.put(conn, block=False)
+                self.created_count += 1
+            except Exception as e:
+                print(f"[CONNECTION_POOL] Error creating initial connection: {e}")
+    
+    def _create_connection(self):
+        """Create a new database connection."""
+        conn = sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+    
+    def get_connection(self):
+        """
+        Get a connection from the pool or create a new one if pool is empty.
+        
+        Returns:
+            sqlite3.Connection: Database connection
+        """
+        try:
+            # Try to get a connection from the pool (non-blocking)
+            conn = self.connections.get_nowait()
+        except:
+            # If pool is empty, create a new connection
+            conn = self._create_connection()
+        
+        return conn
+    
+    def return_connection(self, conn):
+        """
+        Return a connection to the pool for reuse.
+        
+        Args:
+            conn (sqlite3.Connection): Connection to return
+        """
+        if conn is None:
+            return
+        
+        try:
+            # Try to return to pool (might be full, in which case connection is closed)
+            self.connections.put_nowait(conn)
+        except:
+            # Pool is full, close the connection
+            try:
+                conn.close()
+            except:
+                pass
+    
+    def close_all(self):
+        """Close all connections in the pool."""
+        while not self.connections.empty():
+            try:
+                conn = self.connections.get_nowait()
+                conn.close()
+            except:
+                pass
+
+
 class ChatbotDatabase:
-    """Handles SQLite logging for chatbot interactions."""
+    """Handles SQLite logging for chatbot interactions with connection pooling."""
 
     def __init__(self, db_path="chatbot.db"):
         """
@@ -19,22 +102,17 @@ class ChatbotDatabase:
             db_path (str): Path to SQLite database file
         """
         self.db_path = db_path
+        self.connection_pool = SimpleConnectionPool(db_path, pool_size=5)
         self.create_tables()
 
     def get_connection(self):
         """
-        Get a database connection.
+        Get a database connection from the pool.
 
         Returns:
-            sqlite3.Connection: Database connection
+            sqlite3.Connection: Database connection from pool
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            return conn
-        except sqlite3.Error as e:
-            print(f"Database connection error: {e}")
-            return None
+        return self.connection_pool.get_connection()
 
     def create_tables(self):
         """Create necessary database tables if they don't exist."""
@@ -121,7 +199,8 @@ class ChatbotDatabase:
             # Migration: Add missing columns if they don't exist (after commit)
             self._migrate_database(conn)
 
-            conn.close()
+            # Return connection to pool instead of closing
+            self.connection_pool.return_connection(conn)
             print(f"Database initialized successfully: {self.db_path}")
 
         except sqlite3.Error as e:
@@ -224,7 +303,8 @@ class ChatbotDatabase:
                   int(should_clarify), scope_reason, session_id))
 
             conn.commit()
-            conn.close()
+            # Return connection to pool instead of closing
+            self.connection_pool.return_connection(conn)
             return True
 
         except sqlite3.Error as e:
@@ -264,7 +344,7 @@ class ChatbotDatabase:
                 """, (limit,))
 
             rows = cursor.fetchall()
-            conn.close()
+            self.connection_pool.return_connection(conn)
             return [dict(row) for row in rows]
 
         except sqlite3.Error as e:
@@ -338,7 +418,7 @@ class ChatbotDatabase:
             except sqlite3.OperationalError:
                 llm_sources = {}
 
-            conn.close()
+            self.connection_pool.return_connection(conn)
 
             return {
                 "total_interactions": total_interactions,
@@ -373,7 +453,7 @@ class ChatbotDatabase:
                 "SELECT COUNT(*) as count FROM logs WHERE intent = ?",
                 (intent,))
             count = cursor.fetchone()['count']
-            conn.close()
+            self.connection_pool.return_connection(conn)
             return count
 
         except sqlite3.Error as e:
@@ -408,7 +488,7 @@ class ChatbotDatabase:
 
             deleted_count = cursor.rowcount
             conn.commit()
-            conn.close()
+            self.connection_pool.return_connection(conn)
 
             return deleted_count
 
@@ -482,7 +562,7 @@ class ChatbotDatabase:
             ))
 
             conn.commit()
-            conn.close()
+            self.connection_pool.return_connection(conn)
             return True
         except Exception as e:
             print(f"Error saving session: {e}")
@@ -511,7 +591,7 @@ class ChatbotDatabase:
             """, (session_id,))
 
             row = cursor.fetchone()
-            conn.close()
+            self.connection_pool.return_connection(conn)
 
             if row:
                 return {
@@ -548,7 +628,7 @@ class ChatbotDatabase:
             """, (limit,))
 
             sessions = [dict(row) for row in cursor.fetchall()]
-            conn.close()
+            self.connection_pool.return_connection(conn)
             return sessions
         except Exception as e:
             print(f"Error listing sessions: {e}")
@@ -618,7 +698,7 @@ class ChatbotDatabase:
             ))
 
             conn.commit()
-            conn.close()
+            self.connection_pool.return_connection(conn)
             return True
         except Exception as e:
             print(f"Error saving analytics: {e}")

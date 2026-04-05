@@ -507,19 +507,179 @@ MODERN_CSS = """
         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
-    /* Confidence Bar */
-    .confidence-bar {
-        height: 6px;
-        background: #e5e7eb;
-        border-radius: 3px;
-        margin-top: 0.5rem;
-        overflow: hidden;
+    /* Confidence Indicator Badge */
+    .confidence-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 0.75rem;
     }
 
-    .confidence-fill {
+    .confidence-high {
+        background: linear-gradient(135deg, #d1fae5 0%, #bbf7d0 100%);
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+
+    .confidence-medium {
+        background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+        color: #92400e;
+        border: 1px solid #fbbf24;
+    }
+
+    .confidence-low {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #7f1d1d;
+        border: 1px solid #fca5a5;
+    }
+
+    /* Animated Confidence Bar */
+    .confidence-bar-container {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 10px;
+        font-size: 0.85rem;
+    }
+
+    .confidence-bar-wrapper {
+        flex-grow: 1;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .confidence-bar-fill {
         height: 100%;
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        transition: width 0.3s ease;
+        border-radius: 4px;
+        transition: width 0.5s ease-out;
+        position: relative;
+    }
+
+    .confidence-bar-shimmer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .confidence-text {
+        font-weight: 600;
+        min-width: 50px;
+        text-align: right;
+    }
+
+    /* Emotion Indicator Badge */
+    .emotion-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: #f0f9ff;
+        border: 1px solid #bfdbfe;
+    }
+
+    /* Processing Steps */
+    .processing-steps {
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .step-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #0369a1;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .step-icon.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        animation: pulse 1s ease-in-out infinite;
+    }
+
+    .step-icon.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .step-text {
+        flex-grow: 1;
+    }
+
+    .step-status {
+        font-size: 0.75rem;
+        color: #6B7280;
+    }
+
+    /* Enhanced Loading State */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-radius: 12px;
+        margin: 1rem 0;
+    }
+
+    .loading-text {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.95rem;
+        color: #374151;
+        font-weight: 500;
+    }
+
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #667eea;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 
     /* Divider */
@@ -642,7 +802,7 @@ def initialize_models():
 
 
 def get_emotion_emoji(emotion: str) -> str:
-    """Get emoji for emotion type."""
+    """Get premium emoji and color for emotion type."""
     emotion_map = {
         "happy": "😊",
         "sad": "😢",
@@ -651,24 +811,99 @@ def get_emotion_emoji(emotion: str) -> str:
         "neutral": "😐",
         "excited": "🤩",
         "worried": "😟",
-        "frustrated": "😤"
+        "frustrated": "😤",
+        "stressed": "😰",
+        "delighted": "🥰",
+        "skeptical": "🤨",
+        "curious": "🤔",
+        "calm": "😌",
+        "confident": "💪",
+        "uncertain": "🤷",
+        "relieved": "😅",
+        "grateful": "🙏"
     }
     return emotion_map.get(emotion.lower(), "😐")
 
 
+def get_emotion_color(emotion: str) -> str:
+    """Get color code for emotion for visual indicators."""
+    emotion_colors = {
+        "happy": "#10B981",  # Green
+        "excited": "#F59E0B",  # Amber
+        "delighted": "#EC4899",  # Pink
+        "grateful": "#8B5CF6",  # Purple
+        "calm": "#06B6D4",  # Cyan
+        "relieved": "#6366F1",  # Indigo
+        "confident": "#14B8A6",  # Teal
+        "neutral": "#6B7280",  # Gray
+        "curious": "#3B82F6",  # Blue
+        "skeptical": "#F97316",  # Orange
+        "uncertain": "#EF4444",  # Red
+        "worried": "#DC2626",  # Darker Red
+        "stressed": "#DC2626",  # Dark Red
+        "sad": "#8B5CF6",  # Purple
+        "frustrated": "#EF4444",  # Red
+        "angry": "#DC2626",  # Dark Red
+        "confused": "#F59E0B",  # Amber
+    }
+    return emotion_colors.get(emotion.lower(), "#6B7280")
+
+
 def get_confidence_color(confidence: float) -> str:
-    """Get color based on confidence level."""
+    """Get visual indicator and color class based on confidence level."""
     if confidence >= 0.8:
-        return "🟢"
+        return "🟢"  # High confidence
     elif confidence >= 0.6:
-        return "🟡"
+        return "🟡"  # Medium confidence
     else:
-        return "🔴"
+        return "🔴"  # Low confidence
+
+
+def get_confidence_class(confidence: float) -> str:
+    """Get CSS class name for confidence level."""
+    if confidence >= 0.8:
+        return "confidence-high"
+    elif confidence >= 0.6:
+        return "confidence-medium"
+    else:
+        return "confidence-low"
+
+
+def render_confidence_bar(confidence: float) -> str:
+    """Render an animated confidence bar with percentage."""
+    percentage = f"{confidence * 100:.0f}%"
+    width = f"{min(confidence * 100, 100):.0f}%"
+    color_dot = get_confidence_color(confidence)
+    
+    html = f"""
+    <div class="confidence-bar-container">
+        <span style="font-weight: 600; min-width: 30px;">{color_dot}</span>
+        <div class="confidence-bar-wrapper">
+            <div class="confidence-bar-fill" style="width: {width}%;">
+                <div class="confidence-bar-shimmer"></div>
+            </div>
+        </div>
+        <span class="confidence-text">{percentage}</span>
+    </div>
+    """
+    return html
 
 
 def render_message_badges(debug_info: dict) -> str:
-    """Render badges for message."""
+    """Render enhanced badges for message with confidence and emotion."""
     badges_html = '<div class="badge-container">'
+    
+    # Emotion badge with color
+    emotion = debug_info.get("emotion", "neutral")
+    emotion_emoji = get_emotion_emoji(emotion)
+    emotion_color = get_emotion_color(emotion)
+    badges_html += f'<span class="emotion-badge" style="border-color: {emotion_color}; background: rgba({emotion_color.lstrip("#")}, 0.1); color: {emotion_color};">{emotion_emoji} {emotion.capitalize()}</span>'
+    
+    # Confidence badge
+    confidence = debug_info.get("confidence", 0)
+    confidence_class = get_confidence_class(confidence)
+    confidence_pct = f"{confidence * 100:.0f}%"
+    badges_html += f'<span class="confidence-badge {confidence_class}">📊 {confidence_pct} Confidence</span>'
     
     # Scope badge
     if debug_info.get("is_in_scope") is not None:
@@ -723,7 +958,63 @@ def render_debug_panel(debug_info: dict) -> str:
     return html
 
 
-def get_emotion_aware_tone(emotion: str) -> str:
+def render_processing_steps(steps_status: dict) -> str:
+    """
+    Render animated processing steps showing progress through pipeline.
+    
+    Args:
+        steps_status: Dict with keys like 'intent', 'emotion', 'scope', 'llm' 
+                     and values 'pending', 'active', 'completed'
+    """
+    step_definitions = [
+        ("🧠", "Intent Analysis", "steps_status.get('intent', 'pending')"),
+        ("❤️", "Emotion Detection", "steps_status.get('emotion', 'pending')"),
+        ("🎯", "Scope Review", "steps_status.get('scope', 'pending')"),
+        ("💬", "LLM Response", "steps_status.get('llm', 'pending')")
+    ]
+    
+    html = '<div class="processing-steps">'
+    for emoji, label, status_key in step_definitions:
+        status = steps_status.get(label.lower().replace(' ', '_'), 'pending')
+        status_class = 'completed' if status == 'completed' else ('active' if status == 'active' else '')
+        status_icon = '✓' if status == 'completed' else ('⟳' if status == 'active' else '○')
+        
+        html += f'''
+        <div class="step-item">
+            <div class="step-icon {status_class}">{status_icon}</div>
+            <div class="step-text">{emoji} {label}</div>
+            <div class="step-status">{status}</div>
+        </div>
+        '''
+    
+    html += '</div>'
+    return html
+
+
+def render_loading_state(current_step: str, total_steps: int = 4) -> str:
+    """Render enhanced loading state with progress indicator."""
+    progress = (current_step_num := ["Intent", "Emotion", "Scope", "LLM"].index(current_step) + 1)
+    
+    html = f'''
+    <div class="loading-container">
+        <div class="loading-text">
+            <div class="loading-spinner"></div>
+            <span>Processing: {current_step} ({progress}/{total_steps})</span>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+    '''
+    
+    for i in range(total_steps):
+        if i < progress:
+            html += '<div style="flex: 1; height: 4px; background: #667eea; border-radius: 2px;"></div>'
+        else:
+            html += '<div style="flex: 1; height: 4px; background: #e5e7eb; border-radius: 2px;"></div>'
+    
+    html += '''
+        </div>
+    </div>
+    '''
+    return html
     """Get response tone prefix based on user emotion for empathetic UX."""
     tone_prefixes = {
         "sad": "💙 I understand. ",
@@ -737,20 +1028,25 @@ def get_emotion_aware_tone(emotion: str) -> str:
     return tone_prefixes.get(emotion.lower(), "")
 
 
-def display_streaming_response(response_text: str, llm_handler: LLMHandler, emotion: str) -> None:
+def display_streaming_response(response_text: str, llm_handler: LLMHandler, emotion: str, confidence: float = 0.0) -> None:
     """
-    Display response with word-by-word streaming for better UX.
+    Display response with word-by-word streaming for better UX with confidence indicator.
     Uses st.write_stream() for progressive rendering (Streamlit 1.23+).
     
     Args:
         response_text (str): Full response to stream
         llm_handler: LLM handler instance (for access to stream_response_tokens)
         emotion (str): User emotion for styling
+        confidence (float): Confidence level for visual indicator
     """
-    # Create a container for the response
+    # Create a container for the response with confidence bar
     response_container = st.container()
     
     with response_container:
+        # Display confidence bar if available
+        if confidence > 0:
+            st.markdown(render_confidence_bar(confidence), unsafe_allow_html=True)
+        
         # Display as streaming text using Streamlit's write_stream
         try:
             # Use write_stream if available (Streamlit 1.23+)
@@ -1088,6 +1384,7 @@ def chat_interface():
             else:
                 debug = message.get("debug_info", {})
                 emotion = debug.get("emotion", "neutral")
+                confidence = debug.get("confidence", 0)
                 is_in_scope = debug.get("is_in_scope", True)
                 scope_reason = debug.get("scope_reason", "")
                 
@@ -1101,6 +1398,10 @@ def chat_interface():
                     {render_message_badges(debug)}
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Display confidence bar for real-time indicator
+                if confidence > 0:
+                    st.markdown(render_confidence_bar(confidence), unsafe_allow_html=True)
                 
                 # Out-of-scope handler with suggestions
                 if not is_in_scope and scope_reason:
@@ -1163,15 +1464,23 @@ def chat_interface():
             # Use the last unprocessed user message
             message_to_process = st.session_state.messages[-1]["content"]
         
-        # Show typing indicator
+        # Show enhanced loading state with processing steps
+        progress_placeholder = st.empty()
+        
         with st.spinner("✨ Thinking..."):
             start_time = time.time()
+            
+            # Update: Intent Analysis
+            progress_placeholder.markdown(render_loading_state("Intent", 4), unsafe_allow_html=True)
             
             # Get conversation history once for context-aware operations
             history = st.session_state.conversation_context.get_history()  # Get list of dicts
             
             # Intent classification
             intent, confidence = intent_classifier.predict(message_to_process)
+            
+            # Update: Emotion Detection
+            progress_placeholder.markdown(render_loading_state("Emotion", 4), unsafe_allow_html=True)
             
             # Emotion detection with context awareness
             emotion_result = emotion_detector.detect_emotion(
@@ -1201,8 +1510,18 @@ def chat_interface():
             if not isinstance(tone_guidelines, dict):
                 tone_guidelines = {}
             
-            # Scope detection
-            scope_info = scope_detector.get_scope_info(message_to_process, intent, confidence)
+            # Update: Scope Review
+            progress_placeholder.markdown(render_loading_state("Scope", 4), unsafe_allow_html=True)
+            
+            # Scope detection (with context-aware analysis)
+            # Extract just the query text from history for context awareness
+            history_queries = [msg.get("content", "") for msg in history if msg.get("role") == "user"]
+            scope_info = scope_detector.get_scope_info(
+                message_to_process, 
+                intent, 
+                confidence,
+                conversation_history=history_queries
+            )
             is_in_scope = scope_info["is_in_scope"]
             scope_reason = scope_info["reason"]
             
@@ -1215,6 +1534,9 @@ def chat_interface():
                     low_confidence_detected = True
                     # Don't force "confused" - let the LLM handle ambiguity gracefully
                     # The emotion was already detected in context above
+            
+            # Update: LLM Response Generation
+            progress_placeholder.markdown(render_loading_state("LLM", 4), unsafe_allow_html=True)
             
             # Generate response
             try:
@@ -1250,6 +1572,9 @@ def chat_interface():
                 is_in_scope_llm = True
             
             total_time = time.time() - start_time
+        
+        # Clear loading indicator
+        progress_placeholder.empty()
         
         # Add assistant response
         debug_info = {
