@@ -1,0 +1,1785 @@
+================================================================================
+                    STREAMLIT CHATBOT TEST CASES
+                    Comprehensive Testing Guide
+================================================================================
+
+This document outlines all test cases to verify the working of the chatbot on Streamlit.
+Each test includes:
+- Test ID: Unique identifier
+- Test Name: Description of what is being tested
+- Steps: Action sequence to execute the test
+- Expected Result: What should happen
+- Acceptance Criteria: How to verify success
+
+
+================================================================================
+SECTION 1: PAGE CONFIGURATION & LAYOUT TESTS
+================================================================================
+
+TEST ID: UI-001
+Test Name: Page Configuration Loading
+Description: Verify that the Streamlit page loads with correct configuration
+Steps:
+  1. Launch the Streamlit app (streamlit run app.py)
+  2. Observe page loading
+  3. Check browser tab title and favicon
+Expected Result:
+  - Page title shows "College AI Assistant - Production Ready"
+  - Favicon displays "🎓" symbol
+  - Layout is "wide" with expanded sidebar
+Acceptance Criteria:
+  - ✓ Tab title matches exactly
+  - ✓ Favicon is visible as college icon
+  - ✓ Sidebar is visible and expanded by default
+
+
+TEST ID: UI-002
+Test Name: Custom CSS Styling Applied
+Description: Verify that custom CSS for chat messages renders correctly
+Steps:
+  1. Start the app
+  2. Send a test message (e.g., "Hello")
+  3. Observe message styling
+Expected Result:
+  - User messages appear with purple gradient background
+  - User messages are right-aligned with rounded corners
+  - Assistant messages have light gray background with green left border
+  - Messages have fade-in animation effect
+Acceptance Criteria:
+  - ✓ Chat message styling is visually distinct between user and assistant
+  - ✓ Messages display with proper spacing and padding
+  - ✓ Color scheme matches specification (purple for user, gray for assistant)
+  - ✓ No CSS errors in browser console
+
+
+TEST ID: UI-003
+Test Name: Header and Time Display
+Description: Verify header information displays correctly
+Steps:
+  1. Open the app
+  2. Look at the top of the main area
+Expected Result:
+  - Header shows "🎓 College AI Assistant"
+  - Subtitle shows "Production-Ready Edition with Advanced AI Features"
+  - Time of day badge displays (MORNING/AFTERNOON/EVENING/NIGHT)
+  - Session ID and current timestamp visible
+Acceptance Criteria:
+  - ✓ All header elements present
+  - ✓ Time badge updates correctly based on current time
+  - ✓ Session ID is unique (8 characters)
+  - ✓ Timestamp format is readable
+
+
+TEST ID: UI-004
+Test Name: Sidebar Navigation and Controls
+Description: Verify sidebar controls are functional
+Steps:
+  1. Open the app
+  2. Locate sidebar
+  3. Verify all sidebar components exist
+Expected Result:
+  - "⚙️ Controls & Analytics" section visible
+  - "🔍 Show Advanced Debug Info" checkbox present
+  - "🗑️ Clear Chat History" button present
+  - "📊 View Session Logs" button present
+  - Analytics section with metrics (Total Interactions, Avg Confidence, etc.)
+  - System Status section with model information
+Acceptance Criteria:
+  - ✓ All sidebar sections render correctly
+  - ✓ All buttons and checkboxes are clickable
+  - ✓ Sidebar width is appropriate and doesn't cover main content
+  - ✓ No layout overlap or rendering issues
+
+
+================================================================================
+SECTION 2: MODEL INITIALIZATION TESTS
+================================================================================
+
+TEST ID: INIT-001
+Test Name: Model Caching on First Load
+Description: Verify models are initialized once and cached
+Steps:
+  1. Start the app
+  2. Observe console/logs for initialization messages
+  3. Refresh the page (F5)
+  4. Verify no re-initialization occurs
+Expected Result:
+  - Models load on first access
+  - Second access uses cache
+  - No performance degradation on refresh
+Acceptance Criteria:
+  - ✓ Models initialize within reasonable time (< 30 seconds)
+  - ✓ Page refresh doesn't re-initialize models
+  - ✓ st.cache_resource decorator working correctly
+
+
+TEST ID: INIT-002
+Test Name: Intent Classifier Initialization
+Description: Verify Intent Classifier loads and trains correctly
+Steps:
+  1. Start the app
+  2. Check sidebar system status
+  3. Observe model training if needed
+Expected Result:
+  - Intent Classifier shows as ready (✅)
+  - Number of intents displayed in sidebar
+  - Warning shown if training in progress
+Acceptance Criteria:
+  - ✓ Classifier initializes successfully
+  - ✓ Training completes if needed
+  - ✓ Intent count > 0
+  - ✓ No error messages
+
+
+TEST ID: INIT-003
+Test Name: LLM Handler Initialization
+Description: Verify LLM Handler (Groq API) initializes correctly
+Steps:
+  1. Start the app
+  2. Check sidebar system status for Groq API status
+Expected Result:
+  - Groq API shows "✅ Available" if API key configured
+  - Shows "⚠️ Fallback Mode" if API key missing
+Acceptance Criteria:
+  - ✓ Status indicator matches actual configuration
+  - ✓ No critical errors if API key missing
+  - ✓ LLM selects appropriate mode automatically
+
+
+TEST ID: INIT-004
+Test Name: All Core Modules Load Without Errors
+Description: Verify all modules initialize successfully
+Steps:
+  1. Start app
+  2. Check browser console for errors
+  3. Monitor app logs
+Expected Result:
+  - Emotion Detector: Ready ✓
+  - Scope Detection: Active ✓
+  - Database: Connected ✓
+  - No error messages in console
+Acceptance Criteria:
+  - ✓ No Python exceptions in logs
+  - ✓ All modules report ready status
+  - ✓ No JavaScript errors in console
+
+
+================================================================================
+SECTION 3: SESSION MANAGEMENT TESTS
+================================================================================
+
+TEST ID: SESSION-001
+Test Name: Session State Initialization
+Description: Verify session state initializes for new users
+Steps:
+  1. Clear browser cache/cookies
+  2. Open app URL
+  3. Check page elements
+Expected Result:
+  - Session ID generated (8 characters)
+  - Conversation context initialized
+  - Messages array empty
+  - User hasn't been greeted yet
+Acceptance Criteria:
+  - ✓ Unique session ID created
+  - ✓ Empty chat history displayed
+  - ✓ Greeting screen shown
+  - ✓ No previous messages visible
+
+
+TEST ID: SESSION-002
+Test Name: User Name Collection
+Description: Verify user name input and storage
+Steps:
+  1. Open app as new user
+  2. Enter a name in the text input (e.g., "John")
+  3. Click "✨ Start Chat" button
+Expected Result:
+  - Name is accepted and stored
+  - Start Chat button responds
+  - Personalized greeting created with user's name
+Acceptance Criteria:
+  - ✓ Name field accepts text input
+  - ✓ Button click is registered
+  - ✓ Greeting message contains the user's name
+  - ✓ Optional name handling works (empty input defaults to "there")
+
+
+TEST ID: SESSION-003
+Test Name: Session Persistence Across Messages
+Description: Verify session state persists as user types messages
+Steps:
+  1. Send a message (e.g., "hello")
+  2. Send another message
+  3. Observe session ID and timestamp
+Expected Result:
+  - Same session ID throughout conversation
+  - Conversation context maintains all previous exchanges
+  - User name remains consistent
+Acceptance Criteria:
+  - ✓ Session ID unchanged
+  - ✓ All messages in history displayed
+  - ✓ Context accessible throughout session
+  - ✓ No session reset between messages
+
+
+TEST ID: SESSION-004
+Test Name: Clear Chat History Function
+Description: Verify clearing chat history works correctly
+Steps:
+  1. Send several messages
+  2. Click "🗑️ Clear Chat History" in sidebar
+  3. Verify chat clears
+Expected Result:
+  - All chat messages disappear
+  - Success message shown "✅ Chat cleared!"
+  - Session ID changes (new session)
+  - Greeting screen reappears
+Acceptance Criteria:
+  - ✓ Chat history completely removed
+  - ✓ New conversation context initialized
+  - ✓ User can start fresh conversation
+  - ✓ No residual messages or data
+
+
+TEST ID: SESSION-005
+Test Name: Refresh Page Retains Session
+Description: Verify browser refresh maintains session data
+Steps:
+  1. Send a message
+  2. Refresh page (F5)
+  3. Check if message history persists
+Expected Result:
+  - Messages from before refresh still visible
+  - Session state maintained
+  - Conversation context available
+Acceptance Criteria:
+  - ✓ Chat history persists after refresh
+  - ✓ No data loss
+  - ✓ Session ID remains same
+  - ✓ UI fully functional after refresh
+
+
+================================================================================
+SECTION 4: GREETING AND WELCOME FLOW TESTS
+================================================================================
+
+TEST ID: GREETING-001
+Test Name: Welcome Screen Display
+Description: Verify welcome screen shows for new sessions
+Steps:
+  1. Clear session state
+  2. Open app
+  3. Observe welcome screen
+Expected Result:
+  - "👋 Welcome!" heading displayed
+  - Greeting text from SessionGreeter shown
+  - Quick help information provided
+  - Name input field visible
+  - "✨ Start Chat" button visible
+Acceptance Criteria:
+  - ✓ All welcome elements rendered
+  - ✓ Content is welcoming and clear
+  - ✓ Form elements are functional
+  - ✓ No syntax errors in greeting text
+
+
+TEST ID: GREETING-002
+Test Name: Personalized Greeting After Name Entry
+Description: Verify personalized greeting after user enters name
+Steps:
+  1. Enter "Alice" in name field
+  2. Click "✨ Start Chat"
+  3. Wait for first assistant message
+Expected Result:
+  - Greeting message personalizes with "Alice"
+  - Message appears in chat with assistant styling
+  - Greeting has debug info attached
+  - Chat interface ready for input
+Acceptance Criteria:
+  - ✓ Name used in greeting
+  - ✓ Message displays with correct styling
+  - ✓ Input box becomes active
+  - ✓ No errors during greeting generation
+
+
+TEST ID: GREETING-003
+Test Name: Welcome Screen Bypassed After Greeting
+Description: Verify welcome screen doesn't show again after starting chat
+Steps:
+  1. Enter name and start chat
+  2. Send a message
+  3. Send another message
+  4. Verify no welcome screen visible
+Expected Result:
+  - Welcome screen replaced by chat interface
+  - Messages exchanged normally
+  - No welcome screen re-appears
+Acceptance Criteria:
+  - ✓ Chat interface active after greeting
+  - ✓ Multiple messages supported
+  - ✓ No greeting screen shown again
+
+
+================================================================================
+SECTION 5: CHAT INTERFACE AND MESSAGE DISPLAY TESTS
+================================================================================
+
+TEST ID: CHAT-001
+Test Name: User Message Input and Display
+Description: Verify user message input functionality
+Steps:
+  1. Click on chat input field
+  2. Type a message (e.g., "Tell me about the college")
+  3. Press Enter or click send
+Expected Result:
+  - Input field accepts text
+  - Message appears in chat with user styling
+  - Input field clears after sending
+  - Message shows "You:" prefix
+Acceptance Criteria:
+  - ✓ Input field responsive
+  - ✓ Message displayed immediately with user styling
+  - ✓ Input clears for next message
+  - ✓ Text formatted correctly (no encoding issues)
+
+
+TEST ID: CHAT-002
+Test Name: Assistant Response Generation
+Description: Verify assistant generates and displays responses
+Steps:
+  1. Send a college-related question
+  2. Wait for processing (spinner should show)
+  3. Observe response
+Expected Result:
+  - Processing spinner appears with "⚡ Processing your question..."
+  - Response generated within reasonable time (< 30 seconds)
+  - Response displayed with assistant styling
+  - Response content is relevant to question
+Acceptance Criteria:
+  - ✓ Spinner shows during processing
+  - ✓ Response appears after processing
+  - ✓ Response is coherent and on-topic
+  - ✓ No duplicate messages
+  - ✓ Response time logged
+
+
+TEST ID: CHAT-003
+Test Name: Chat Message History Display
+Description: Verify all messages display correctly in conversation
+Steps:
+  1. Send 5+ messages
+  2. Scroll through conversation
+  3. Verify all messages visible
+Expected Result:
+  - All messages display in chronological order
+  - User and assistant messages styled differently
+  - No message truncation
+  - No layout issues or overlap
+Acceptance Criteria:
+  - ✓ Complete conversation history visible
+  - ✓ Messages in correct order (oldest to newest)
+  - ✓ Proper alternation between user and assistant
+  - ✓ Scrolling works smoothly
+  - ✓ No message loss
+
+
+TEST ID: CHAT-004
+Test Name: Empty Message Handling
+Description: Verify app handles empty input correctly
+Steps:
+  1. Click send with empty input
+  2. Observe response
+Expected Result:
+  - Empty message not sent
+  - No error message displayed
+  - Input field remains active
+Acceptance Criteria:
+  - ✓ Empty messages silently ignored
+  - ✓ No crash or error
+  - ✓ User can continue chatting
+
+
+TEST ID: CHAT-005
+Test Name: Special Characters and Emoji Handling
+Description: Verify special characters render correctly
+Steps:
+  1. Send message with emojis (e.g., "How's 😊 the campus?")
+  2. Send message with special chars (e.g., "@#$%^&*()")
+  3. Observe message display
+Expected Result:
+  - Emojis display correctly
+  - Special characters encoded properly
+  - No rendering errors
+  - Response handles special chars gracefully
+Acceptance Criteria:
+  - ✓ Emojis render correctly
+  - ✓ Special characters don't cause errors
+  - ✓ Messages display as sent
+  - ✓ No console errors
+
+
+TEST ID: CHAT-006
+Test Name: Long Message Handling
+Description: Verify app handles long messages correctly
+Steps:
+  1. Compose a long message (500+ characters)
+  2. Send it
+  3. Observe rendering
+Expected Result:
+  - Long message accepted
+  - Message displays with proper wrapping
+  - Response generated normally
+Acceptance Criteria:
+  - ✓ Message input accepts long text
+  - ✓ No truncation
+  - ✓ Text wraps properly on display
+  - ✓ Response processing works
+
+
+================================================================================
+SECTION 6: INTENT DETECTION AND PROCESSING TESTS
+================================================================================
+
+TEST ID: INTENT-001
+Test Name: Intent Classification Display
+Description: Verify intent classification appears in debug info
+Steps:
+  1. Enable "🔍 Show Advanced Debug Info" checkbox
+  2. Send a message (e.g., "What are the fees?")
+  3. Click "🔍 Debug Details" expander
+  4. Check displayed information
+Expected Result:
+  - Debug details expander visible
+  - Intent displayed (e.g., "fees_inquiry")
+  - Confidence score shown as percentage
+  - All debug fields populated
+Acceptance Criteria:
+  - ✓ Intent identified correctly
+  - ✓ Confidence between 0-100%
+  - ✓ Intent matches expected domain
+  - ✓ Debug panel formatted clearly
+
+
+TEST ID: INTENT-002
+Test Name: Multiple Intent Types Recognition
+Description: Verify different intent types are recognized correctly
+Steps:
+  1. Send "What are the fees?" (should detect as fees intent)
+  2. Send "When are exams?" (should detect as exam intent)
+  3. Send "Tell me about placements" (should detect as placement intent)
+  4. Send "Hello" (should detect as greeting)
+  5. Check intents in debug info
+Expected Result:
+  - Each query correctly classified with appropriate intent
+  - Different intents produce different responses
+  - Confidence varies based on query clarity
+Acceptance Criteria:
+  - ✓ Intent classification accurate
+  - ✓ Intents match query domain
+  - ✓ Each intent type recognized
+  - ✓ Response tailored to intent
+
+
+TEST ID: INTENT-003
+Test Name: Low Confidence Handling
+Description: Verify app handles low-confidence intents gracefully
+Steps:
+  1. Send an ambiguous query (e.g., "I don't know what to ask")
+  2. Enable debug info
+  3. Observe response
+Expected Result:
+  - Low confidence score displayed (< 50%)
+  - Response includes clarification request
+  - Assistant asks for more details
+  - No error or crash
+Acceptance Criteria:
+  - ✓ Low confidence detected
+  - ✓ Clarification offered
+  - ✓ Response helpful
+  - ✓ Session continues normally
+
+
+TEST ID: INTENT-004
+Test Name: Intent Refinement Based on Context
+Description: Verify intent improves with conversation context
+Steps:
+  1. Ask "What major should I choose?"
+  2. Ask "Can I switch later?"
+  3. Enable debug and check second query's intent/confidence
+Expected Result:
+  - First query confidence may be lower
+  - Second query refined using context
+  - Confidence improves or intent clarifies
+  - Responses build on each other
+Acceptance Criteria:
+  - ✓ Context used for refinement
+  - ✓ Related messages understood together
+  - ✓ Conversation coherent
+  - ✓ Intent refinement visible in debug
+
+
+================================================================================
+SECTION 7: EMOTION DETECTION TESTS
+================================================================================
+
+TEST ID: EMOTION-001
+Test Name: Emotion Detection Display
+Description: Verify emotion detection works and displays
+Steps:
+  1. Enable debug info
+  2. Send positive message (e.g., "I'm so excited about campus!")
+  3. Send negative message (e.g., "I'm frustrated with the process")
+  4. Send neutral message (e.g., "What are the fees?")
+  5. Check "Emotion" field in debug info
+Expected Result:
+  - Positive messages detected as positive emotion
+  - Negative messages detected as negative emotion
+  - Neutral queries detected as neutral
+  - Correct emotion labels displayed
+Acceptance Criteria:
+  - ✓ Emotion detected for each message
+  - ✓ Emotion labels appropriate
+  - ✓ No emotion: "Unknown" or "Neutral" shown
+
+
+TEST ID: EMOTION-002
+Test Name: Emotional Tone Detection
+Description: Verify emotional tone affects response
+Steps:
+  1. Send an angry query (ALL CAPS or frustrated tone)
+  2. Send a sad query (expressing disappointment)
+  3. Send a happy query (expressing excitement)
+  4. Compare responses
+Expected Result:
+  - Responses adapt to emotional tone
+  - Angry queries get calm, respectful responses
+  - Sad queries get supportive responses
+  - Happy queries match enthusiasm
+Acceptance Criteria:
+  - ✓ Response tone appropriate to emotion
+  - ✓ Supportive language for negative emotions
+  - ✓ Matching enthusiasm for positive emotions
+  - ✓ Professional tone always maintained
+
+
+TEST ID: EMOTION-003
+Test Name: Emotion in Debug Information
+Description: Verify emotion appears in debug detail expander
+Steps:
+  1. Enable debug info
+  2. Send message
+  3. Open debug expander
+  4. Check emotion metric
+Expected Result:
+  - Emotion field visible in metrics
+  - Shows specific emotion category
+  - Formatted clearly (e.g., "happy", "sad", "neutral")
+Acceptance Criteria:
+  - ✓ Emotion displayed in debug panel
+  - ✓ Clear label and value
+  - ✓ Matches actual content
+
+
+================================================================================
+SECTION 8: SCOPE DETECTION TESTS
+================================================================================
+
+TEST ID: SCOPE-001
+Test Name: In-Scope Badge Display
+Description: Verify in-scope queries show correct badge
+Steps:
+  1. Enable debug info
+  2. Send college-related query (e.g., "Tell me about fees")
+  3. Look for scope badge on assistant message
+Expected Result:
+  - Green "IN-SCOPE" badge appears on message
+  - Badge positioned to right of response
+  - Badge styling clear and visible
+Acceptance Criteria:
+  - ✓ Badge displayed for in-scope queries
+  - ✓ Green color indicates in-scope
+  - ✓ Badge doesn't interfere with message
+
+
+TEST ID: SCOPE-002
+Test Name: Out-of-Scope Badge Display
+Description: Verify out-of-scope queries show correct badge
+Steps:
+  1. Enable debug info
+  2. Send non-college query (e.g., "Tell me about mars", "How to cook pasta?")
+  3. Look for scope badge
+Expected Result:
+  - Red "OUT-OF-SCOPE" badge appears
+  - Response politely redirects to college topics
+  - Badge clearly visible
+Acceptance Criteria:
+  - ✓ Badge displayed for out-of-scope queries
+  - ✓ Red color indicates out-of-scope
+  - ✓ Response acknowledges and redirects
+
+
+TEST ID: SCOPE-003
+Test Name: Scope Detection Debug Info
+Description: Verify scope reason displayed in debug expander
+Steps:
+  1. Enable debug info
+  2. Send both in-scope and out-of-scope queries
+  3. Open debug expanders
+  4. Check scope reason
+Expected Result:
+  - "📌 Scope Reason:" shown for each message
+  - Reason explains why in/out of scope
+  - Examples: "contains_college_keywords", "not_education_related"
+Acceptance Criteria:
+  - ✓ Scope reason provided
+  - ✓ Reason is informative
+  - ✓ Explains detection logic
+
+
+TEST ID: SCOPE-004
+Test Name: Graceful Out-of-Scope Handling
+Description: Verify app handles out-of-scope queries appropriately
+Steps:
+  1. Send sequence of out-of-scope queries
+  2. Check if app remains functional
+  3. Switch back to in-scope query
+Expected Result:
+  - Out-of-scope queries acknowledged
+  - App suggests college-related topics
+  - No errors or crashes
+  - Transition to in-scope works smoothly
+Acceptance Criteria:
+  - ✓ Helpful redirect provided
+  - ✓ App remains responsive
+  - ✓ Session continues normally
+  - ✓ No frustration for user (friendly tone)
+
+
+================================================================================
+SECTION 9: CLARIFICATION REQUEST TESTS
+================================================================================
+
+TEST ID: CLARIF-001
+Test Name: Clarification Badge Display
+Description: Verify clarification badge shows when needed
+Steps:
+  1. Enable debug info
+  2. Send ambiguous query
+  3. Look for badges on response
+Expected Result:
+  - "🤔 CLARIFYING" badge appears on message
+  - Badge styled distinctly (yellow/orange)
+  - Response asks for clarification
+Acceptance Criteria:
+  - ✓ Badge visible when clarifying
+  - ✓ Distinct styling
+  - ✓ Response asks specific follow-up questions
+
+
+TEST ID: CLARIF-002
+Test Name: Clarification Debug Info
+Description: Verify clarification tracked in debug info
+Steps:
+  1. Enable debug info
+  2. Send ambiguous message
+  3. Open debug expander
+  4. Check for "should_clarify" field
+Expected Result:
+  - "should_clarify" field shows true/false
+  - Field indicates if clarification was requested
+Acceptance Criteria:
+  - ✓ Debug info tracks clarification
+  - ✓ Matches visible badge
+  - ✓ Clear boolean value
+
+
+================================================================================
+SECTION 10: DEBUG INFORMATION TESTS
+================================================================================
+
+TEST ID: DEBUG-001
+Test Name: Debug Info Toggle
+Description: Verify debug info checkbox works
+Steps:
+  1. Locate "🔍 Show Advanced Debug Info" in sidebar
+  2. Click checkbox to enable
+  3. Send a message
+  4. Observe debug expanders appear
+  5. Uncheck to disable
+Expected Result:
+  - When enabled: Debug expanders visible under each message
+  - When disabled: Debug expanders hidden
+  - Toggle works immediately
+Acceptance Criteria:
+  - ✓ Checkbox state persists for session
+  - ✓ Debug info appears/disappears as toggled
+  - ✓ No errors from toggle
+
+
+TEST ID: DEBUG-002
+Test Name: Debug Details Expander Content
+Description: Verify all debug details display correctly
+Steps:
+  1. Enable debug info
+  2. Send message
+  3. Click "🔍 Debug Details" expander
+  4. Examine all fields
+Expected Result:
+  - Intent: Shows detected intent
+  - Confidence: Shows percentage
+  - Emotion: Shows emotion type
+  - In-Scope: Shows Yes/No
+  - LLM Source: Shows which LLM or fallback
+  - Response Time: Shows processing time in seconds
+  - Scope Reason: Shows why in/out of scope
+  - Entities: Shows extracted entities if any
+Acceptance Criteria:
+  - ✓ All fields present
+  - ✓ Values are accurate
+  - ✓ Formatting is clear and readable
+  - ✓ Units displayed correctly
+
+
+TEST ID: DEBUG-003
+Test Name: Debug Info Accuracy
+Description: Verify debug info matches actual processing
+Steps:
+  1. Enable debug info
+  2. Calculate expected values manually
+  3. Compare with debug display
+Expected Result:
+  - Confidence percentage matches classifier output
+  - Emotion matches detected emotion
+  - Intent matches classification
+  - Response time reflects actual processing
+Acceptance Criteria:
+  - ✓ Debug values accurate
+  - ✓ No discrepancies
+  - ✓ Real-time data
+
+
+TEST ID: DEBUG-004
+Test Name: Response Time Tracking
+Description: Verify response time measurement accurate
+Steps:
+  1. Enable debug info
+  2. Send multiple messages
+  3. Record response times
+  4. Compare with actual wait time
+Expected Result:
+  - Response time shown in seconds (e.g., "1.23s")
+  - Time reflects actual processing duration
+  - Times vary but are reasonable
+Acceptance Criteria:
+  - ✓ Response times displayed
+  - ✓ Times match actual duration
+  - ✓ All processing steps timed
+  - ✓ Visible in debug expander
+
+
+================================================================================
+SECTION 11: ANALYTICS AND STATISTICS TESTS
+================================================================================
+
+TEST ID: ANALYTICS-001
+Test Name: Analytics Sidebar Display
+Description: Verify analytics display in sidebar
+Steps:
+  1. Open app
+  2. Look at sidebar analytics section
+  3. Send several messages
+  4. Observe analytics update
+Expected Result:
+  - Analytics section shows 4 main metrics:
+    • 📝 Total Interactions
+    • 🎯 Avg Confidence
+    • ⚡ Avg Response Time
+    • 🔄 Fallback Rate
+Acceptance Criteria:
+  - ✓ All metrics cards visible
+  - ✓ Values displayed with appropriate formatting
+  - ✓ Metrics update after each message
+  - ✓ Cards are styled consistently
+
+
+TEST ID: ANALYTICS-002
+Test Name: Total Interactions Counter
+Description: Verify interaction counter increments
+Steps:
+  1. Note initial total interactions
+  2. Send a message
+  3. Note new total interactions
+  4. Send another message
+  5. Observe counter again
+Expected Result:
+  - Counter increments by 1 for each message sent
+  - Shows accurate total
+Acceptance Criteria:
+  - ✓ Counter increases correctly
+  - ✓ Matches number of messages sent
+  - ✓ Persists across refresh
+
+
+TEST ID: ANALYTICS-003
+Test Name: Average Confidence Metric
+Description: Verify average confidence calculated correctly
+Steps:
+  1. Send messages with varying confidence levels
+  2. Check average confidence in sidebar
+  3. Calculate manually to verify
+Expected Result:
+  - Average confidence shows as percentage
+  - Value between 0-100%
+  - Updates after each message
+Acceptance Criteria:
+  - ✓ Percentage format displayed
+  - ✓ Calculation accurate
+  - ✓ Updates in real-time
+
+
+TEST ID: ANALYTICS-004
+Test Name: Average Response Time
+Description: Verify response time averaging
+Steps:
+  1. Send several messages
+  2. Check average response time in sidebar
+  3. Compare with debug response times
+Expected Result:
+  - Time displays in seconds (e.g., "1.45s")
+  - Is average of all response times
+  - Reasonable value
+Acceptance Criteria:
+  - ✓ Time displayed in seconds
+  - ✓ Calculation correct
+  - ✓ Within expected range
+
+
+TEST ID: ANALYTICS-005
+Test Name: Top Intents Display
+Description: Verify top intents listed in analytics
+Steps:
+  1. Send various types of queries
+  2. Check "🏆 Top Intents" section
+  3. Verify listing
+Expected Result:
+  - Shows top 3 most common intents
+  - Format: "intent_name: count"
+  - Count numbers accurate
+Acceptance Criteria:
+  - ✓ Top intents identified
+  - ✓ Counts correct
+  - ✓ Limited to top 3
+
+
+TEST ID: ANALYTICS-006
+Test Name: Special Handling Counters
+Description: Verify out-of-scope and clarification counters
+Steps:
+  1. Send out-of-scope query
+  2. Send ambiguous query requiring clarification
+  3. Check "⚠️ Special Handling" section
+Expected Result:
+  - Out-of-scope counter increments
+  - Clarification counter increments
+  - Both displayed accurately
+Acceptance Criteria:
+  - ✓ Counters increment appropriately
+  - ✓ Counts accurate
+  - ✓ Section only shows if counts > 0
+
+
+================================================================================
+SECTION 12: SYSTEM STATUS TESTS
+================================================================================
+
+TEST ID: STATUS-001
+Test Name: System Status Section Display
+Description: Verify system status information displayed
+Steps:
+  1. Open app
+  2. Look at sidebar "ℹ️ System Status" section
+  3. Observe all status indicators
+Expected Result:
+  - Intent Classifier status with intent count
+  - Groq API status (Available or Fallback Mode)
+  - Emotion Detector status
+  - Scope Detection status
+Acceptance Criteria:
+  - ✓ All status indicators present
+  - ✓ Icons/formatting clear
+  - ✓ Accurate information
+
+
+TEST ID: STATUS-002
+Test Name: Intent Classifier Status
+Description: Verify intent classifier status accurate
+Steps:
+  1. Open app
+  2. Check sidebar for classifier status
+Expected Result:
+  - Shows ✅ if trained
+  - Shows ⏳ if training
+  - Shows intent count (> 0)
+Acceptance Criteria:
+  - ✓ Status icon accurate
+  - ✓ Intent count displayed
+  - ✓ Updates during training
+
+
+TEST ID: STATUS-003
+Test Name: Groq API Status
+Description: Verify Groq API status indicator
+Steps:
+  1. Open app with API key configured
+  2. Check Groq API status
+  3. Note configuration
+Expected Result:
+  - Shows "✅ Available" if API key present and valid
+  - Shows "⚠️ Fallback Mode" if API key missing
+  - Reflects actual configuration
+Acceptance Criteria:
+  - ✓ Status matches actual configuration
+  - ✓ Clear for users to understand capability
+  - ✓ Doesn't break app in either mode
+
+
+================================================================================
+SECTION 13: ERROR HANDLING AND EDGE CASES
+================================================================================
+
+TEST ID: ERROR-001
+Test Name: API Error Graceful Handling
+Description: Verify app handles API errors gracefully
+Steps:
+  1. Send a message (normal operation)
+  2. Simulate API error (turn off internet briefly or mock error)
+  3. Send another message
+  4. Observe response
+Expected Result:
+  - Graceful error handling
+  - Fallback response provided
+  - LLM source shows as "fallback"
+  - User informed indirectly (not with error popup)
+  - Chat continues
+Acceptance Criteria:
+  - ✓ No crash
+  - ✓ Helpful response provided
+  - ✓ Session continues
+  - ✓ User can keep chatting
+
+
+TEST ID: ERROR-002
+Test Name: Database Error Handling
+Description: Verify app handles database errors
+Steps:
+  1. If database is unavailable, send a message
+  2. Observe response
+Expected Result:
+  - App continues functioning
+  - Some features may be limited (e.g., analytics)
+  - No complete failure
+Acceptance Criteria:
+  - ✓ Graceful degradation
+  - ✓ Chat still works
+  - ✓ Clear error messaging if needed
+
+
+TEST ID: ERROR-003
+Test Name: Invalid Input Handling
+Description: Verify invalid inputs handled correctly
+Steps:
+  1. Send special characters only (e.g., "!!!!!!!")
+  2. Send very long input (1000+ chars)
+  3. Send null bytes or control characters if possible
+  4. Observe responses
+Expected Result:
+  - Special char input processed (may be out-of-scope)
+  - Long input accepted and processed
+  - No encoding errors
+  - App remains stable
+Acceptance Criteria:
+  - ✓ No crashes
+  - ✓ Reasonable responses
+  - ✓ Encoding handled correctly
+
+
+TEST ID: ERROR-004
+Test Name: Concurrent Request Handling
+Description: Verify app handles rapid requests
+Steps:
+  1. Rapidly click send or press enter multiple times
+  2. Send messages in quick succession
+  3. Observe app behavior
+Expected Result:
+  - Requests queued properly
+  - No messages skipped
+  - No duplicate responses
+  - App remains responsive
+Acceptance Criteria:
+  - ✓ All messages processed
+  - ✓ No race conditions
+  - ✓ Proper ordering maintained
+
+
+TEST ID: ERROR-005
+Test Name: Large Dataset Handling
+Description: Verify app handles large conversation history
+Steps:
+  1. Send 50+ messages
+  2. Scroll through history
+  3. Send another message
+  4. Observe performance
+Expected Result:
+  - All messages visible
+  - Scrolling remains smooth
+  - No performance degradation
+  - New messages process normally
+Acceptance Criteria:
+  - ✓ No truncation
+  - ✓ Responsive scrolling
+  - ✓ Memory efficient
+  - ✓ No slowdown
+
+
+================================================================================
+SECTION 14: RESPONSE TIME PERFORMANCE TESTS
+================================================================================
+
+TEST ID: PERF-001
+Test Name: Initial Page Load Time
+Description: Verify page loads within acceptable time
+Steps:
+  1. Clear cache
+  2. Open app URL
+  3. Time until page fully interactive
+Expected Result:
+  - Page loads within 5-10 seconds
+  - All elements visible
+  - Ready for user interaction
+Acceptance Criteria:
+  - ✓ Load time < 10 seconds
+  - ✓ No timeout errors
+  - ✓ Fully functional
+
+
+TEST ID: PERF-002
+Test Name: First Message Response Time
+Description: Verify first message completes quickly
+Steps:
+  1. Wait for page full load
+  2. Send first message after greeting
+  3. Time response
+Expected Result:
+  - Response within 10-15 seconds
+  - Spinner shows during processing
+  - Response quality maintained
+Acceptance Criteria:
+  - ✓ Response < 15 seconds
+  - ✓ Reasonable for cold start
+  - ✓ User informed with spinner
+
+
+TEST ID: PERF-003
+Test Name: Subsequent Message Response Time
+Description: Verify cached operations speed up responses
+Steps:
+  1. Send first message (note time)
+  2. Send second message (note time)
+  3. Send third message (note time)
+  4. Compare times
+Expected Result:
+  - Response times improve due to caching
+  - Average < 8 seconds
+  - Consistent performance
+Acceptance Criteria:
+  - ✓ Response times reasonable
+  - ✓ No significant slowdown
+  - ✓ Caching provides benefit
+
+
+TEST ID: PERF-004
+Test Name: Debug Info Overhead
+Description: Verify debug info doesn't significantly slow app
+Steps:
+  1. Send message without debug
+  2. Send message with debug enabled
+  3. Compare response times
+Expected Result:
+  - Debug mode adds minimal overhead
+  - Difference < 1-2 seconds
+  - Performance acceptable either way
+Acceptance Criteria:
+  - ✓ Minimal performance impact
+  - ✓ Both modes usable
+  - ✓ No freezing
+
+
+================================================================================
+SECTION 15: DATA PERSISTENCE TESTS
+================================================================================
+
+TEST ID: DATA-001
+Test Name: Database Initialization
+Description: Verify database initializes correctly
+Steps:
+  1. Start app
+  2. Check for database files/connections
+  3. Send a message
+  4. Verify data recorded
+Expected Result:
+  - Database initializes without errors
+  - Table structures created if needed
+  - Data persists after message
+  - Analytics reflect recorded data
+Acceptance Criteria:
+  - ✓ No database errors
+  - ✓ Data saved correctly
+  - ✓ Retrievable for analytics
+
+
+TEST ID: DATA-002
+Test Name: Chat History Persistence
+Description: Verify chat history persists in database
+Steps:
+  1. Send several messages
+  2. Note messages and responses
+  3. Restart app or access from different instance
+  4. Check if history remains
+Expected Result:
+  - Old messages visible (if using same session)
+  - Session history persists
+  - New session starts fresh
+Acceptance Criteria:
+  - ✓ Session data preserved
+  - ✓ Sessions isolated from each other
+  - ✓ Database correctly queries history
+
+
+TEST ID: DATA-003
+Test Name: Analytics Data Collection
+Description: Verify analytics data collected accurately
+Steps:
+  1. Send various messages with different intents
+  2. Check analytics in sidebar
+  3. Compare with actual messages
+Expected Result:
+  - All intents recorded
+  - Counts accurate
+  - Average metrics correct
+  - Data matches historical data
+Acceptance Criteria:
+  - ✓ All events recorded
+  - ✓ Counts accurate
+  - ✓ Persistence verified
+
+
+================================================================================
+SECTION 16: MOBILE/RESPONSIVE DESIGN TESTS
+================================================================================
+
+TEST ID: MOBILE-001
+Test Name: Mobile Layout Responsiveness
+Description: Verify app works on mobile devices
+Steps:
+  1. Open app on mobile device (or use browser devtools mobile simulation)
+  2. Set viewport to mobile size (375x667)
+  3. Interact with app
+Expected Result:
+  - Layout adapts to mobile width
+  - Sidebar collapsible or hidden
+  - Chat interface remains usable
+  - Input field accessible
+Acceptance Criteria:
+  - ✓ No horizontal scrolling needed
+  - ✓ Text readable
+  - ✓ Buttons clickable
+  - ✓ Navigation functional
+
+
+TEST ID: MOBILE-002
+Test Name: Tablet Layout
+Description: Verify app works on tablet size
+Steps:
+  1. Set viewport to tablet (768x1024)
+  2. Interact with app
+Expected Result:
+  - Layout optimizes for tablet
+  - Good use of screen space
+  - Navigation accessible
+Acceptance Criteria:
+  - ✓ Readable on tablet
+  - ✓ Properly formatted
+  - ✓ All features accessible
+
+
+TEST ID: MOBILE-003
+Test Name: Touch Input Handling
+Description: Verify touch gestures work correctly
+Steps:
+  1. On touch device, tap elements
+  2. Tap buttons, input fields
+  3. Use scroll gestures
+Expected Result:
+  - All elements respond to touch
+  - No hover-only elements
+  - Scroll works smoothly
+Acceptance Criteria:
+  - ✓ Touch responsive
+  - ✓ No desktop-only features
+  - ✓ Smooth interaction
+
+
+================================================================================
+SECTION 17: ACCESSIBILITY TESTS
+================================================================================
+
+TEST ID: A11Y-001
+Test Name: Keyboard Navigation
+Description: Verify keyboard navigation works
+Steps:
+  1. Use Tab key to navigate
+  2. Cycle through all interactive elements
+  3. Use Enter to activate buttons
+Expected Result:
+  - All buttons/inputs reachable via keyboard
+  - Clear focus indicators
+  - Logical tab order
+Acceptance Criteria:
+  - ✓ Full keyboard navigation
+  - ✓ Visible focus states
+  - ✓ No keyboard traps
+
+
+TEST ID: A11Y-002
+Test Name: Color Contrast
+Description: Verify sufficient color contrast
+Steps:
+  1. Check text colors against backgrounds
+  2. Use color contrast analyzer tool
+  3. Check all text/background combinations
+Expected Result:
+  - All text has sufficient contrast
+  - WCAG AA standard (4.5:1 minimum)
+  - Readable for colorblind users
+Acceptance Criteria:
+  - ✓ Adequate contrast ratio
+  - ✓ Text readable
+  - ✓ WCAG compliant
+
+
+TEST ID: A11Y-003
+Test Name: Alt Text for Images/Icons
+Description: Verify icons have appropriate labels
+Steps:
+  1. Inspect HTML for icon elements
+  2. Check for alt text or aria-labels
+  3. Verify with screen reader simulation
+Expected Result:
+  - Icons have descriptive labels
+  - Screen reader can describe all elements
+  - No ambiguity for assistive tech
+Acceptance Criteria:
+  - ✓ All icons have labels
+  - ✓ Labels are descriptive
+  - ✓ Screen reader compatible
+
+
+TEST ID: A11Y-004
+Test Name: Focus Management
+Description: Verify focus properly managed
+Steps:
+  1. Send a message
+  2. Observe where focus goes
+  3. Use Tab to move to next input
+Expected Result:
+  - Focus moves to new message after send
+  - Focus order logical
+  - No focus loss
+Acceptance Criteria:
+  - ✓ Focus managed correctly
+  - ✓ No focus traps
+  - ✓ Navigation logical
+
+
+================================================================================
+SECTION 18: CROSS-BROWSER COMPATIBILITY TESTS
+================================================================================
+
+TEST ID: BROWSER-001
+Test Name: Chrome Browser
+Description: Verify app works perfectly in Chrome
+Steps:
+  1. Open app in Chrome
+  2. Complete full conversation workflow
+  3. Test sidebar features
+  4. Check console for errors
+Expected Result:
+  - No errors
+  - All features work
+  - Performance optimal
+Acceptance Criteria:
+  - ✓ Full functionality
+  - ✓ No console errors
+  - ✓ Smooth performance
+
+
+TEST ID: BROWSER-002
+Test Name: Firefox Browser
+Description: Verify app works in Firefox
+Steps:
+  1. Open app in Firefox
+  2. Complete full workflow
+  3. Check developer console
+Expected Result:
+  - Fully functional
+  - No Firefox-specific errors
+  - Consistent with Chrome
+Acceptance Criteria:
+  - ✓ Full functionality
+  - ✓ No JavaScript errors
+  - ✓ Feature parity
+
+
+TEST ID: BROWSER-003
+Test Name: Safari Browser
+Description: Verify app works in Safari
+Steps:
+  1. Open app in Safari
+  2. Complete workflow
+  3. Check for compatibility issues
+Expected Result:
+  - Works correctly
+  - CSS renders properly
+  - No Safari-specific issues
+Acceptance Criteria:
+  - ✓ Functional
+  - ✓ Styling correct
+  - ✓ Feature complete
+
+
+TEST ID: BROWSER-004
+Test Name: Edge Browser
+Description: Verify app works in Edge
+Steps:
+  1. Open app in Microsoft Edge
+  2. Test features
+Expected Result:
+  - Full compatibility
+  - Consistent experience
+Acceptance Criteria:
+  - ✓ Fully functional
+  - ✓ No errors
+  - ✓ Consistent
+
+
+================================================================================
+SECTION 19: INTEGRATION TESTS
+================================================================================
+
+TEST ID: INTEG-001
+Test Name: Full Workflow: Welcome to Response
+Description: Complete flow from app start to getting response
+Steps:
+  1. Start app
+  2. Enter name and start chat
+  3. Send college-related question
+  4. Receive and view response
+  5. Enable debug and review all info
+Expected Result:
+  - Seamless flow from start to response
+  - All components working together
+  - Session state maintained
+  - All debug info present and correct
+Acceptance Criteria:
+  - ✓ No missing steps
+  - ✓ All modules cooperating
+  - ✓ Data flowing correctly
+  - ✓ Response quality good
+
+
+TEST ID: INTEG-002
+Test Name: Multi-Turn Conversation
+Description: Test extended conversation
+Steps:
+  1. Start conversation
+  2. Ask initial question (e.g., "Tell me about fees")
+  3. Ask follow-up (e.g., "Are there scholarships?")
+  4. Ask another follow-up (e.g., "How to apply?")
+  5. Verify context awareness
+Expected Result:
+  - Context carries through
+  - Follow-ups understood in context
+  - Conversation coherent
+  - Previous messages visible
+Acceptance Criteria:
+  - ✓ Context maintained
+  - ✓ Responses build on each other
+  - ✓ Full history visible
+  - ✓ Logical flow
+
+
+TEST ID: INTEG-003
+Test Name: Clear and Restart
+Description: Test clearing history and starting fresh
+Steps:
+  1. Send messages
+  2. Clear chat
+  3. Send new messages
+  4. Verify fresh start
+Expected Result:
+  - Old messages gone
+  - New session ID
+  - Analytics reset for session
+  - Greeting reappears
+Acceptance Criteria:
+  - ✓ Complete reset
+  - ✓ No data leak from old session
+  - ✓ Fresh greeting shown
+  - ✓ Analytics reflect new session
+
+
+TEST ID: INTEG-004
+Test Name: Feature Interaction: Debug + Analytics + Chat
+Description: Test all features working together
+Steps:
+  1. Send message with debug off
+  2. Enable debug
+  3. Send message
+  4. Review debug expander
+  5. Check updated analytics
+  6. Send out-of-scope query
+  7. Verify badge and analytics update
+Expected Result:
+  - All features coordinate properly
+  - Data flows between components
+  - Updates happen in real-time
+  - No conflicts or errors
+Acceptance Criteria:
+  - ✓ Features coordinate
+  - ✓ Data consistent
+  - ✓ No conflicts
+  - ✓ All working together
+
+
+================================================================================
+SECTION 20: USER ACCEPTANCE TESTS
+================================================================================
+
+TEST ID: UAT-001
+Test Name: Natural Interaction Flow
+Description: Verify app feels natural and responsive to users
+Steps:
+  1. Have end user interact with app
+  2. Ask about their experience
+  3. Observe interaction patterns
+Expected Result:
+  - Intuitive interface
+  - Clear instructions
+  - Helpful responses
+  - User satisfied
+Acceptance Criteria:
+  - ✓ Users can start without confusion
+  - ✓ Responses are helpful
+  - ✓ No frustration points
+  - ✓ Overall positive experience
+
+
+TEST ID: UAT-002
+Test Name: Response Quality
+Description: Verify response quality meets expectations
+Steps:
+  1. Test variety of queries
+  2. Evaluate response accuracy
+  3. Check response relevance
+  4. Note hallucinations or errors
+Expected Result:
+  - Responses accurate
+  - Relevant to queries
+  - No major hallucinations
+  - Helpful and informative
+Acceptance Criteria:
+  - ✓ Information is correct
+  - ✓ Addresses question asked
+  - ✓ Minimal false information
+  - ✓ User finds helpful
+
+
+TEST ID: UAT-003
+Test Name: Scope Handling Satisfaction
+Description: Verify users understand scope handling
+Steps:
+  1. Send out-of-scope query
+  2. Observe response and redirect
+  3. Ask user if redirect was helpful
+Expected Result:
+  - Users appreciate redirection
+  - Feel encouraged to ask college questions
+  - Understand scope
+Acceptance Criteria:
+  - ✓ Clear redirect message
+  - ✓ Users understand scope
+  - ✓ No frustration
+  - ✓ Positive experience
+
+
+TEST ID: UAT-004
+Test Name: Visual Design Satisfaction
+Description: Verify UI design is appealing
+Steps:
+  1. Show interface to users
+  2. Get feedback on design
+  3. Note usability observations
+Expected Result:
+  - Clean, professional appearance
+  - Easy to read
+  - Good color scheme
+  - User satisfied
+Acceptance Criteria:
+  - ✓ Visually appealing
+  - ✓ Easy to navigate
+  - ✓ Professional appearance
+  - ✓ User satisfaction
+
+
+================================================================================
+SECTION 21: REGRESSION TESTS
+================================================================================
+
+After each update or deployment, run these tests to ensure nothing broke:
+
+TEST ID: REG-001
+Test Name: Core Chat Functionality
+Description: Verify basic chat still works after update
+Steps:
+  1. Start app
+  2. Send simple messages
+  3. Receive responses
+Expected Result:
+  - Chat works exactly as before
+Acceptance Criteria:
+  - ✓ No regression
+
+
+TEST ID: REG-002
+Test Name: Intent Classification
+Description: Test intent detection unchanged
+Steps:
+  1. Send test queries with known intents
+  2. Verify classifications still correct
+Expected Result:
+  - Classifications match previous behavior
+Acceptance Criteria:
+  - ✓ No regression in accuracy
+
+
+TEST ID: REG-003
+Test Name: Scope Detection
+Description: Verify scope detection behavior unchanged
+Steps:
+  1. Send known in-scope queries
+  2. Send known out-of-scope queries
+  3. Verify classification
+Expected Result:
+  - All classifications correct
+Acceptance Criteria:
+  - ✓ No behavior changes
+
+
+TEST ID: REG-004
+Test Name: Analytics Calculation
+Description: Verify analytics calculations unchanged
+Steps:
+  1. Send known number of messages
+  2. Check analytics totals
+Expected Result:
+  - Analytics accurate
+Acceptance Criteria:
+  - ✓ Correct calculations
+
+
+================================================================================
+SECTION 22: LOAD TESTING
+================================================================================
+
+TEST ID: LOAD-001
+Test Name: Multiple Concurrent Users
+Description: Test app with simulated concurrent users
+Steps:
+  1. Launch multiple instances or simulate load
+  2. Have multiple "users" sending messages
+  3. Monitor app performance
+Expected Result:
+  - App remains responsive
+  - No message loss
+  - Reasonable response times
+  - No crashes
+Acceptance Criteria:
+  - ✓ Handles 5-10 concurrent users
+  - ✓ No errors
+  - ✓ Performance acceptable
+
+
+TEST ID: LOAD-002
+Test Name: Stress Test: Rapid Messages
+Description: Test app with very rapid message sending
+Steps:
+  1. Send 10+ messages in rapid succession
+  2. Monitor app state
+Expected Result:
+  - All messages queued and processed
+  - No skipped messages
+  - App remains stable
+Acceptance Criteria:
+  - ✓ All messages handled
+  - ✓ No crashes
+  - ✓ Data integrity maintained
+
+
+TEST ID: LOAD-003
+Test Name: Memory Usage Under Load
+Description: Monitor memory usage during extended use
+Steps:
+  1. Send 100+ messages over time
+  2. Monitor browser/server memory
+  3. Check for memory leaks
+Expected Result:
+  - Memory usage stable
+  - No exponential growth
+  - No crashes from memory
+Acceptance Criteria:
+  - ✓ Stable memory usage
+  - ✓ No obvious leaks
+  - ✓ Performant
+
+
+================================================================================
+SECTION 23: SECURITY TESTS
+================================================================================
+
+TEST ID: SEC-001
+Test Name: XSS Prevention
+Description: Verify app protects against XSS attacks
+Steps:
+  1. Send message with HTML/JavaScript (e.g., "<script>alert('xss')</script>")
+  2. Observe displayed message
+Expected Result:
+  - Script doesn't execute
+  - Content displayed as text
+  - Properly escaped
+Acceptance Criteria:
+  - ✓ XSS prevented
+  - ✓ Script not executed
+  - ✓ Content safe
+
+
+TEST ID: SEC-002
+Test Name: SQL Injection Prevention
+Description: Verify protection against SQL injection
+Steps:
+  1. In database operations, try SQL injection patterns
+  2. Observe error handling
+Expected Result:
+  - Queries parameterized
+  - Injection prevented
+  - Safe error messages
+Acceptance Criteria:
+  - ✓ No SQL injection vulnerability
+  - ✓ Queries parameterized
+  - ✓ Safe
+
+
+TEST ID: SEC-003
+Test Name: Session Security
+Description: Verify session data is secure
+Steps:
+  1. Check session data storage
+  2. Verify no sensitive data exposed
+  3. Check for session hijacking prevention
+Expected Result:
+  - Session data secure
+  - No sensitive info in headers
+  - HTTPS enforced (if applicable)
+Acceptance Criteria:
+  - ✓ Secure session handling
+  - ✓ No data leaks
+  - ✓ Session isolated
+
+
+================================================================================
+EXECUTION CHECKLIST
+================================================================================
+
+Before declaring the Streamlit app production-ready, ensure:
+
+□ All UI/Layout tests pass (Section 1)
+□ All model initialization tests pass (Section 2)
+□ All session management tests pass (Section 3)
+□ Greeting flow works perfectly (Section 4)
+□ Chat interface fully functional (Section 5)
+□ Intent detection accurate (Section 6)
+□ Emotion detection working (Section 7)
+□ Scope detection correct (Section 8)
+□ Clarification features work (Section 9)
+□ Debug information accurate (Section 10)
+□ Analytics calculations correct (Section 11)
+□ System status indicators accurate (Section 12)
+□ Error handling graceful (Section 13)
+□ Performance acceptable (Section 14)
+□ Data persists correctly (Section 15)
+□ Mobile/Responsive works (Section 16)
+□ Accessibility standards met (Section 17)
+□ Cross-browser compatible (Section 18)
+□ Integration tests pass (Section 19)
+□ User acceptance tests pass (Section 20)
+□ No regressions after updates (Section 21)
+□ Load testing successful (Section 22)
+□ Security tests pass (Section 23)
+
+
+================================================================================
+NOTES FOR TESTERS
+================================================================================
+
+1. Browser Setup:
+   - Test on Chrome, Firefox, Safari, Edge
+   - Use modern versions (latest -2 versions minimum)
+   - Test with JavaScript enabled
+   - Clear cache between sessions
+
+2. Test Data:
+   - Use consistent test queries across runs
+   - Document any edge cases found
+   - Report exact reproduction steps
+
+3. Performance Baseline:
+   - Establish baseline response times on first run
+   - Track performance over time
+   - Note infrastructure setup
+
+4. Documentation:
+   - Screenshot failures for reference
+   - Note browser console errors
+   - Record timing measurements
+
+5. Regression Prevention:
+   - Run full test suite before deployment
+   - Run quick smoke tests daily
+   - Document any test failures
+
+6. Known Limitations to Document:
+   - Maximum conversation length before performance degrades
+   - Timeout thresholds
+   - API rate limits
+   - Database constraints
+
+================================================================================
+END OF TEST CASES
+================================================================================
+
+Total Test Cases: 120+
+Estimated Execution Time: 4-6 hours (manual testing)
+Recommended: Automated UI testing for regression suite
+
+For questions or clarifications, refer to the test ID in the relevant section.
+Each test is self-contained and can be run independently or as part of a sequence.

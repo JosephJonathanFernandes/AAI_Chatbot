@@ -1,0 +1,1538 @@
+================================================================================
+              CHATBOT QUESTION TYPES & EDGE CASES TEST SUITE
+              Comprehensive Query Testing Guide
+================================================================================
+
+This document outlines comprehensive test cases for all types of questions,
+edge cases, and scenario variations that the chatbot should handle.
+
+Format:
+- Question ID: Unique identifier
+- Question Type: Category of question
+- Test Query: Exact query to send
+- Expected Intent: What intent should be detected
+- Expected Behavior: How chatbot should respond
+- Edge Case Notes: Special considerations
+
+
+================================================================================
+SECTION 1: FEES & TUITION QUESTIONS
+================================================================================
+
+TEST ID: FEES-001
+Question Type: Admission Fees - Direct Query
+Test Query: "What are the admission fees?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide admission fee amount, payment terms, deadline
+Edge Case Notes: Include information about payment installments if available
+
+TEST ID: FEES-002
+Question Type: Admission Fees - With Condition
+Test Query: "Do I have to pay admission fees separately from tuition?"
+Expected Intent: fees_inquiry
+Expected Behavior: Clarify relationship between admission and tuition fees
+Expected Response: Explains if fees are separate or bundled
+
+TEST ID: FEES-003
+Question Type: Tuition Fees - Specific Program
+Test Query: "What's the engineering program tuition fee?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide program-specific fee information
+Edge Case Notes: Recognize "tuition" and "engineering" keywords together
+
+TEST ID: FEES-004
+Question Type: Fees - Vague Reference
+Test Query: "How much does it cost?"
+Expected Intent: fees_inquiry (with potential clarification)
+Expected Behavior: Ask which tier/program, OR provide general overview
+Edge Case Notes: LOW CONFIDENCE - should clarify if needed
+
+TEST ID: FEES-005
+Question Type: Fees - Multiple Programs
+Test Query: "Give me a comparison of fees for different programs"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide table/list comparing program fees
+Edge Case Notes: Structured data response
+
+TEST ID: FEES-006
+Question Type: Fees - Scholarship Inquiry
+Test Query: "Are there scholarships that reduce the fees?"
+Expected Intent: fees_inquiry / scholarship_inquiry
+Expected Behavior: Discuss fee reduction through scholarships
+Edge Case Notes: Crossover between two intents
+
+TEST ID: FEES-007
+Question Type: Fees - Payment Methods
+Test Query: "What payment methods do you accept for fees?"
+Expected Intent: fees_inquiry / payment_info
+Expected Behavior: List payment options (online, check, installment, etc.)
+Edge Case Notes: Financial logistics
+
+TEST ID: FEES-008
+Question Type: Fees - Late Payment
+Test Query: "What happens if I can't pay my fees on time?"
+Expected Intent: fees_inquiry
+Expected Behavior: Explain late payment policy, penalties, grace periods
+Edge Case Notes: Concern-based question
+
+TEST ID: FEES-009
+Question Type: Fees - Refund Policy
+Test Query: "Can I get a refund if I don't join after paying fees?"
+Expected Intent: fees_inquiry / refund_inquiry
+Expected Behavior: Explain refund policy and conditions
+Edge Case Notes: Legal/policy question
+
+TEST ID: FEES-010
+Question Type: Fees - Hidden Costs
+Test Query: "Are there any hidden charges or additional fees beyond tuition?"
+Expected Intent: fees_inquiry
+Expected Behavior: List all additional costs (lab fees, examination fees, etc.)
+Edge Case Notes: Comprehensive fee breakdown needed
+
+TEST ID: FEES-011
+Question Type: Fees - Hostel Fees
+Test Query: "What's the hostel fee?"
+Expected Intent: fees_inquiry / hostel_inquiry
+Expected Behavior: Provide hostel accommodation fees
+Edge Case Notes: Separate module/topic
+
+TEST ID: FEES-012
+Question Type: Fees - With Typos
+Test Query: "Wht r the fess?"
+Expected Intent: fees_inquiry (despite typos)
+Expected Behavior: Should still recognize and provide fees
+Edge Case Notes: CRITICAL - Typo tolerance test
+
+TEST ID: FEES-013
+Question Type: Fees - Casual Language
+Test Query: "How much money do I gotta pay?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide fee information in friendly tone
+Edge Case Notes: Colloquial language handling
+
+TEST ID: FEES-014
+Question Type: Fees - Negative Emotion
+Test Query: "This is way too expensive! Why are the fees so high?!"
+Expected Intent: fees_inquiry / complaint
+Expected Behavior: Acknowledge concern, provide fee justification
+Edge Case Notes: EMOTION: frustated/angry - requires empathetic tone
+
+
+================================================================================
+SECTION 2: EXAMINATION QUESTIONS
+================================================================================
+
+TEST ID: EXAM-001
+Question Type: Exam Schedule - General
+Test Query: "When are the exams scheduled?"
+Expected Intent: exam_inquiry
+Expected Behavior: Provide exam dates, schedule format
+Edge Case Notes: Time-awareness needed (upcoming vs past)
+
+TEST ID: EXAM-002
+Question Type: Exam Schedule - Specific Subject
+Test Query: "When is the math exam?"
+Expected Intent: exam_inquiry
+Expected Behavior: Provide specific subject exam date
+Edge Case Notes: Extract subject keyword
+
+TEST ID: EXAM-003
+Question Type: Exam Pattern - Question
+Test Query: "What's the exam pattern?"
+Expected Intent: exam_inquiry
+Expected Behavior: Explain exam format, number of questions, duration, etc.
+Edge Case Notes: Structural information
+
+TEST ID: EXAM-004
+Question Type: Exam Results - Timeline
+Test Query: "When will exam results be announced?"
+Expected Intent: exam_inquiry / results_inquiry
+Expected Behavior: Provide result publication timeline
+Edge Case Notes: Future-oriented question
+
+TEST ID: EXAM-005
+Question Type: Exam Preparation
+Test Query: "How do I prepare for the final exams?"
+Expected Intent: exam_inquiry / guidance_inquiry
+Expected Behavior: Provide study resources, tips, reference materials
+Edge Case Notes: Guidance component
+
+TEST ID: EXAM-006
+Question Type: Exam Venues
+Test Query: "Where are the exams conducted?"
+Expected Intent: exam_inquiry / venue_inquiry
+Expected Behavior: Provide exam center locations, building info
+Edge Case Notes: Location-based info
+
+TEST ID: EXAM-007
+Question Type: Exam - Previous Years
+Test Query: "Can I get previous years exam papers?"
+Expected Intent: exam_inquiry / resource_inquiry
+Expected Behavior: Inform about availability of past papers
+Edge Case Notes: Resource availability
+
+TEST ID: EXAM-008
+Question Type: Exam - Clarification
+Test Query: "I didn't understand the exam schedule"
+Expected Intent: exam_inquiry (low confidence)
+Expected Behavior: Ask for clarification or provide comprehensive info
+Edge Case Notes: Ambiguous request - may need follow-up
+
+TEST ID: EXAM-009
+Question Type: Exam - Re-exam Opportunity
+Test Query: "Can I retake the exam if I fail?"
+Expected Intent: exam_inquiry / policy_inquiry
+Expected Behavior: Explain re-exam policy, conditions
+Edge Case Notes: Policy-based
+
+TEST ID: EXAM-010
+Question Type: Exam - Calculator/Materials
+Test Query: "What materials can I bring to the exam?"
+Expected Intent: exam_inquiry / rules_inquiry
+Expected Behavior: List allowed materials, prohibited items
+Edge Case Notes: Rules and regulations
+
+TEST ID: EXAM-011
+Question Type: Exam - Technical Issues
+Test Query: "What if I face technical issues during the exam?"
+Expected Intent: exam_inquiry / support_inquiry
+Expected Behavior: Explain procedures for technical support
+Edge Case Notes: Problem-solving oriented
+
+
+================================================================================
+SECTION 3: PLACEMENTS QUESTIONS
+================================================================================
+
+TEST ID: PLACE-001
+Question Type: Placements - General
+Test Query: "Tell me about placements"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide placement statistics, companies, packages
+Edge Case Notes: Broad question - comprehensive response needed
+
+TEST ID: PLACE-002
+Question Type: Placements - Average Package
+Test Query: "What's the average salary for placements?"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide average and range of packages
+Edge Case Notes: Numerical data expected
+
+TEST ID: PLACE-003
+Question Type: Placements - Companies
+Test Query: "Which companies visit campus for recruitment?"
+Expected Intent: placement_inquiry
+Expected Behavior: List recruiting companies, industries
+Edge Case Notes: Specific factual information
+
+TEST ID: PLACE-004
+Question Type: Placements - Guarantee
+Test Query: "Is placement guaranteed?"
+Expected Intent: placement_inquiry / policy_inquiry
+Expected Behavior: Explain placement rates and conditions
+Edge Case Notes: Yes/No with caveats
+
+TEST ID: PLACE-005
+Question Type: Placements - Eligibility
+Test Query: "What's the eligibility criteria for placements?"
+Expected Intent: placement_inquiry / eligibility_inquiry
+Expected Behavior: Explain academic requirements, CGPA cutoffs
+Edge Case Notes: Conditional information
+
+TEST ID: PLACE-006
+Question Type: Placements - Timeline
+Test Query: "When does campus recruitment happen?"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide season/dates for recruitment
+Edge Case Notes: Temporal information
+
+TEST ID: PLACE-007
+Question Type: Placements - Specialization Gaps
+Test Query: "Do placements vary by specialization/branch?"
+Expected Intent: placement_inquiry
+Expected Behavior: Explain placement differences across programs
+Edge Case Notes: Comparative analysis
+
+TEST ID: PLACE-008
+Question Type: Placements - Internships
+Test Query: "Are internships provided before final placement?"
+Expected Intent: placement_inquiry / internship_inquiry
+Expected Behavior: Explain internship program in placement year
+Edge Case Notes: Related but distinct topic
+
+TEST ID: PLACE-009
+Question Type: Placements - Higher Studies
+Test Query: "What if I want to pursue higher studies instead?"
+Expected Intent: placement_inquiry / higher_studies_inquiry
+Expected Behavior: Explain option to skip placements for further education
+Edge Case Notes: Alternative path
+
+TEST ID: PLACE-010
+Question Type: Placements - Concerns - Low Package
+Test Query: "I'm worried the package might be too low for me"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide perspective, discuss package range
+Edge Case Notes: EMOTION: worried/anxious - reassuring tone needed
+
+TEST ID: PLACE-011
+Question Type: Placements - Support Services
+Test Query: "What preparation does college provide for placements?"
+Expected Intent: placement_inquiry / support_inquiry
+Expected Behavior: Explain training, workshops, interview prep
+Edge Case Notes: Support services focus
+
+
+================================================================================
+SECTION 4: HOSTEL ACCOMMODATION QUESTIONS
+================================================================================
+
+TEST ID: HOSTEL-001
+Question Type: Hostel - Availability
+Test Query: "Is hostel accommodation available?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Confirm hostel availability, occupancy
+Edge Case Notes: Yes/No question with details
+
+TEST ID: HOSTEL-002
+Question Type: Hostel - Capacity
+Test Query: "How many students can be accommodated in hostel?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Provide total capacity, room shares
+Edge Case Notes: Numerical information
+
+TEST ID: HOSTEL-003
+Question Type: Hostel - Room Types
+Test Query: "Are single rooms available or only shared rooms?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Describe room options, pricing
+Edge Case Notes: Options comparison
+
+TEST ID: HOSTEL-004
+Question Type: Hostel - Facilities
+Test Query: "What facilities are provided in the hostel?"
+Expected Intent: hostel_inquiry / facilities_inquiry
+Expected Behavior: List amenities (WiFi, laundry, cafeteria, gym, etc.)
+Edge Case Notes: Comprehensive list expected
+
+TEST ID: HOSTEL-005
+Question Type: Hostel - Rules
+Test Query: "What are the hostel curfew rules?"
+Expected Intent: hostel_inquiry / rules_inquiry
+Expected Behavior: Explain curfew, visitor policy, dress code
+Edge Case Notes: Rules and regulations
+
+TEST ID: HOSTEL-006
+Question Type: Hostel - For International Students
+Test Query: "Is hostel provided for international students?"
+Expected Intent: hostel_inquiry / international_inquiry
+Expected Behavior: Confirm international student accommodation
+Edge Case Notes: Category-specific information
+
+TEST ID: HOSTEL-007
+Question Type: Hostel - Off-Campus Options
+Test Query: "Can I stay off-campus instead of hostel?"
+Expected Intent: hostel_inquiry / accommodation_inquiry
+Expected Behavior: Explain off-campus options and approval process
+Edge Case Notes: Alternative consideration
+
+TEST ID: HOSTEL-008
+Question Type: Hostel - Gender-Specific
+Test Query: "Are separate hostels for boys and girls?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Confirm gender-specific hostel arrangement
+Edge Case Notes: Factual question
+
+TEST ID: HOSTEL-009
+Question Type: Hostel - Fees and Payment
+Test Query: "How much is the hostel fee and when's payment due?"
+Expected Intent: hostel_inquiry / fees_inquiry
+Expected Behavior: Provide hostel fees and payment schedule
+Edge Case Notes: Combined question type
+
+TEST ID: HOSTEL-010
+Question Type: Hostel - Allocation Process
+Test Query: "How is hostel allotment done? First come first serve?"
+Expected Intent: hostel_inquiry / process_inquiry
+Expected Behavior: Explain allocation criteria and process
+Edge Case Notes: Process-oriented
+
+TEST ID: HOSTEL-011
+Question Type: Hostel - Food/Mess
+Test Query: "Is mess facility included in hostel?"
+Expected Intent: hostel_inquiry / facilities_inquiry
+Expected Behavior: Explain meal arrangements, dietary options
+Edge Case Notes: Food-specific
+
+
+================================================================================
+SECTION 5: FACULTY AND STAFF QUESTIONS
+================================================================================
+
+TEST ID: FACULTY-001
+Question Type: Faculty - Contact Information
+Test Query: "How do I contact the faculty members?"
+Expected Intent: faculty_inquiry / contact_inquiry
+Expected Behavior: Provide faculty contact details, office hours
+Edge Case Notes: Directory/contact information
+
+TEST ID: FACULTY-002
+Question Type: Faculty - Qualifications
+Test Query: "What are the qualifications of the faculty?"
+Expected Intent: faculty_inquiry
+Expected Behavior: Explain faculty credentials, educational background
+Edge Case Notes: Credibility-related
+
+TEST ID: FACULTY-003
+Question Type: Faculty - Research Areas
+Test Query: "What research areas do the faculty work on?"
+Expected Intent: faculty_inquiry / research_inquiry
+Expected Behavior: Describe research specializations
+Edge Case Notes: Academic focus
+
+TEST ID: FACULTY-004
+Question Type: Faculty - Office Hours
+Test Query: "When can I see the professor during office hours?"
+Expected Intent: faculty_inquiry / schedule_inquiry
+Expected Behavior: Provide office hours schedule
+Edge Case Notes: Availability/schedule
+
+TEST ID: FACULTY-005
+Question Type: Faculty - Mentorship
+Test Query: "Can I get a faculty mentor for my project?"
+Expected Intent: faculty_inquiry / mentorship_inquiry
+Expected Behavior: Explain mentoring program availability
+Edge Case Notes: Support services
+
+TEST ID: FACULTY-006
+Question Type: Faculty - Academic Advisor
+Test Query: "Who is the academic advisor?"
+Expected Intent: faculty_inquiry
+Expected Behavior: Provide advisor information, role description
+Edge Case Notes: Administrative role
+
+TEST ID: FACULTY-007
+Question Type: Faculty - Guest Lectures
+Test Query: "Do we have guest lectures from industry experts?"
+Expected Intent: faculty_inquiry / events_inquiry
+Expected Behavior: Explain invited speaker programs
+Edge Case Notes: Extension activity
+
+
+================================================================================
+SECTION 6: FACILITIES AND CAMPUS QUESTIONS
+================================================================================
+
+TEST ID: FACILITY-001
+Question Type: Facilities - Library
+Test Query: "Tell me about the library facilities"
+Expected Intent: facilities_inquiry
+Expected Behavior: Describe library resources, timings, services
+Edge Case Notes: Specific facility focus
+
+TEST ID: FACILITY-002
+Question Type: Facilities - Labs
+Test Query: "What labs are available for students?"
+Expected Intent: facilities_inquiry
+Expected Behavior: List available labs and their equipment
+Edge Case Notes: Infrastructure
+
+TEST ID: FACILITY-003
+Question Type: Facilities - Sports
+Test Query: "What sports facilities are available?"
+Expected Intent: facilities_inquiry
+Expected Behavior: List sports complexes, equipment, facilities
+Edge Case Notes: Recreational
+
+TEST ID: FACILITY-004
+Question Type: Facilities - Cafeteria
+Test Query: "Where is the cafeteria and what are the timings?"
+Expected Intent: facilities_inquiry
+Expected Behavior: Provide location, operating hours, menu options
+Edge Case Notes: Daily life information
+
+TEST ID: FACILITY-005
+Question Type: Facilities - Healthcare
+Test Query: "Is there a medical clinic on campus?"
+Expected Intent: facilities_inquiry / healthcare_inquiry
+Expected Behavior: Confirm medical facility, emergency procedures
+Edge Case Notes: Health and safety
+
+TEST ID: FACILITY-006
+Question Type: Facilities - Transportation
+Test Query: "Is bus transportation provided?"
+Expected Intent: facilities_inquiry / transport_inquiry
+Expected Behavior: Explain transport facility, bus routes, schedules
+Edge Case Notes: Logistics
+
+TEST ID: FACILITY-007
+Question Type: Facilities - Parking
+Test Query: "Where can I park my vehicle?"
+Expected Intent: facilities_inquiry
+Expected Behavior: Describe parking areas, vehicle registration
+Edge Case Notes: Campus logistics
+
+TEST ID: FACILITY-008
+Question Type: Facilities - WiFi/Internet
+Test Query: "Is there WiFi on campus? What's the speed?"
+Expected Intent: facilities_inquiry / tech_inquiry
+Expected Behavior: Confirm WiFi availability, bandwidth, coverage
+Edge Case Notes: Technology services
+
+TEST ID: FACILITY-009
+Question Type: Facilities - Gym
+Test Query: "Is there a gymnasium on campus?"
+Expected Intent: facilities_inquiry
+Expected Behavior: Describe gym facilities, membership, timings
+Edge Case Notes: Wellness facility
+
+
+================================================================================
+SECTION 7: ADMISSION AND ENROLLMENT QUESTIONS
+================================================================================
+
+TEST ID: ADMIT-001
+Question Type: Admission - Eligibility
+Test Query: "What's the eligibility criteria for admission?"
+Expected Intent: admission_inquiry
+Expected Behavior: List academic requirements, qualifying exams
+Edge Case Notes: Essential gatekeeping info
+
+TEST ID: ADMIT-002
+Question Type: Admission - Application Process
+Test Query: "How do I apply to the college?"
+Expected Intent: admission_inquiry
+Expected Behavior: Explain step-by-step application procedure
+Edge Case Notes: Process-oriented
+
+TEST ID: ADMIT-003
+Question Type: Admission - Documents Required
+Test Query: "What documents are needed for admission?"
+Expected Intent: admission_inquiry
+Expected Behavior: List required documents with specifications
+Edge Case Notes: Checklist-type response
+
+TEST ID: ADMIT-004
+Question Type: Admission - Entrance Exam
+Test Query: "Is there an entrance exam?"
+Expected Intent: admission_inquiry
+Expected Behavior: Confirm/deny entrance test requirement
+Edge Case Notes: Yes/No with details
+
+TEST ID: ADMIT-005
+Question Type: Admission - Timeline
+Test Query: "What's the admission timeline? When do applications close?"
+Expected Intent: admission_inquiry
+Expected Behavior: Provide key dates, application deadlines
+Edge Case Notes: Temporal information, time-sensitive
+
+TEST ID: ADMIT-006
+Question Type: Admission - Selection Criterion
+Test Query: "How are students selected for admission?"
+Expected Intent: admission_inquiry
+Expected Behavior: Explain selection criteria, merit-based or not
+Edge Case Notes: Process clarity
+
+TEST ID: ADMIT-007
+Question Type: Admission - Scholarships
+Test Query: "Are there merit-based scholarships for admission?"
+Expected Intent: admission_inquiry / scholarship_inquiry
+Expected Behavior: Explain scholarship availability, criteria
+Edge Case Notes: Combined intent
+
+TEST ID: ADMIT-008
+Question Type: Admission - Counseling
+Test Query: "Is there a counseling session before enrollment?"
+Expected Intent: admission_inquiry
+Expected Behavior: Describe pre-admission counseling process
+Edge Case Notes: Student support info
+
+TEST ID: ADMIT-009
+Question Type: Admission - Syllabus/Curriculum
+Test Query: "What's the curriculum offered?"
+Expected Intent: admission_inquiry/ curriculum_inquiry
+Expected Behavior: Provide subject overview, course structure
+Edge Case Notes: Academic planning
+
+TEST ID: ADMIT-010
+Question Type: Admission - Deferral
+Test Query: "Can I defer my admission to the next year?"
+Expected Intent: admission_inquiry / policy_inquiry
+Expected Behavior: Explain deferral policy and process
+Edge Case Notes: Alternative arrangement
+
+
+================================================================================
+SECTION 8: SCHOLARSHIP AND FINANCIAL AID QUESTIONS
+================================================================================
+
+TEST ID: SCHOLAR-001
+Question Type: Scholarship - Types Available
+Test Query: "What types of scholarships are available?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: List merit, need-based, category-specific scholarships
+Edge Case Notes: Comprehensive listing
+
+TEST ID: SCHOLAR-002
+Question Type: Scholarship - Merit-Based
+Test Query: "How do I apply for merit scholarship?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Explain criteria, application process
+Edge Case Notes: Specific scholarship type
+
+TEST ID: SCHOLAR-003
+Question Type: Scholarship - Need-Based
+Test Query: "Are there need-based financial aid options?"
+Expected Intent: scholarship_inquiry / financial_aid_inquiry
+Expected Behavior: Describe financial assistance programs
+Edge Case Notes: Economic support focus
+
+TEST ID: SCHOLAR-004
+Question Type: Scholarship - Category Scholarships
+Test Query: "Are there scholarships specifically for girl students?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: List category-specific scholarships
+Edge Case Notes: Inclusion and diversity
+
+TEST ID: SCHOLAR-005
+Question Type: Scholarship - Amount
+Test Query: "How much scholarship can I get?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Provide scholarship amount/percentage ranges
+Edge Case Notes: Quantitative info
+
+TEST ID: SCHOLAR-006
+Question Type: Scholarship - Criteria
+Test Query: "What's the minimum CGPA required for scholarship?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: List performance criteria for scholarships
+Edge Case Notes: Academic threshold
+
+TEST ID: SCHOLAR-007
+Question Type: Scholarship - Application Deadline
+Test Query: "When is the scholarship application deadline?"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Provide deadline date
+Edge Case Notes: Time-critical, calendar-aware
+
+TEST ID: SCHOLAR-008
+Question Type: Scholarship - Maintenance
+Test Query: "Do I need to maintain a certain CGPA to keep the scholarship?"
+Expected Intent: scholarship_inquiry / policy_inquiry
+Expected Behavior: Explain scholarship retention conditions
+Edge Case Notes: Ongoing requirements
+
+
+================================================================================
+SECTION 9: QUESTIONS WITH TYPOS AND SPELLING VARIATIONS
+================================================================================
+
+TEST ID: TYPO-001
+Question Type: Typo - Simple Misspelling
+Test Query: "Wha r the admmission fees?"
+Expected Intent: Should detect as admission/fees inquiry despite typos
+Expected Behavior: Provide relevant information
+Edge Case Notes: CRITICAL - Resilience to typos
+
+TEST ID: TYPO-002
+Question Type: Typo - Phonetic Spelling
+Test Query: "Wat about the exams skeduled?"
+Expected Intent: exam_inquiry
+Expected Behavior: Should understand and respond
+Edge Case Notes: Phonetic misspelling
+
+TEST ID: TYPO-003
+Question Type: Typo - Missing Vowels
+Test Query: "whn r plmnts?"
+Expected Intent: placement_inquiry
+Expected Behavior: Should still recognize core intent
+Edge Case Notes: Extreme case
+
+TEST ID: TYPO-004
+Question Type: Typo - Extra Characters
+Test Query: "what@@bout the hosteeel???"
+Expected Intent: hostel_inquiry
+Expected Behavior: Should ignore special characters and understand
+Edge Case Notes: Extra punctuation
+
+TEST ID: TYPO-005
+Question Type: Typo - Case Insensitivity
+Test Query: "WHAT ARE THE FEES???"
+Expected Intent: fees_inquiry
+Expected Behavior: Should handle all caps
+Edge Case Notes: Case handling
+
+TEST ID: TYPO-006
+Question Type: Typo - Mixed Typos
+Test Query: "cn i gt a scolarship 4 my program??"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Understand despite multiple typos
+Edge Case Notes: Combination typo test
+
+TEST ID: TYPO-007
+Question Type: Spelling - British vs American
+Test Query: "What's the programme syllabus?"
+Expected Intent: curriculum_inquiry
+Expected Behavior: Handle British English spellings
+Edge Case Notes: Language variation
+
+TEST ID: TYPO-008
+Question Type: Abbreviation - Common Terms
+Test Query: "What's CGPA required for my B.Tech?"
+Expected Intent: Should recognize abbreviations
+Expected Behavior: Understand CGPA = Cumulative GPA, B.Tech = Bachelor of Technology
+Edge Case Notes: Domain-specific abbreviations
+
+
+================================================================================
+SECTION 10: VAGUE AND AMBIGUOUS QUESTIONS
+================================================================================
+
+TEST ID: VAGUE-001
+Question Type: Vague - Open-Ended
+Test Query: "Tell me about the college"
+Expected Intent: general_inquiry (LOW CONFIDENCE)
+Expected Behavior: Provide comprehensive overview or ask for clarification
+Edge Case Notes: Could need refinement
+
+TEST ID: VAGUE-002
+Question Type: Vague - Unclear Reference
+Test Query: "What about that thing you mentioned?"
+Expected Intent: unclear (VERY LOW CONFIDENCE)
+Expected Behavior: Should ask for clarification
+Edge Case Notes: Requires context but no prior context
+
+TEST ID: VAGUE-003
+Question Type: Vague - Pronouns Without Antecedent
+Test Query: "Can I do it?"
+Expected Intent: unclear (VERY LOW CONFIDENCE)
+Expected Behavior: Ask what specifically the student wants to do
+Edge Case Notes: Context-dependent
+
+TEST ID: VAGUE-004
+Question Type: Vague - "Anything about X"
+Test Query: "Anything about campus life?"
+Expected Intent: campus_inquiry
+Expected Behavior: Provide overview of different aspects
+Edge Case Notes: Broad scope
+
+TEST ID: VAGUE-005
+Question Type: Vague - Multiple Topics
+Test Query: "Fees, placements, and placements facilities?"
+Expected Intent: fees_inquiry + placement_inquiry + facilities_inquiry
+Expected Behavior: Address each topic separately
+Edge Case Notes: Multi-intent detection
+
+TEST ID: VAGUE-006
+Question Type: Vague - Missing Key Info
+Test Query: "Is it possible?"
+Expected Intent: unclear (depends on context)
+Expected Behavior: Ask for specific clarification
+Edge Case Notes: Minimal information
+
+TEST ID: VAGUE-007
+Question Type: Vague - Indirect Question
+Test Query: "I was wondering if there's a way to..."
+Expected Intent: Should identify underlying question
+Expected Behavior: Ask to complete thought or infer from context
+Edge Case Notes: Conversational but vague
+
+
+================================================================================
+SECTION 11: QUESTIONS WITH EMOTIONAL UNDERTONES
+================================================================================
+
+TEST ID: EMOTION-001
+Question Type: Emotion - Frustrated/Angry
+Test Query: "Why does everything have to be so complicated?! Nobody explains anything!"
+Expected Intent: complaint / general_inquiry
+Expected Emotion: angry/frustrated
+Expected Behavior: Acknowledge frustration, provide patient help
+Edge Case Notes: Empathetic response required
+
+TEST ID: EMOTION-002
+Question Type: Emotion - Sad/Worried
+Test Query: "I'm so worried I won't get a good package..."
+Expected Intent: placement_inquiry
+Expected Emotion: worried/sad
+Expected Behavior: Reassuring tone, provide positive information
+Edge Case Notes: Supportive response
+
+TEST ID: EMOTION-003
+Question Type: Emotion - Excited/Happy
+Test Query: "I'm so excited to join! Tell me everything about the campus!"
+Expected Intent: general_inquiry
+Expected Emotion: happy/excited
+Expected Behavior: Match enthusiasm, provide comprehensive info
+Edge Case Notes: Enthusiastic response tone
+
+TEST ID: EMOTION-004
+Question Type: Emotion - Confused/Lost
+Test Query: "I'm really confused about what to do... everything seems overwhelming..."
+Expected Intent: general_inquiry / guidance_inquiry
+Expected Emotion: confused/overwhelmed
+Expected Behavior: Break down information clearly, step-by-step
+Edge Case Notes: Structured, simple explanation
+
+TEST ID: EMOTION-005
+Question Type: Emotion - Sarcasm
+Test Query: "Oh great, another expensive fee to pay, I'm sure..."
+Expected Intent: fees_inquiry
+Expected Emotion: sarcasm/cynical
+Expected Behavior: Provide information professionally, acknowledge concern
+Edge Case Notes: Tone detection challenge
+
+TEST ID: EMOTION-006
+Question Type: Emotion - Desperate
+Test Query: "PLEASE I need scholarship or I can't come!"
+Expected Intent: scholarship_inquiry
+Expected Emotion: desperate/urgent
+Expected Behavior: Take seriously, provide all available options
+Edge Case Notes: Urgency detected
+
+TEST ID: EMOTION-007
+Question Type: Emotion - Apathetic
+Test Query: "whatever...just tell me the fees"
+Expected Intent: fees_inquiry
+Expected Emotion: apathetic/disinterested
+Expected Behavior: Provide straightforward information
+Edge Case Notes: Minimal engagement
+
+
+================================================================================
+SECTION 12: CONTEXT-DEPENDENT QUESTIONS
+================================================================================
+
+TEST ID: CONTEXT-001
+Question Type: Context - Follow-up Question
+Setup: User asks "Tell me about placements"
+Test Query: "And what's the average package?"
+Expected Intent: Should understand as placement_inquiry (continuation)
+Expected Behavior: Provide average package without re-explaining placements
+Edge Case Notes: Uses previous context
+
+TEST ID: CONTEXT-002
+Question Type: Context - Clarification Request
+Setup: User asks "What are the eligibility criteria?"
+Test Query: "Do you mean for admission or for placements?"
+Expected Intent: Should ask for context clarification
+Expected Behavior: Provide both if unclear, or ask which specific
+Edge Case Notes: Resolving ambiguity
+
+TEST ID: CONTEXT-003
+Question Type: Context - Pronoun Reference
+Setup: User asks "What are the fees for engineering?"
+Test Query: "Are they different for other programs?"
+Expected Intent: fees_inquiry
+Expected Behavior: Compare engineering fees with other programs
+Edge Case Notes: "They" refers to fees
+
+TEST ID: CONTEXT-004
+Question Type: Context - Multiple Clarifications
+Setup: User asks "Tell me about admissions"
+Test Query: "Specifically, what if I have a sports scholarship?"
+Expected Intent: admission_inquiry + scholarship_inquiry
+Expected Behavior: Explain how scholarship affects admission
+Edge Case Notes: Conditional context
+
+TEST ID: CONTEXT-005
+Question Type: Context - Long Conversation
+Setup: User has asked 10+ questions in conversation
+Test Query: "Is this the same for all students?"
+Expected Intent: Should maintain context of conversation
+Expected Behavior: Reference recent topic being discussed
+Edge Case Notes: Long-term memory test
+
+TEST ID: CONTEXT-006
+Question Type: Context - Temporal Reference
+Setup: Current date is April 5, 2026
+Test Query: "When are the next exams?"
+Expected Intent: exam_inquiry
+Expected Behavior: Provide upcoming exam dates based on current date
+Edge Case Notes: Time context critical
+
+
+================================================================================
+SECTION 13: OUT-OF-SCOPE QUESTIONS
+================================================================================
+
+TEST ID: OUTSCOPE-001
+Question Type: Out-of-Scope - Completely Unrelated
+Test Query: "What's the weather today?"
+Expected Intent: out_of_scope
+Expected Behavior: Politely redirect to college topics
+Edge Case Notes: Clear redirect needed
+
+TEST ID: OUTSCOPE-002
+Question Type: Out-of-Scope - Personal/Private
+Test Query: "What's your personal life like?"
+Expected Intent: out_of_scope / inappropriate
+Expected Behavior: Professional boundary, redirect to college
+Edge Case Notes: Boundary setting
+
+TEST ID: OUTSCOPE-003
+Question Type: Out-of-Scope - Request for Personal Help
+Test Query: "Can you help me with my homework?"
+Expected Intent: out_of_scope / academic_support
+Expected Behavior: Indicate limitation, suggest college resources
+Edge Case Notes: Related but outside scope
+
+TEST ID: OUTSCOPE-004
+Question Type: Out-of-Scope - Technology Advice
+Test Query: "How do I fix my laptop?"
+Expected Intent: out_of_scope
+Expected Behavior: Acknowledge but redirect to college tech support
+Edge Case Notes: Helpful redirect
+
+TEST ID: OUTSCOPE-005
+Question Type: Out-of-Scope - Medical Advice
+Test Query: "I have a headache, what should I do?"
+Expected Intent: out_of_scope / health
+Expected Behavior: Suggest college medical facility
+Edge Case Notes: Health/safety redirect
+
+TEST ID: OUTSCOPE-006
+Question Type: Out-of-Scope - Political/Sensitive
+Test Query: "What's your view on politics?"
+Expected Intent: out_of_scope / sensitive
+Expected Behavior: Politely decline, stay professional
+Edge Case Notes: Sensitive topic handling
+
+TEST ID: OUTSCOPE-007
+Question Type: Out-of-Scope - Religious Discussion
+Test Query: "Which religion is correct?"
+Expected Intent: out_of_scope / controversial
+Expected Behavior: Maintain neutrality, redirect
+Edge Case Notes: Inclusivity
+
+TEST ID: OUTSCOPE-008
+Question Type: Out-of-Scope - Complaint About Non-College
+Test Query: "This restaurant's food is terrible"
+Expected Intent: out_of_scope
+Expected Behavior: Acknowledge but redirect
+Edge Case Notes: Clear scope boundary
+
+TEST ID: OUTSCOPE-009
+Question Type: Out-of-Scope - Spam/Gibberish
+Test Query: "asdfjkl; qwerty zxcvbnm"
+Expected Intent: gibberish / spam
+Expected Behavior: Don't crash, ask for meaningful input
+Edge Case Notes: Error recovery
+
+TEST ID: OUTSCOPE-010
+Question Type: Out-of-Scope - But Related
+Test Query: "How do I get my certificate after graduation?"
+Expected Intent: Should clarify if certificate process is college-related
+Expected Behavior: If college-specific, address; otherwise redirect
+Edge Case Notes: Gray area - context matters
+
+
+================================================================================
+SECTION 14: BOUNDARY AND EDGE CASE QUESTIONS
+================================================================================
+
+TEST ID: BOUND-001
+Question Type: Boundary - Extremely Long Input
+Test Query: A question that is 1000+ characters long
+Expected Intent: Should still process
+Expected Behavior: Find key intent amid verbosity
+Edge Case Notes: Performance and clarity test
+
+TEST ID: BOUND-002
+Question Type: Boundary - Empty Input
+Test Query: "" (empty string)
+Expected Intent: Should not process
+Expected Behavior: Prompt for input or ignore
+Edge Case Notes: No error/crash
+
+TEST ID: BOUND-003
+Question Type: Boundary - Only Numbers
+Test Query: "123456789"
+Expected Intent: unclear/numeric_only
+Expected Behavior: Ask for clarification
+Edge Case Notes: No semantic meaning
+
+TEST ID: BOUND-004
+Question Type: Boundary - Only Special Characters
+Test Query: "@#$%^&*()"
+Expected Intent: out_of_scope / invalid
+Expected Behavior: Don't crash, ask for proper input
+Edge Case Notes: Input validation
+
+TEST ID: BOUND-005
+Question Type: Boundary - Question with URL
+Test Query: "Visit https://example.com for more info?"
+Expected Intent: out_of_scope / suspicious
+Expected Behavior: Don't follow link, address question if valid
+Edge Case Notes: Security consideration
+
+TEST ID: BOUND-006
+Question Type: Boundary - Nested Quotes
+Test Query: 'He said "What about fees?" so I asked'
+Expected Intent: fees_inquiry
+Expected Behavior: Parse nested quotes correctly
+Edge Case Notes: Complex parsing
+
+TEST ID: BOUND-007
+Question Type: Boundary - Mixed Languages
+Test Query: "What are the fees? (Kya fees hain?)"
+Expected Intent: fees_inquiry
+Expected Behavior: Understand meaning despite language mix
+Edge Case Notes: Multilingual input
+
+TEST ID: BOUND-008
+Question Type: Boundary - Contradictory Questions
+Test Query: "Are fees high or low, and can I pay in installments or not?"
+Expected Intent: fees_inquiry
+Expected Behavior: Address both aspects clearly
+Edge Case Notes: Logical contradiction
+
+TEST ID: BOUND-009
+Question Type: Boundary - Hypothetical Questions
+Test Query: "What if I fail the exam? What would happen?"
+Expected Intent: exam_inquiry / policy_inquiry
+Expected Behavior: Explain consequences and remedies
+Edge Case Notes: Conditional reasoning
+
+
+================================================================================
+SECTION 15: COMPARATIVE AND ANALYTICAL QUESTIONS
+================================================================================
+
+TEST ID: COMPARE-001
+Question Type: Comparative - Program Comparison
+Test Query: "What's the difference between B.Tech and B.Sc programs?"
+Expected Intent: program_inquiry / comparison
+Expected Behavior: Compare curriculum, career paths, placements
+Edge Case Notes: Structured comparison needed
+
+TEST ID: COMPARE-002
+Question Type: Comparative - Facility Comparison
+Test Query: "How do the hostels compare? Boys vs Girls? Single vs Double rooms?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Provide comparative details
+Edge Case Notes: Multi-faceted comparison
+
+TEST ID: COMPARE-003
+Question Type: Comparative - Fee vs Value
+Test Query: "Are the fees justified by the placements and facilities?"
+Expected Intent: general_inquiry / opinion
+Expected Behavior: Provide objective data for comparison
+Edge Case Notes: Subjective evaluation
+
+TEST ID: COMPARE-004
+Question Type: Comparative - Institution Ranking
+Test Query: "How does this college rank compared to other colleges?"
+Expected Intent: ranking_inquiry
+Expected Behavior: Provide ranking/comparison info if available
+Edge Case Notes: External comparison
+
+TEST ID: COMPARE-005
+Question Type: Analytical - Placement Statistics
+Test Query: "What percentage of students get placed vs pursue higher studies?"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide statistical breakdown
+Edge Case Notes: Data analysis
+
+
+================================================================================
+SECTION 16: YES/NO QUESTIONS
+================================================================================
+
+TEST ID: YESNO-001
+Question Type: Yes/No - Simple
+Test Query: "Do you have a library?"
+Expected Intent: facilities_inquiry
+Expected Behavior: Yes/No with details
+Edge Case Notes: Direct answer first, then elaboration
+
+TEST ID: YESNO-002
+Question Type: Yes/No - With Condition
+Test Query: "Can international students apply?"
+Expected Intent: admission_inquiry
+Expected Behavior: Yes/No with conditions explained
+Edge Case Notes: Conditional yes/no
+
+TEST ID: YESNO-003
+Question Type: Yes/No - Negative Form
+Test Query: "Is there no hostel accommodation?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Clarify double negative
+Edge Case Notes: Logical parsing
+
+TEST ID: YESNO-004
+Question Type: Yes/No - Multiple Clauses
+Test Query: "Can I get a single room and change hostels?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Answer each subquestion
+Edge Case Notes: Compound question
+
+TEST ID: YESNO-005
+Question Type: Yes/No - Uncertain
+Test Query: "Might there be more placements this year?"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide what's known, indicate uncertainty
+Edge Case Notes: Probabilistic answer
+
+
+================================================================================
+SECTION 17: HOW/WHAT/WHEN/WHERE QUESTIONS
+================================================================================
+
+TEST ID: WHATWHEN-001
+Question Type: "What" Questions
+Test Query: "What are the different courses offered?"
+Expected Intent: curriculum_inquiry
+Expected Behavior: List available courses
+Edge Case Notes: Enumeration expected
+
+TEST ID: WHATWHEN-002
+Question Type: "When" Questions
+Test Query: "When should I submit my application?"
+Expected Intent: admission_inquiry / timeline_inquiry
+Expected Behavior: Provide deadline dates
+Edge Case Notes: Temporal information
+
+TEST ID: WHATWHEN-003
+Question Type: "Where" Questions
+Test Query: "Where is the campus located?"
+Expected Intent: campus_inquiry / location_inquiry
+Expected Behavior: Provide address and directions
+Edge Case Notes: Geographic information
+
+TEST ID: WHATWHEN-004
+Question Type: "How" Questions - Process
+Test Query: "How do I apply for admission?"
+Expected Intent: admission_inquiry
+Expected Behavior: Step-by-step process
+Edge Case Notes: Procedural information
+
+TEST ID: WHATWHEN-005
+Question Type: "How" Questions - Manner
+Test Query: "How can I improve my placement chances?"
+Expected Intent: placement_inquiry / guidance
+Expected Behavior: Provide advice and tips
+Edge Case Notes: Guidance/coaching
+
+TEST ID: WHATWHEN-006
+Question Type: "Why" Questions
+Test Query: "Why are the fees so high?"
+Expected Intent: fees_inquiry / justification
+Expected Behavior: Provide context for fees
+Edge Case Notes: Rationale/reasoning
+
+
+================================================================================
+SECTION 18: CONDITIONAL AND HYPOTHETICAL QUESTIONS
+================================================================================
+
+TEST ID: COND-001
+Question Type: Conditional - If-Then
+Test Query: "If I get a scholarship, do I still pay fees?"
+Expected Intent: scholarship_inquiry / fees_inquiry
+Expected Behavior: Explain scholarship vs fee relationship
+Edge Case Notes: Conditional Logic
+
+TEST ID: COND-002
+Question Type: Hypothetical - What If
+Test Query: "What if I want to change my program after admission?"
+Expected Intent: admission_inquiry / policy_inquiry
+Expected Behavior: Explain program change policy
+Edge Case Notes: Scenario planning
+
+TEST ID: COND-003
+Question Type: Conditional - Scenario-Based
+Test Query: "If I have a 3.5 CGPA, am I eligible for scholarship?"
+Expected Intent: scholarship_inquiry / eligibility_inquiry
+Expected Behavior: Check eligibility criteria
+Edge Case Notes: Threshold-based evaluation
+
+TEST ID: COND-004
+Question Type: Hypothetical - Multiple Scenarios
+Test Query: "Can I do internship if I'm in hostel and have placement?"
+Expected Intent: internship_inquiry + hostel_inquiry + placement_inquiry
+Expected Behavior: Address all scenarios
+Edge Case Notes: Complex scenario
+
+
+================================================================================
+SECTION 19: NEGATION AND CONTRADICTION QUESTIONS
+================================================================================
+
+TEST ID: NEG-001
+Question Type: Negation - Simple Negative
+Test Query: "I don't want to stay in hostel. What are alternatives?"
+Expected Intent: hostel_inquiry / accommodation_inquiry
+Expected Behavior: Acknowledge preference, provide alternatives
+Edge Case Notes: Preference handling
+
+TEST ID: NEG-002
+Question Type: Negation - Double Negative
+Test Query: "Is it not true that placements are not guaranteed?"
+Expected Intent: placement_inquiry
+Expected Behavior: Parse double negative correctly
+Edge Case Notes: Logical parsing
+
+TEST ID: NEG-003
+Question Type: Negation - Explicit Denial
+Test Query: "Tell me what are NOT covered in scholarships"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Explain exclusions/limitations
+Edge Case Notes: Negative scope
+
+TEST ID: NEG-004
+Question Type: Contradiction - Conflicting Concerns
+Test Query: "I want to study but also work part-time. Possible?"
+Expected Intent: general_inquiry / policy_inquiry
+Expected Behavior: Explain work-study policies
+Edge Case Notes: Conflict resolution
+
+
+================================================================================
+SECTION 20: CASUAL LANGUAGE AND SLANG
+================================================================================
+
+TEST ID: CASUAL-001
+Question Type: Casual - Informal Greeting
+Test Query: "Hey! Wassup? Tell me bout fees"
+Expected Intent: fees_inquiry
+Expected Behavior: Respond normally, matching reasonableness
+Edge Case Notes: Informal tone
+
+TEST ID: CASUAL-002
+Question Type: Casual - Slang Terms
+Test Query: "What's the deal with hostel costs?"
+Expected Intent: hostel_inquiry
+Expected Behavior: Understand "deal" = information
+Edge Case Notes: Slang interpretation
+
+TEST ID: CASUAL-003
+Question Type: Casual - Abbreviations
+Test Query: "wht bout placements bc that's y i wanna join"
+Expected Intent: placement_inquiry
+Expected Behavior: Parse informal abbreviations
+Edge Case Notes: Txtspeak/abbreviations
+
+TEST ID: CASUAL-004
+Question Type: Casual - Contractions
+Test Query: "y'all got scholarships? can't afford otherwise"
+Expected Intent: scholarship_inquiry
+Expected Behavior: Handle contractions properly
+Edge Case Notes: English variations
+
+TEST ID: CASUAL-005
+Question Type: Casual - Filler Words
+Test Query: "So like, umm, tell me about the campus life, you know?"
+Expected Intent: campus_inquiry
+Expected Behavior: Ignore fillers and identify core question
+Edge Case Notes: Speech patterns
+
+
+================================================================================
+SECTION 21: PROFESSIONAL AND FORMAL LANGUAGE
+================================================================================
+
+TEST ID: FORMAL-001
+Question Type: Formal - Corporate Language
+Test Query: "I would like to inquire regarding the undergraduate admission eligibility criteria."
+Expected Intent: admission_inquiry
+Expected Behavior: Provide formal response
+Edge Case Notes: Formal tone matching
+
+TEST ID: FORMAL-002
+Question Type: Formal - Academic Writing
+Test Query: "Could you elucidate on the facility infrastructure available?"
+Expected Intent: facilities_inquiry
+Expected Behavior: Respond professionally
+Edge Case Notes: Complex vocabulary
+
+TEST ID: FORMAL-003
+Question Type: Formal - Technical Jargon
+Test Query: "What is the pedagogical approach employed in curriculum delivery?"
+Expected Intent: curriculum_inquiry
+Expected Behavior: Understand technical terms
+Edge Case Notes: Domain expertise required
+
+TEST ID: FORMAL-004
+Question Type: Formal - Multi-clause Complex
+Test Query: "Considering the comprehensive nature of the program and the associated financial obligations, could you provide a detailed breakdown?"
+Expected Intent: fees_inquiry + curriculum_inquiry
+Expected Behavior: Parse complex sentence structure
+Edge Case Notes: Complex parsing
+
+
+================================================================================
+SECTION 22: QUICK FIRE QUESTIONS
+================================================================================
+
+TEST ID: QUICK-001
+Question Type: Quick - One Word
+Test Query: "Fees?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide fee information
+Edge Case Notes: Minimal context
+
+TEST ID: QUICK-002
+Question Type: Quick - Abbreviation Only
+Test Query: "ECA?"
+Expected Intent: Could mean Extracurricular Activities
+Expected Behavior: Ask for clarification or provide info
+Edge Case Notes: Very ambiguous
+
+TEST ID: QUICK-003
+Question Type: Quick - Code/Number
+Test Query: "B.Tech CS fees?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide CS program fees
+Edge Case Notes: Compact format
+
+TEST ID: QUICK-004
+Question Type: Quick - Fragment
+Test Query: "Hostel single room"
+Expected Intent: hostel_inquiry
+Expected Behavior: Provide info about single rooms
+Edge Case Notes: Incomplete sentence
+
+
+================================================================================
+SECTION 23: ACCESSIBILITY AND SPECIAL NEEDS QUESTIONS
+================================================================================
+
+TEST ID: ACCESS-001
+Question Type: Accessibility - Physical Disability
+Test Query: "Are facilities accessible for students in wheelchairs?"
+Expected Intent: accessibility_inquiry / facilities_inquiry
+Expected Behavior: Provide accessibility information
+Edge Case Notes: Inclusive design questions
+
+TEST ID: ACCESS-002
+Question Type: Accessibility - Learning Disability
+Test Query: "Are there accommodations for students with dyslexia?"
+Expected Intent: accessibility_inquiry / support_inquiry
+Expected Behavior: Explain academic accommodations
+Edge Case Notes: Student support services
+
+TEST ID: ACCESS-003
+Question Type: Special Needs - First Generation
+Test Query: "As a first-generation student, what support is available?"
+Expected Intent: support_inquiry / guidance_inquiry
+Expected Behavior: Highlight first-gen support programs
+Edge Case Notes: Special category support
+
+TEST ID: ACCESS-004
+Question Type: Special Needs - Part-time Study
+Test Query: "Can I do a part-time program?"
+Expected Intent: enrollment_inquiry / program_inquiry
+Expected Behavior: Explain part-time options
+Edge Case Notes: Flexible learning paths
+
+TEST ID: ACCESS-005
+Question Type: Special Needs - Non-Traditional Student
+Test Query: "I'm older and haven't studied in 10 years. Can I still apply?"
+Expected Intent: admission_inquiry
+Expected Behavior: Reassure and provide pathway
+Edge Case Notes: Inclusivity and non-traditional learners
+
+
+================================================================================
+SECTION 24: FOLLOW-UP AND REFINEMENT QUESTIONS
+================================================================================
+
+TEST ID: FOLLOWUP-001
+Question Type: Follow-up - Request More Details
+Setup: "Tell me about placements" response given
+Test Query: "Can you give more details?"
+Expected Intent: placement_inquiry
+Expected Behavior: Provide deeper information
+Edge Case Notes: Refinement request
+
+TEST ID: FOLLOWUP-002
+Question Type: Follow-up - Narrowing Scope
+Setup: "Tell me about facilities" response given
+Test Query: "What about the library specifically?"
+Expected Intent: facilities_inquiry (library focus)
+Expected Behavior: Provide specific facility details
+Edge Case Notes: Scope narrowing
+
+TEST ID: FOLLOWUP-003
+Question Type: Follow-up - Clarification of Response
+Test Query: "What do you mean by that?"
+Expected Intent: clarification_request
+Expected Behavior: Rephrase previous response
+Edge Case Notes: Misunderstanding resolution
+
+TEST ID: FOLLOWUP-004
+Question Type: Follow-up - Different Angle
+Setup: "Tell me about fees" response given
+Test Query: "What about from parent's perspective?"
+Expected Intent: fees_inquiry
+Expected Behavior: Provide family-oriented perspective
+Edge Case Notes: Angle variation
+
+TEST ID: FOLLOWUP-005
+Question Type: Follow-up - Confirmation
+Test Query: "So you're saying [restate college info]?"
+Expected Intent: confirmation_request
+Expected Behavior: Confirm understanding or correct
+Edge Case Notes: Verification
+
+
+================================================================================
+SECTION 25: RESPONSE QUALITY TEST CASES
+================================================================================
+
+These tests verify the quality and accuracy of chatbot responses:
+
+TEST ID: QUALITY-001
+Description: Response Accuracy
+Test Query: "What is the exact admission fee?"
+Verification: Compare chatbot answer with authoritative source
+Acceptable: Exact amount or range with clarification
+
+TEST ID: QUALITY-002
+Description: Response Completeness
+Test Query: "Tell me about fees"
+Verification: Check if response covers admission, tuition, other charges
+Acceptable: All major components included
+
+TEST ID: QUALITY-003
+Description: Response Relevance
+Test Query: "What are the hostel facilities?"
+Verification: Check that response only covers hostel, not other facilities
+Acceptable: All points relevant to query
+
+TEST ID: QUALITY-004
+Description: Response Clarity
+Test Query: Any query
+Verification: Readability, structure, jargon level
+Acceptable: Clear language, well-organized
+
+TEST ID: QUALITY-005
+Description: Response Timeliness
+Test Query: Any query
+Verification: Response provided within reasonable time
+Acceptable: < 10 seconds for normal queries
+
+TEST ID: QUALITY-006
+Description: Response Consistency
+Test Query: Same question asked twice in conversation
+Verification: Responses should be consistent
+Acceptable: Same core information, minor phrasing variations acceptable
+
+TEST ID: QUALITY-007
+Description: Hallucination Check
+Test Query: Any query
+Verification: No fabricated information or false facts
+Acceptable: 0% hallucination rate on factual queries
+
+TEST ID: QUALITY-008
+Description: Appropriate Tone
+Test Query: Varies based on emotional context
+Verification: Tone matches user emotion appropriately
+Acceptable: Professional, empathetic, or matched to context
+
+
+================================================================================
+EXECUTION STRATEGY FOR TESTING
+================================================================================
+
+1. MANUAL TESTING APPROACH:
+   - Send each query manually to chatbot
+   - Document response
+   - Compare against expected behavior
+   - Note any deviations
+
+2. AUTOMATED TESTING APPROACH:
+   - Create test dataset with all queries
+   - Run through chatbot API
+   - Parse responses
+   - Log results to file
+
+3. REGRESSION TESTING:
+   - After each update, rerun critical test cases
+   - Focus on Section 1, 6, 8 (Core functionality)
+   - Document any regressions
+
+4. A/B TESTING:
+   - Test same queries on different versions
+   - Compare response quality
+   - Measure user satisfaction
+
+5. USER TESTING:
+   - Have real users ask questions
+   - Collect feedback
+   - Identify pain points
+
+
+================================================================================
+EXPECTED RESULTS SUMMARY
+================================================================================
+
+In-Scope Queries (FEES-001 to ADMIT-010):
+- ✓ Should be recognized and answered appropriately
+- ✓ Intent correctly classified
+- ✓ Accurate, relevant information provided
+- ✓ Professional tone maintained
+
+Out-of-Scope Queries (OUTSCOPE-001 to OUTSCOPE-010):
+- ✓ Gracefully handled with polite redirect
+- ✓ No attempt to answer outside domain
+- ✓ Suggestion provided to get help within scope
+- ✓ Session continues smoothly
+
+Edge Cases (TYPO-001 to BOUND-009):
+- ✓ App remains stable (no crashes)
+- ✓ Intent detected despite imperfect input
+- ✓ Appropriate fallback or clarification
+- ✓ User experience not severely degraded
+
+Emotional Questions (EMOTION-001 to EMOTION-007):
+- ✓ Emotion detected correctly
+- ✓ Response tone adapted appropriately
+- ✓ Empathetic where needed
+- ✓ Professional always maintained
+
+Context-Dependent (CONTEXT-001 to CONTEXT-006):
+- ✓ Previous context incorporated
+- ✓ Follow-ups understood as continuations
+- ✓ Long conversations maintained coherently
+- ✓ Pronouns resolved correctly
+
+
+================================================================================
+CRITICAL TEST CASES (MUST PASS)
+================================================================================
+
+These tests are non-negotiable for production:
+
+1. TYPO-001: Resilience to typos
+2. FEES-001: Core functionality - fees inquiry
+3. EXAM-001: Core functionality - exam inquiry
+4. PLACE-001: Core functionality - placement inquiry
+5. ADMIT-001: Core functionality - admission inquiry
+6. OUTSCOPE-001: Graceful out-of-scope handling
+7. EMOTION-001: Emotion detection
+8. CONTEXT-001: Context understanding
+9. QUALITY-007: No hallucination
+10. BOUND-004: Crash prevention
+
+
+================================================================================
+NICE-TO-HAVE TEST CASES (SHOULD PASS)
+================================================================================
+
+1. All comparative questions (COMPARE-001 to COMPARE-005)
+2. All formal language questions (FORMAL-001 to FORMAL-004)
+3. All accessibility questions (ACCESS-001 to ACCESS-005)
+4. All quality tests (QUALITY-001 to QUALITY-008)
+
+
+================================================================================
+END OF TEST CASES
+================================================================================
+
+Total Question Type Test Cases: 300+
+Estimated Manual Testing Time: 6-8 hours
+Recommended: Automated test dataset creation + periodic manual spot-checks
+
+Each test case can be executed independently or as part of a sequence.
+For production readiness, ensure critical test cases all pass.
