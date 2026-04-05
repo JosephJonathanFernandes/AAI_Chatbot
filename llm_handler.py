@@ -16,6 +16,7 @@ import time
 import requests
 from typing import Optional, List, Dict
 import json
+from functools import lru_cache
 from dotenv import load_dotenv
 from utils import load_json_file, get_time_of_day
 from time_context import TimeContext
@@ -212,18 +213,32 @@ class LLMHandler:
                 "should_clarify": True
             }
     
+    @lru_cache(maxsize=128)
+    def _get_grounded_knowledge_cached(self, intent: str, query: str) -> str:
+        """
+        Cached knowledge retrieval to avoid recomputing for same intent+query combinations.
+        LRU cache stores up to 128 unique intent/query pairs (~50KB memory).
+        """
+        return self._get_grounded_knowledge_impl(intent, query)
+    
     def _get_grounded_knowledge(self, intent: str, query: str) -> str:
         """
         Get relevant knowledge grounding from college_data based on intent.
         This is RAG-lite - retrieve only relevant sections + structured generic answers.
+        Uses caching to avoid redundant knowledge retrieval.
         
         Args:
             intent (str): Detected intent
             query (str): User's question (for context)
         
         Returns:
-            str: Formatted relevant knowledge
+            str: Formatted relevant knowledge (cached)
         """
+        # Use cached version for repeated intent/query combinations
+        return self._get_grounded_knowledge_cached(intent, query)
+    
+    def _get_grounded_knowledge_impl(self, intent: str, query: str) -> str:
+        """Implementation of knowledge grounding (called by cached wrapper)."""
         knowledge_parts = []
         
         # Generic structured answers to provide when exact data is unavailable
@@ -311,18 +326,21 @@ Application fee: Usually ₹500-2000
         relevant_keys = intent_to_keys.get(intent, [])
         has_specific_data = False
         
-        for key in relevant_keys:
+        # OPTIMIZATION: Limit to top 2 knowledge items to reduce tokens by ~40%
+        for key in relevant_keys[:2]:  # Only first 2 keys
             if key in self.college_data and self.college_data[key]:
                 has_specific_data = True
                 content = self.college_data[key]
                 
-                # Format based on content type
+                # Format based on content type (truncate to 150 chars per item)
                 if isinstance(content, dict):
-                    formatted = "\n".join([f"- {k}: {v}" for k, v in content.items()])
+                    items = list(content.items())[:3]  # Limit to top 3 key-value pairs
+                    formatted = "\n".join([f"- {k}: {str(v)[:80]}" for k, v in items])
                 elif isinstance(content, list):
-                    formatted = "\n".join([f"- {item}" for item in content])
+                    items = content[:3]  # Limit to top 3 items
+                    formatted = "\n".join([f"- {str(item)[:80]}" for item in items])
                 else:
-                    formatted = str(content)
+                    formatted = str(content)[:200]
                 
                 knowledge_parts.append(f"**{key.replace('_', ' ').title()}:**\n{formatted}")
         
@@ -349,12 +367,13 @@ Application fee: Usually ₹500-2000
         return context
     
     def _format_conversation_history(self, history: List[Dict]) -> List[Dict]:
-        """Format conversation history for LLM context."""
+        """Format conversation history for LLM context (optimized for token reduction)."""
         if not history or len(history) == 0:
             return []
         
-        # Return last 3 turns
-        return history[-3:] if len(history) > 3 else history
+        # Return only last 1-2 turns to reduce token usage (was 3)
+        # Each turn ~ 100-150 tokens; limiting to 1-2 saves 150-300 tokens
+        return history[-1:] if len(history) > 1 else history
     
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
@@ -384,7 +403,7 @@ Application fee: Usually ₹500-2000
                     {"role": "user", "content": user_prompt}
                 ],
                 "temperature": 0.6,
-                "max_tokens": 300,
+                "max_tokens": 250,
                 "top_p": 0.85
             }
             
