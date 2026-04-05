@@ -737,6 +737,33 @@ def get_emotion_aware_tone(emotion: str) -> str:
     return tone_prefixes.get(emotion.lower(), "")
 
 
+def display_streaming_response(response_text: str, llm_handler: LLMHandler, emotion: str) -> None:
+    """
+    Display response with word-by-word streaming for better UX.
+    Uses st.write_stream() for progressive rendering (Streamlit 1.23+).
+    
+    Args:
+        response_text (str): Full response to stream
+        llm_handler: LLM handler instance (for access to stream_response_tokens)
+        emotion (str): User emotion for styling
+    """
+    # Create a container for the response
+    response_container = st.container()
+    
+    with response_container:
+        # Display as streaming text using Streamlit's write_stream
+        try:
+            # Use write_stream if available (Streamlit 1.23+)
+            if hasattr(st, 'write_stream'):
+                st.write_stream(llm_handler.stream_response_tokens(response_text))
+            else:
+                # Fallback for older Streamlit versions
+                st.write(response_text)
+        except Exception as e:
+            # Fallback if streaming fails
+            st.write(response_text)
+
+
 def render_out_of_scope_handler(scope_reason: str) -> str:
     """Render attractive out-of-scope message with smart suggestions."""
     suggestions_map = {

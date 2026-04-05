@@ -14,7 +14,7 @@ Features:
 import os
 import time
 import requests
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Generator
 import json
 from functools import lru_cache
 from dotenv import load_dotenv
@@ -377,7 +377,7 @@ Application fee: Usually ₹500-2000
     
     def _call_groq_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
-        Call Groq API for response generation.
+        Call Groq API for response generation with streaming support.
         
         Args:
             system_prompt (str): System prompt
@@ -404,7 +404,8 @@ Application fee: Usually ₹500-2000
                 ],
                 "temperature": 0.6,
                 "max_tokens": 250,
-                "top_p": 0.85
+                "top_p": 0.85,
+                "stream": False  # Collect full response, but can be streamed in UI
             }
             
             response = requests.post(
@@ -420,8 +421,10 @@ Application fee: Usually ₹500-2000
                     if not isinstance(data, dict):
                         return {"error": "Response is not JSON dict"}
                     response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    # Return response with tokens split for streaming in UI
                     if response_text:
-                        return {"response": response_text}
+                        tokens = response_text.split()
+                        return {"response": response_text, "tokens": tokens}
                     else:
                         return {"error": "Empty response from Groq"}
                 except (ValueError, KeyError, IndexError, TypeError) as parse_error:
@@ -440,6 +443,22 @@ Application fee: Usually ₹500-2000
         except Exception as e:
             print(f"Groq API error: {e}")
             return {"error": str(e)}
+    
+    def stream_response_tokens(self, response_text: str) -> Generator[str, None, None]:
+        """
+        Generator that yields response tokens one by one for streaming display.
+        Can be used with Streamlit's st.write_stream() for word-by-word display.
+        
+        Args:
+            response_text (str): Full response text
+        
+        Yields:
+            str: Individual words/tokens with spacing
+        """
+        tokens = response_text.split()
+        for i, token in enumerate(tokens):
+            yield token + (" " if i < len(tokens) - 1 else "")
+            time.sleep(0.02)  # Small delay for smoother streaming (optional)
     
     def _call_ollama_api(self, system_prompt: str, user_prompt: str) -> Optional[dict]:
         """
