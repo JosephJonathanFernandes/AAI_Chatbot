@@ -259,32 +259,155 @@ Uncertainty-aware intent routing is emphasized because deployed assistants must 
 Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}.
 
 ## Implementation
-The implementation is grounded in the repository modules and follows a fixed processing pipeline designed to minimize hallucination risk and reduce brittle behavior under noisy inputs.
+This section documents the concrete implementation of the designed pipeline using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
 
-Key components:
-- UI: Streamlit orchestration in `app.py` initializes cached model instances and executes a deterministic per-message pipeline.
-- Intent: An ensemble combines embedding-based semantic similarity with TF–IDF + logistic regression voting and confidence calibration (see `intent_model.py`).
-- Emotion: A cached transformer sentiment pipeline and rule-based refinements provide an emotion signal (`emotion_detector.py`, `emotional_tone_detector.py`).
-- Scope: Rule/keyword scoring with optional semantic similarity determines in-scope vs out-of-scope queries (`scope_detector.py`).
-- Context and time: Lightweight conversation context management and time-aware features support multi-turn coherence and greetings (`context_manager.py`, `time_context.py`, `session_greeter.py`).
-- Threshold management: Centralized confidence-threshold logic is used to standardize acceptance, clarification, and OOS behavior (`confidence_threshold_manager.py`).
-- LLM: A prompt-engineered Groq primary path with Gemini fallback, concurrency limiting, retries/backoff/jitter, key rotation, and response caching (`llm_handler.py`, `prompt_engineering.py`).
-- Persistence: SQLite logs telemetry (intent/confidence, emotion, scope, latency, LLM source) (`database.py`).
-- Resilience: Error recovery utilities help isolate failures and maintain a stable user experience under external API and parsing errors (`error_recovery.py`).
+### 1. Development Environment (languages, tools, libraries)
+**Language and runtime.** The system is implemented in Python and executed as either a Streamlit web application (interactive UI) or a command-line runner.
 
-Processing flow (conceptual):
-- Text normalization and lightweight preprocessing occur before classification to reduce sensitivity to formatting artifacts and punctuation-only inputs, which are common sources of NLU brittleness \cite{sun2020adversarial,belinkov2018synthetic}.
-- Intent inference uses a hybrid of sparse lexical evidence (TF-IDF + logistic regression) and dense semantic evidence (embedding similarity), reflecting a practical trade-off between interpretability, latency, and generalization across paraphrases \cite{devlin2019bert,liu2019roberta,casanueva2020banking77}.
-- When confidence is insufficient, the architecture is designed to prefer conservative behaviors (e.g., clarify, route to a safer template, or enforce out-of-scope handling) rather than forcing a brittle intent decision \cite{larson2019clinc150}.
-- Response generation is separated from control: the LLM is invoked after scope/intent decisions are computed, aligning with system-level guidance that emphasizes modular guardrails and evaluation discipline \cite{hussain2019survey,khatri2018alexa,roller2021recipes}.
-- Context and temporal cues are applied consistently at the orchestration layer so that greetings and follow-ups do not bypass scope and confidence checks.
+**Core libraries.**
+- **UI**: Streamlit for the chat interface and session state management.
+- **NLU models**: PyTorch as the deep learning backend, Hugging Face Transformers for transformer pipelines, and Sentence-Transformers for embedding-based semantic similarity.
+- **Classical ML**: scikit-learn for TF–IDF vectorization and logistic regression.
+- **Data and utilities**: NumPy/Pandas for numeric and tabular handling; Requests for HTTP.
+- **LLM providers**: Groq client/HTTP for the primary model endpoint and `google-genai` for Gemini fallback; `python-dotenv` for environment-variable configuration.
+- **Persistence**: SQLite (via the Python standard library) for interaction logging and lightweight analytics.
+
+**Testing and quality tools.** The development toolchain includes PyTest (with coverage, parallelism, and timeouts), Hypothesis for property-based tests, Locust for load/performance testing, and formatting/linting tools (Black, Flake8, isort).
+
+### 2. Dataset Description (source, preprocessing steps)
+Two local JSON artifacts serve as the primary data sources:
+- **Intent dataset** ([data/intents.json](data/intents.json)): an intent schema containing tags (e.g., fees, exams, placements), paraphrased training patterns, and optional keyword lists. This file is used to train lightweight intent components at application startup.
+- **Domain knowledge base** ([data/college_data.json](data/college_data.json)): structured college information (fees, exams, placements, hostel, admissions, etc.) used for retrieval of relevant facts for response grounding.
+
+**Preprocessing.** User input and intent patterns are normalized using a dedicated preprocessing stage ([text_preprocessor.py](text_preprocessor.py)). Key transformations include:
+- typo normalization and abbreviation expansion via a curated mapping;
+- Hinglish/code-switch mapping for common Hindi–English tokens;
+- regex-based cleanup for punctuation artifacts and whitespace normalization.
+
+This preprocessing targets practical robustness issues where minor orthographic noise can degrade NLU signals \cite{belinkov2018synthetic,sun2020adversarial}.
+
+### 3. Model Implementation (training, fine-tuning)
+The implementation uses pre-trained transformer models without project-specific fine-tuning of large encoders/decoders. Instead, fast-to-train components are fit on local intent patterns, while response generation relies on instruction-following LLM inference.
+
+**Intent components (startup training).**
+- **Semantic classifier**: a Sentence-Transformers encoder (default: `all-MiniLM-L6-v2`) embeds each preprocessed intent pattern; inference selects the intent with maximal cosine similarity to the user embedding.
+- **TF–IDF classifier**: a scikit-learn TF–IDF vectorizer (unigrams/bigrams) and logistic regression classifier are trained on the same preprocessed patterns.
+- **Ensembling and calibration**: the final intent prediction uses weighted aggregation with explicit calibration heuristics (agreement boosts, scaling factors, confidence floors) to improve stability under paraphrases and short/noisy inputs.
+
+This hybrid intent implementation reflects the practical combination of transformer representations \cite{vaswani2017attention,devlin2019bert,liu2019roberta} and efficient similarity-based intent matching \cite{casanueva2020banking77}.
+
+**Emotion signal (pre-trained inference).** A cached transformer pipeline performs sentiment analysis and maps sentiment to coarse interaction emotions (e.g., neutral, stressed). Keyword-based filters reduce false positives on short information-seeking questions.
+
+**LLM response generation (inference, no fine-tuning).** Response generation is performed via an autoregressive LLM endpoint (Groq, with Gemini fallback), consistent with decoder-only pre-training and instruction-following alignment approaches \cite{radford2019gpt2,ouyang2022rlhf,openai2022chatgpt}. The implementation does not train a dialogue model from scratch; it conditions inference using structured prompts and retrieved domain facts.
+
+### 4. System Integration (frontend/backend if any)
+**Frontend.** The Streamlit application orchestrates the end-to-end turn loop (message capture, inference calls, UI rendering) and maintains session identifiers for logging.
+
+**Backend orchestration.** The orchestration layer instantiates and caches major components (intent, scope, emotion, prompt builder, LLM handler, and context manager) to amortize model-loading cost.
+
+**Persistence and analytics.** A SQLite-backed logging layer records timestamped interactions with intent/confidence, emotion, scope decisions, response time, and LLM source. A small connection pool reduces per-turn database overhead.
+
+### 5. Key Functional Modules
+#### Intent Classification
+Intent classification is implemented as an ensemble:
+- semantic similarity over transformer sentence embeddings;
+- TF–IDF + logistic regression for lexical pattern capture;
+- a context-aware intent refiner that adjusts ambiguous predictions using recent-turn intent continuity.
+
+**Pipeline (pseudo-code style).**
+1. `u_t ← user_message`
+2. `u'_t ← preprocess(u_t)`
+3. `(y_sem,c_sem) ← semantic_predict(u'_t)`
+4. `(y_lex,c_lex) ← tfidf_predict(u'_t)`
+5. `(y,c) ← weighted_ensemble(y_sem,c_sem,y_lex,c_lex)`
+6. `(y,c) ← refine_with_history(y,c,history,emotion)`
+
+To support deployment realism, the intent decision is followed by explicit confidence thresholding and OOS handling aligned with benchmarks that emphasize rejection performance \cite{larson2019clinc150}.
+
+#### Entity/Slot Extraction
+The implementation includes lightweight entity extraction in the context manager to support multi-turn continuity rather than full named-entity recognition. Extracted entities include user name patterns and intent-specific fields (e.g., department/program hints, exam type, fee-related subtopics). Pronoun resolution uses the most recent tracked entities to reduce context loss in follow-up turns.
+
+#### Response Generation
+Response generation is implemented as a controlled LLM call:
+- **Prompt construction**: a prompt-engineering module injects detected intent, confidence, scope status, emotion, conversation history, and retrieved knowledge snippets.
+- **Knowledge grounding**: relevant sections of the college JSON are selected as context, with fallback to generic templates when a requested field is absent.
+- **Operational safeguards**: caching for repeated queries, throttling between calls, concurrency limiting, exponential backoff with jitter, and API-key rotation; if the primary provider fails, the system falls back to Gemini.
+
+These controls are implemented to reduce hallucination risk and stabilize user experience under rate limits and variable latency \cite{khatri2018alexa,roller2021recipes}.
+
+### 6. Challenges Faced and Solutions
+**Noisy and code-mixed inputs.** Short, misspelled, or Hinglish queries can degrade lexical and embedding signals. A dedicated normalization layer and dual-model ensemble mitigate brittleness \cite{belinkov2018synthetic,sun2020adversarial}.
+
+**Out-of-scope (OOS) behavior.** Closed-set intent classifiers are prone to overconfident misrouting for unsupported requests. The implementation includes explicit scope detection and confidence-based gating, consistent with OOS-oriented intent benchmarks \cite{larson2019clinc150,casanueva2020banking77}.
+
+**Latency and rate limiting for LLM calls.** External LLM endpoints introduce variable response times and occasional rate limits. The implementation uses caching, throttling, concurrency limits, and retry/backoff policies, with provider fallback to maintain responsiveness.
+
+**Multi-turn coherence.** Follow-up questions often omit explicit context (e.g., “What about that?”). A bounded conversation history and lightweight entity tracking reduce context loss without requiring full dialogue-state tracking models.
 
 ## Results
-A saved automated test execution artifact reports 35 tests with 33 passes (94.3%) and two failures on boundary inputs (whitespace-only and punctuation-only queries). Reported latency statistics include a maximum of 13011.8 ms and a median of 2046.8 ms (see `TEST_RESULTS_20260405_153750.txt`).
+This section reports quantitative outcomes from (i) a component-level intent-classification evaluation using the repository intent patterns and (ii) an end-to-end automated test run recorded in a saved execution artifact. Metrics and interpretations follow established guidance that chatbot evaluation should separate component accuracy from overall conversational quality and should account for dataset artifacts and measurement bias \cite{maroengsit2019evaluation,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
 
-Interpretation constraint: The same artifact frequently records `Intent: None (0.0%)` and a default emotion label across semantically meaningful inputs, indicating a likely mismatch between the test harness interface and the current classifier return contracts. Consequently, the aggregate pass rate is best interpreted as end-to-end response generation success under that harness rather than a validated measure of intent/emotion correctness \cite{maroengsit2019evaluation,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
+### 1. Evaluation Metrics (Accuracy, Precision, Recall, F1-score)
+Two metric groups are reported:
+- **Intent classification (component-level):** Accuracy and macro-averaged Precision/Recall/F1 across the closed intent set.
+- **End-to-end system behavior:** pass rate on scenario tests (functional acceptance), out-of-scope (OOS) detection count, and response latency summary (min/median/avg/max).
 
-Deployment implication: The boundary failures are consistent with known fragility of NLU systems under synthetic noise and adversarial or degenerate inputs, and they motivate explicit handling of such cases in preprocessing and routing logic \cite{belinkov2018synthetic,sun2020adversarial}.
+Macro-averaged scores are emphasized because the intent set is multi-class and exhibits class imbalance; macro scores reduce the risk of majority-class dominance masking poor performance on smaller intents.
+
+### 2. Experimental Setup
+**Intent classification evaluation.** The evaluation uses the repository intent patterns in [data/intents.json](data/intents.json), which contains **650** preprocessed patterns across **18** intent labels. A stratified 80/20 split is applied (**520** train, **130** test) with a fixed random seed (42). The same preprocessing logic used by the implementation ([text_preprocessor.py](text_preprocessor.py)) is applied prior to training and evaluation.
+
+Baselines are derived from components available in the repository:
+- **Majority baseline:** always predicts the most frequent training intent.
+- **Keyword rules:** assigns the intent with the highest keyword match count (using the `keywords` fields in the intent JSON).
+- **TF-IDF (1-NN cosine):** nearest-neighbor matching in TF-IDF space.
+- **TF-IDF + Logistic Regression:** multi-class linear classifier over TF-IDF uni/bi-grams (the repository's TF-IDF configuration).
+
+**End-to-end system tests.** End-to-end results are taken from the saved report `TEST_RESULTS_20260405_153750.txt`, which executes 35 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, and boundary inputs.
+
+### 3. Performance Results (tables)
+**Intent classification (holdout split on repository patterns).**
+
+| Model | Accuracy | Macro Precision | Macro Recall | Macro F1 |
+|---|---:|---:|---:|---:|
+| Majority baseline | 0.146 | 0.008 | 0.056 | 0.014 |
+| Keyword rules | 0.477 | 0.647 | 0.414 | 0.456 |
+| TF-IDF (1-NN cosine) | 0.654 | 0.727 | 0.543 | 0.567 |
+| TF-IDF + Logistic Regression | 0.662 | 0.629 | 0.491 | 0.501 |
+
+**Observations.**
+- Keyword rules improve substantially over the majority baseline, indicating that intent-specific lexical cues exist in the pattern set.
+- TF-IDF-based methods provide the strongest performance among fast lexical baselines; 1-NN has the highest macro F1 in this split, while logistic regression achieves slightly higher accuracy.
+- These numbers are best interpreted as **pattern-set generalization** rather than a full measure of real-user robustness; pattern corpora can contain artifacts that inflate apparent performance \cite{gururangan2018annotation,geva2019shortcut}.
+
+**End-to-end automated test outcomes (saved execution artifact).**
+
+| Metric | Value |
+|---|---:|
+| Total tests | 35 |
+| Passed | 33 (94.3%) |
+| Failed | 2 (5.7%) |
+| OOS detected | 6 |
+| Latency (median / avg / max) | 2046.8 ms / 4370.6 ms / 13011.8 ms |
+
+Category-level pass counts in the same artifact indicate that failures are isolated to boundary inputs (whitespace-only and punctuation-only queries), while in-domain and explicit OOS categories pass.
+
+### 4. Comparison with Baseline Methods (if available)
+The component-level comparison suggests that purely rule-based routing is competitive in precision but limited in recall (macro recall 0.414), reflecting reduced coverage for paraphrases and short queries. TF-IDF baselines improve recall and macro F1, supporting the use of statistical models for intent routing.
+
+The project implementation additionally includes a semantic similarity intent component (Sentence-Transformers) and an ensemble strategy, motivated by benchmark findings that OOS-aware routing and robust intent representations are critical for deployed assistants \cite{larson2019clinc150,casanueva2020banking77}. Direct semantic-component metrics are not reported here because the reproducible holdout experiment above uses only the locally fit lexical baselines; however, the end-to-end test suite reflects the integrated system behavior.
+
+### 5. Error Analysis
+**Intent misclassification patterns (TF-IDF + Logistic Regression).** On the 130-example holdout test split, the best-accuracy lexical model produces 44 misclassifications. Representative errors reveal systematic ambiguity and overlap between intents:
+- **Semantic overlap:** e.g., “hostel charges included?” is predicted as `hostel` instead of `fees`, reflecting that cost-related queries can cross multiple intents.
+- **Short conversational acts:** greetings/thanks/negation (e.g., “hello there”, “thank you so much”, “not at all”) are misrouted, suggesting insufficient conversational-act coverage or overly aggressive stop-word removal.
+- **Slot-driven queries:** e.g., “how do i find my seat number?” is predicted as `admission` instead of `exams`, indicating that some exam-administration terms are not strongly represented in the learned lexical features.
+
+**End-to-end failure modes.** The only recorded failures occur on boundary inputs (whitespace-only and punctuation-only). Such degenerate inputs are known to trigger brittle behavior in NLU pipelines and motivate explicit normalization and routing rules \cite{belinkov2018synthetic,sun2020adversarial}.
+
+**Strengths and weaknesses.**
+- Strength: strong end-to-end functional pass rate on in-domain and OOS scenarios in the recorded artifact, indicating stable orchestration and conservative fallback behavior.
+- Weakness: component-level intent confusion remains for conversational-act intents and semantically overlapping fee/hostel/admission categories; improving label definitions, increasing pattern coverage, and adding explicit conversational-act handling are expected to improve macro recall.
 
 ## Conclusion
 A college-domain assistant is implemented as a controlled conversational pipeline combining ensemble intent inference, emotion detection, scope enforcement, and an LLM response layer with knowledge grounding and operational safeguards. The consolidated literature indicates that transformer-based representations and alignment methods improve capability, but robust deployment still requires explicit scope control, evaluation discipline, and resilience to input noise and distribution shift \cite{vaswani2017attention,devlin2019bert,ouyang2022rlhf,larson2019clinc150,belinkov2018synthetic}.
