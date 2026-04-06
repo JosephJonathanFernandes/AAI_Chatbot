@@ -5,8 +5,8 @@ Outputs results to TEST_RESULTS_*.txt file.
 """
 
 import time
-import json
-from typing import Dict, List, Tuple
+import os
+from typing import Dict, List, Optional
 from datetime import datetime
 from statistics import mean, stdev, median
 import sys
@@ -87,6 +87,154 @@ TEST_CASES = [
     {"id": "OPTIM-003", "query": "Can I know about fees?", "category": "fees", "type": "polite"},
 ]
 
+DEFAULT_EXPANDED_SOURCE_FILE = "CHATBOT_QUESTION_TEST_CASES.txt"
+DEFAULT_MAX_TEST_CASES = 120
+
+
+def _safe_strip_quotes(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and ((value[0] == '"' and value[-1] == '"') or (value[0] == "'" and value[-1] == "'")):
+        return value[1:-1]
+    return value
+
+
+def _infer_category_from_expected_intent(expected_intent: str) -> str:
+    intent = (expected_intent or "").strip().lower()
+    if not intent:
+        return "unknown"
+    if "out" in intent and "scope" in intent:
+        return "out_of_scope"
+    if "library" in intent:
+        return "library"
+    if "faculty" in intent or "professor" in intent or "teacher" in intent:
+        return "faculty"
+    if "timetable" in intent or "schedule" in intent:
+        return "timetable"
+    if "campus" in intent or "clubs" in intent or "facility" in intent:
+        return "campus_life"
+    if "compar" in intent:
+        return "comparison"
+    if "general" in intent or "info" in intent:
+        return "general_info"
+    if "fees" in intent or "tuition" in intent or "payment" in intent or "refund" in intent:
+        return "fees"
+    if "exam" in intent or "result" in intent:
+        return "exams"
+    if "placement" in intent or "intern" in intent:
+        return "placements"
+    if "hostel" in intent:
+        return "hostel"
+    if "admission" in intent or "eligib" in intent:
+        return "admission"
+    if "greet" in intent:
+        return "greetings"
+    if "thanks" in intent or "grat" in intent:
+        return "gratitude"
+    return "unknown"
+
+
+def load_expanded_test_cases(
+    source_file: str = DEFAULT_EXPANDED_SOURCE_FILE,
+    max_cases: int = DEFAULT_MAX_TEST_CASES,
+) -> Optional[List[Dict]]:
+    """Load test cases from the human-authored test-case document.
+
+    The document is expected to contain repeated blocks with:
+      - 'TEST ID: ...'
+      - 'Test Query: "..."'
+      - 'Expected Intent: ...'
+
+    Returns None if the source file is missing or cannot be parsed.
+    """
+    if not os.path.exists(source_file):
+        return None
+
+    try:
+        with open(source_file, "r", encoding="utf-8") as f:
+            text = f.read()
+    except Exception as e:
+        print(f"[WARN] Could not read expanded test source '{source_file}': {e}")
+        return None
+
+    lines = text.splitlines()
+    cases: List[Dict] = []
+    current_id: Optional[str] = None
+    current_query: Optional[str] = None
+    current_expected_intent: Optional[str] = None
+    current_question_type: Optional[str] = None
+
+    def flush_current():
+        nonlocal current_id, current_query, current_expected_intent, current_question_type
+        if not current_id or not current_query:
+            current_id = None
+            current_query = None
+            current_expected_intent = None
+            current_question_type = None
+            return
+
+        expected_intent = current_expected_intent or ""
+        category = _infer_category_from_expected_intent(expected_intent)
+        case_type = (current_question_type or "doc_case").strip().lower().replace(" ", "_")
+        cases.append(
+            {
+                "id": current_id.strip(),
+                "query": current_query,
+                "category": category,
+                "type": case_type,
+                "expected_intent_raw": expected_intent.strip(),
+            }
+        )
+
+        current_id = None
+        current_query = None
+        current_expected_intent = None
+        current_question_type = None
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.upper().startswith("TEST ID:"):
+            flush_current()
+            current_id = line.split(":", 1)[1].strip()
+            continue
+
+        if line.lower().startswith("question type:"):
+            current_question_type = line.split(":", 1)[1].strip()
+            continue
+
+        if line.lower().startswith("test query:"):
+            value = line.split(":", 1)[1].strip()
+            current_query = _safe_strip_quotes(value)
+            continue
+
+        if line.lower().startswith("expected intent:"):
+            current_expected_intent = line.split(":", 1)[1].strip()
+            continue
+
+    flush_current()
+
+    if not cases:
+        return None
+
+    # De-duplicate by ID then by query.
+    by_id = {}
+    for c in cases:
+        by_id[c["id"]] = c
+    unique = list(by_id.values())
+
+    seen_queries = set()
+    deduped = []
+    for c in unique:
+        q = (c.get("query") or "").strip().lower()
+        if not q or q in seen_queries:
+            continue
+        seen_queries.add(q)
+        deduped.append(c)
+
+    return deduped[: max(1, int(max_cases))]
+
 class ChatbotTestSuite:
     def __init__(self):
         """Initialize test suite and chatbot components."""
@@ -104,6 +252,43 @@ class ChatbotTestSuite:
         self.successful_count = 0
         self.failed_count = 0
         self.out_of_scope_count = 0
+
+        # Controls
+        self.strict_acceptance = os.getenv("STRICT_ACCEPTANCE", "1") not in {"0", "false", "False"}
+
+    def _acceptance_pass(self, result: Dict) -> bool:
+        """Determine PASS/FAIL for scenario tests.
+
+        The original suite treated any non-error LLM response as PASS; for expanded scenario
+        runs, strict acceptance is enabled by default to incorporate expected category.
+        """
+        if result.get("error"):
+            return False
+
+        category = (result.get("category") or "unknown").strip().lower()
+
+        query = (result.get("query") or "").strip()
+        if not query or query == "...":
+            return False
+
+        if not self.strict_acceptance:
+            return bool(result.get("response"))
+
+        predicted_intent = (result.get("intent") or "unknown").strip().lower()
+        is_in_scope = bool(result.get("is_in_scope", True))
+        has_response = bool(result.get("response"))
+
+        if category == "out_of_scope":
+            oos_detected = (not is_in_scope) or (predicted_intent == "out_of_scope")
+            return oos_detected and has_response
+
+        # For categories that are not directly mapped to an intent label, fall back to
+        # response-based acceptance to keep the expanded run usable/reproducible.
+        if category in {"unknown", "hybrid"}:
+            return is_in_scope and has_response
+
+        # In-scope categories: require in-scope + correct intent label.
+        return is_in_scope and (predicted_intent == category) and has_response
         
     def run_test(self, test_case: Dict) -> Dict:
         """Run single test case and measure metrics."""
@@ -130,6 +315,7 @@ class ChatbotTestSuite:
             # PHASE 1: Intent Classification
             if not query or query.strip() == "" or query.strip() == "...":
                 result["error"] = "Empty or invalid query"
+                result["latency_ms"] = (time.perf_counter() - start_time) * 1000
                 result["success"] = False
                 return result
             
@@ -177,6 +363,8 @@ class ChatbotTestSuite:
         
         # METRICS
         result["latency_ms"] = (time.perf_counter() - start_time) * 1000
+        # Override success with acceptance criteria when running scenario evaluation.
+        result["success"] = self._acceptance_pass(result)
         return result
     
     def run_all_tests(self) -> List[Dict]:
@@ -323,6 +511,21 @@ def main():
     print("=" * 100)
     
     suite = ChatbotTestSuite()
+
+    # Expand test cases (100--150) from the human-authored document when available.
+    expanded_source = os.getenv("EXPANDED_TEST_SOURCE", DEFAULT_EXPANDED_SOURCE_FILE)
+    max_cases = int(os.getenv("MAX_TEST_CASES", str(DEFAULT_MAX_TEST_CASES)))
+    expanded_cases = load_expanded_test_cases(expanded_source, max_cases=max_cases)
+    if expanded_cases:
+        global TEST_CASES
+        TEST_CASES = expanded_cases
+        print(f"[OK] Loaded expanded test cases: {len(TEST_CASES)} from {expanded_source}")
+        if suite.strict_acceptance:
+            print("[OK] Strict acceptance enabled: PASS requires intent/scope match")
+        else:
+            print("[WARN] Strict acceptance disabled: PASS requires only LLM response")
+    else:
+        print(f"[WARN] Using built-in TEST_CASES ({len(TEST_CASES)}) - expanded source not available")
     
     # Run tests
     print("\nInitializing chatbot components...")
