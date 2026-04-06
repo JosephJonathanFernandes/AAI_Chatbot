@@ -5,167 +5,21 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 
 ### Traditional Methods → Transformers → Dialogue Systems → Intent Evaluation
 
-#### Hussain et al. (2019) — Conversational agent taxonomy and design techniques \cite{hussain2019survey}
-- Problem: The chatbot design space lacks a consistent taxonomy, making it difficult to compare systems and reason about controllability versus coverage.
-- Method: Systematic survey that classifies agents as rule-based, retrieval-based, or generative and summarizes common implementation patterns.
-- Contribution: Establishes an organizing framework that motivates domain scoping and hybrid architectures for constrained deployments.
-- Limitation: Characterization of generative systems largely predates large-scale transformer alignment methods, underrepresenting RLHF-era safety and preference optimization.
+Chatbot research is often organized around architectural choices that trade controllability for coverage. Surveys and taxonomies provide a common vocabulary for this design space: Hussain et al. (2019) classify conversational agents into rule-based, retrieval-based, and generative families \cite{hussain2019survey}, while Caldarini et al. (2022) document how modern systems increasingly combine these families in response to fragmented evaluation practices and domain-specific constraints \cite{caldarini2022literature}. Together, these syntheses motivate viewing conversational AI as a system-integration problem rather than a single-model problem—particularly when deployments require predictable behavior, traceability, and robust failure handling.
 
-#### Caldarini et al. (2022) — Recent chatbot advances and evaluation practices \cite{caldarini2022literature}
-- Problem: Rapid growth of chatbot research has produced fragmented evaluation practices and inconsistent reporting across systems and domains.
-- Method: Systematic literature survey of modern chatbot architectures, datasets, and evaluation methods (2019–2021).
-- Contribution: Provides consolidated trends (architecture families, application domains, evaluation protocols) and highlights the continued reliance on human evaluation.
-- Limitation: As a survey, it does not provide deployable algorithms and cannot resolve limitations of the underlying benchmarks.
+Within the NLU layer, early neural advances focused on replacing brittle pipelines with joint learning. Liu and Lane (2016) show that attention-based bidirectional RNNs can jointly perform utterance-level intent classification and token-level slot filling, reducing error propagation relative to sequential components \cite{liu2016joint}. Extending this direction, Hakkani-Tur et al. (2016) demonstrate that multi-domain joint semantic frame parsing with BiLSTM-style encoders enables transfer across domains, improving low-resource performance through shared representations \cite{hakkani2016multidomain}. However, the same RNN-era assumptions that enabled these gains also expose key limitations: recurrence constrains parallelism and long-range modeling, and fixed ontologies/domain boundaries become brittle as coverage expands—conditions that amplify ambiguity and create an operational need for explicit out-of-scope (OOS) handling.
 
-#### Liu and Lane (2016) — Joint intent classification and slot filling \cite{liu2016joint}
-- Problem: Pipeline NLU architectures propagate errors between intent detection and slot filling.
-- Method: Attention-based bidirectional RNN trained jointly for utterance-level intent classification and token-level slot tagging.
-- Contribution: Demonstrates that shared representations improve joint performance compared to independent pipeline components.
-- Limitation: Sequential recurrence reduces parallelism and long-context modeling; the formulation is utterance-centric rather than multi-turn.
+Transformers address central bottlenecks in sequence modeling by replacing recurrence with self-attention. Vaswani et al. (2017) establish the transformer encoder–decoder with multi-head scaled dot-product attention and positional encodings, enabling parallel training and stronger long-range interactions at the cost of quadratic $O(n^2)$ attention with respect to sequence length \cite{vaswani2017attention}. Building on this foundation, Devlin et al. (2019) show that bidirectional masked language model pre-training (with next sentence prediction) yields transfer-ready contextual representations that substantially improve classification and extraction tasks—including intent and slot modeling—without manual feature engineering \cite{devlin2019bert}. Liu et al. (2019) further demonstrate that many downstream gains depend on pre-training recipes rather than architecture per se, improving robustness by removing next sentence prediction, training longer on more data with larger batches, and using dynamic masking \cite{liu2019roberta}. Despite these advances, encoder-only models remain non-generative and may be overconfident without explicit calibration, reinforcing the importance of confidence-aware routing and OOS-aware decision thresholds in deployed assistants.
 
-#### Hakkani-Tur et al. (2016) — Multi-domain joint semantic frame parsing \cite{hakkani2016multidomain}
-- Problem: Real assistants must support multiple domains while maintaining consistent semantic parsing quality.
-- Method: BiRNN-LSTM model trained to jointly predict domain/intent/slots, enabling shared representations across domains.
-- Contribution: Shows that multi-domain joint training can improve low-resource domain performance through transfer.
-- Limitation: Fixed ontologies and domain boundaries remain brittle; scaling to many domains increases ambiguity and motivates explicit OOS handling.
+Progress in intent understanding after transformer pre-training also highlights a persistent tension between accuracy, structure, and efficiency. Chen et al. (2019) establish a strong joint NLU baseline by fine-tuning BERT such that the [CLS] representation supports intent classification and token representations support slot tagging (often via a CRF), outperforming BiLSTM-based baselines on common benchmarks \cite{chen2019bertjoint}. In parallel, Xia et al. (2018) propose capsule networks with dynamic routing to capture hierarchical part–whole relations between tokens, slots, and intents \cite{xia2018capsule}. However, latency and cost constraints motivate lighter-weight alternatives: Casanueva et al. (2020) show that dual sentence encoders with similarity-based classification can provide efficient intent detection in the Banking77 setting \cite{casanueva2020banking77}. Data scarcity and continual domain growth further complicate intent systems; Zhang et al. (2020) address new-intent onboarding through contrastive pre-training followed by few-shot fine-tuning, improving generalization in limited-supervision regimes \cite{zhang2020fewshot}. Crucially, benchmark design itself can determine whether these improvements translate to realistic deployments.
 
-#### Vaswani et al. (2017) — Transformer self-attention \cite{vaswani2017attention}
-- Problem: RNN-based sequence-to-sequence models are inherently sequential and struggle with long-range dependencies.
-- Method: Encoder–decoder transformer using multi-head scaled dot-product self-attention and positional encodings.
-- Contribution: Replaces recurrence with attention, enabling parallel training and establishing the foundation for modern pre-trained models.
-- Limitation: Self-attention has quadratic $O(n^2)$ cost in sequence length, limiting practical context windows without further architectural changes.
+OOS handling emerges as a first-class requirement when assistants face uncontrolled user queries. Larson et al. (2019) operationalize this requirement through CLINC150, explicitly measuring the ability to reject unsupported inputs rather than forcing a best-effort in-scope label \cite{larson2019clinc150}. Such datasets motivate calibrated confidence thresholds and explicit rejection/clarification policies, since closed-set intent accuracy can mask overconfident misrouting. Relatedly, multi-turn dialogue introduces additional state and context dependencies. Kim et al. (2019) reframe dialogue state tracking as a reading comprehension problem over the dialogue history, enabling extraction of open-vocabulary slot values that may not appear in training \cite{kim2019dst}. Huang et al. (2020) extend open-vocabulary tracking via TRADE, a transferable dialogue state generator with a copy mechanism that produces slot values token-by-token from context, supporting cross-domain transfer while introducing additional latency and degradation risk for long contexts \cite{huang2020transferable}.
 
-#### Devlin et al. (2019) — BERT bidirectional pre-training for NLU \cite{devlin2019bert}
-- Problem: Unidirectional pre-training yields weaker contextual embeddings for classification and extraction tasks.
-- Method: Bidirectional transformer encoder pre-trained with masked language modeling (and next sentence prediction), then fine-tuned.
-- Contribution: Produces transfer-ready contextual representations that substantially improve intent classification and slot tagging without manual feature engineering.
-- Limitation: Encoder-only architecture is not a response generator and can be overconfident without explicit calibration and OOS-aware routing.
+In the response layer, generative pre-training enables fluent natural language output but raises new reliability challenges. GPT-style autoregressive transformer decoders (Radford et al., 2018, 2019) provide a scalable response-generation foundation via generative pre-training and subsequent adaptation (fine-tuning or prompt conditioning) \cite{radford2018gpt,radford2019gpt2}. Scaling further, Brown et al. (2020) show that in-context few-shot prompting can substitute for task-specific fine-tuning, improving adaptability under distribution shift but at substantial inference cost and with limited grounding \cite{brown2020fewshot}. System-level deployments underscore that robustness depends on orchestrating multiple strategies: the Alexa Prize experience highlights hybrid compositions of topic tracking, retrieval, generation, and multi-skill routing, while emphasizing that long-run user evaluation introduces noisy, confounded signals \cite{khatri2018alexa}. Complementing this perspective, Roller et al. (2021) present empirical “recipes” demonstrating that blended retrieval–generation systems can outperform single-strategy approaches across engagement and quality dimensions, albeit with large data and annotation requirements \cite{roller2021recipes}.
 
-#### Liu et al. (2019) — RoBERTa and robust pre-training recipes \cite{liu2019roberta}
-- Problem: Downstream performance can be limited by suboptimal pre-training choices rather than model architecture.
-- Method: Refines BERT-style training by removing next sentence prediction, training longer on more data with larger batches, and using dynamic masking.
-- Contribution: Demonstrates that scaling data/compute and simplifying objectives yield consistent improvements, strengthening transformer encoders as NLU backbones.
-- Limitation: Improved representations do not eliminate the need for domain scoping, OOS detection, and uncertainty-aware decision thresholds.
+Alignment and dialogue specialization address some failure modes of unconstrained generation but do not eliminate the need for domain guardrails. Ouyang et al. (2022) describe a three-stage RLHF pipeline—supervised fine-tuning on demonstrations, reward modeling from human preferences, and policy optimization—that improves instruction following and reduces undesirable outputs \cite{ouyang2022rlhf}. Thoppilan et al. (2022) show that dialogue-optimized language models can be tuned with objectives emphasizing qualities such as safety and groundedness, improving human-rated conversational behavior but requiring substantial resources and leaving residual factual error risk \cite{thoppilan2022lamda}. OpenAI (2022) similarly illustrates the practical impact of RLHF-style alignment for interactive assistants while noting that helpfulness improvements do not guarantee factual grounding in restricted domains \cite{openai2022chatgpt}. These results jointly motivate architectures that combine generative capability with explicit scope control, grounding, and monitoring.
 
-#### Radford et al. (2018, 2019) — GPT-style generative pre-training \cite{radford2018gpt,radford2019gpt2}
-- Problem: Task-specific modeling does not scale across diverse language tasks, limiting reuse across conversational settings.
-- Method: Autoregressive transformer decoder pre-training followed by task adaptation (fine-tuning or prompt conditioning).
-- Contribution: Establishes generative pre-training as a practical response-layer foundation and motivates prompt-based adaptation.
-- Limitation: Unconstrained generation can hallucinate domain facts, motivating guardrails, grounding, and scope control in deployed assistants.
-
-#### Brown et al. (2020) — Few-shot learning with large language models \cite{brown2020fewshot}
-- Problem: Fine-tuning for each new task or domain is expensive and can fail to generalize under distribution shift.
-- Method: Scaling autoregressive transformers and evaluating in-context few-shot learning via prompt demonstrations.
-- Contribution: Shows prompting as an adaptation interface, enabling rapid task conditioning without gradient updates.
-- Limitation: High inference cost and limited grounding yield fluent but incorrect outputs, especially in constrained domains.
-
-#### Khatri et al. (2018) — Alexa Prize: open-domain system lessons \cite{khatri2018alexa}
-- Problem: Academic metrics underrepresent the system-integration challenges of sustained open-domain dialogue with real users.
-- Method: Competition-driven deployment of socialbots combining topic tracking, retrieval, generation, and multi-skill orchestration.
-- Contribution: Highlights that robust user experience depends on hybrid architectures, graceful failure handling, and long-run evaluation.
-- Limitation: Results are difficult to reproduce outside the Alexa ecosystem, and user ratings are noisy and confounded by context.
-
-#### Roller et al. (2021) — Recipes for building open-domain chatbots \cite{roller2021recipes}
-- Problem: Purely generative dialogue models can be inconsistent and hard to control across topics and turns.
-- Method: Empirical “recipes” blending retrieval augmentation, generation, and evaluation discipline (e.g., BlenderBot-style systems).
-- Contribution: Motivates multi-signal orchestration that combines deterministic control with generation, emphasizing human evaluation.
-- Limitation: Many practices assume large-scale data and annotation budgets that are not available in small projects.
-
-#### Ouyang et al. (2022) — RLHF for instruction following (InstructGPT) \cite{ouyang2022rlhf}
-- Problem: Next-token pre-training optimizes likelihood rather than helpfulness, honesty, and harmlessness.
-- Method: Supervised fine-tuning on demonstrations, reward modeling from human preferences, and policy optimization (RLHF).
-- Contribution: Improves instruction adherence and reduces undesirable outputs, forming a widely adopted alignment template.
-- Limitation: Human feedback is costly and can encode annotator bias; reward models can be exploited by optimization artifacts.
-
-#### Thoppilan et al. (2022) — Dialogue-optimized language models (LaMDA) \cite{thoppilan2022lamda}
-- Problem: General-purpose PLMs do not directly optimize dialogue-specific qualities such as safety and groundedness.
-- Method: Dialogue-focused training and tuning with objectives emphasizing quality, safety, and groundedness.
-- Contribution: Demonstrates that dialogue-specialized optimization improves human-rated conversational behavior.
-- Limitation: Resource requirements and residual factual errors motivate additional guardrails (scope control, grounding, and monitoring).
-
-#### OpenAI (2022) — ChatGPT as a dialogue-aligned assistant \cite{openai2022chatgpt}
-- Problem: Large language models require alignment to behave as usable assistants in interactive dialogue.
-- Method: Dialogue-focused fine-tuning and preference optimization in the RLHF family.
-- Contribution: Demonstrates that assistant behavior can be shaped toward instruction adherence and improved conversational usability.
-- Limitation: Alignment improves helpfulness but does not guarantee factual grounding, particularly for restricted domains.
-
-#### Chen et al. (2019) — BERT for joint intent classification and slot filling \cite{chen2019bertjoint}
-- Problem: Traditional joint NLU models require task-specific feature engineering and struggle to exploit deep contextual cues.
-- Method: Fine-tunes BERT for intent (via [CLS]) and slots (token-level tagging, commonly paired with a CRF).
-- Contribution: Establishes a strong joint NLU baseline with substantial gains over BiLSTM-based models.
-- Limitation: Inference cost can be high for latency-sensitive systems, and closed-set benchmarks may overestimate real-world robustness.
-
-#### Xia et al. (2018) — Capsule networks for joint slot and intent \cite{xia2018capsule}
-- Problem: Flat sequence encoders may fail to model hierarchical relationships between slot spans and intent labels.
-- Method: Capsule networks with dynamic routing to represent part–whole relationships between tokens, slots, and intents.
-- Contribution: Introduces a structured inductive bias that can improve robustness on ambiguous utterances.
-- Limitation: Routing adds complexity and compute; benefits can be sensitive to dataset characteristics.
-
-#### Larson et al. (2019) — CLINC150 with explicit OOS evaluation \cite{larson2019clinc150}
-- Problem: Many intent benchmarks omit OOS as a primary requirement, despite its centrality in deployed assistants.
-- Method: Intent dataset spanning many intents/domains and including an explicit OOS label for rejection evaluation.
-- Contribution: Operationalizes OOS detection and motivates calibrated confidence thresholds for deployment.
-- Limitation: OOS distributions vary by application and organization, requiring domain-specific validation beyond a single benchmark.
-
-#### Casanueva et al. (2020) — Banking77 and efficient intent detection \cite{casanueva2020banking77}
-- Problem: Large transformer classifiers can be too slow or costly for interactive intent routing.
-- Method: Dual sentence encoders with similarity-based classification, evaluated on the Banking77 dataset.
-- Contribution: Motivates embedding-based intent matching as an efficient alternative or complement to heavier encoders.
-- Limitation: Domain specificity limits transfer, and single-turn intent evaluation omits multi-turn state tracking.
-
-#### Zhang et al. (2020) — Few-shot intent detection via contrastive learning \cite{zhang2020fewshot}
-- Problem: New intents emerge frequently, but labeled data for each new intent is scarce.
-- Method: Contrastive pre-training to learn intent-discriminative representations, followed by few-shot fine-tuning.
-- Contribution: Improves intent generalization under limited supervision, supporting modular onboarding of new intents.
-- Limitation: Performance is sensitive to negative sampling and dataset construction; extreme low-shot settings remain challenging.
-
-#### Kim et al. (2019) — Dialogue state tracking as reading comprehension \cite{kim2019dst}
-- Problem: Dialogue state tracking must extract slot values over multi-turn history, including values not seen during training.
-- Method: Reformulates DST as reading comprehension over dialogue history, extracting slot values by querying the context.
-- Contribution: Provides an ontology-light approach that generalizes to open-vocabulary values better than closed-set classification.
-- Limitation: Per-slot querying can increase inference cost, and implicit/unspoken values remain difficult to recover.
-
-#### Huang et al. (2020) — TRADE: transferable dialogue state generator \cite{huang2020transferable}
-- Problem: Multi-domain DST requires tracking many slots and unseen values without domain-specific parameterization.
-- Method: State generator with a copy mechanism that generates slot values token-by-token from dialogue context.
-- Contribution: Enables cross-domain transfer and handles unseen slot values by copying from context.
-- Limitation: Autoregressive generation increases latency and can degrade on long contexts or long-tail value distributions.
-
-#### Maroengsit et al. (2019) — Evaluation methods for chatbots \cite{maroengsit2019evaluation}
-- Problem: Chatbot quality spans multiple dimensions that are poorly captured by single automatic metrics.
-- Method: Survey of automatic metrics and human evaluation protocols across chatbot types.
-- Contribution: Encourages multi-metric reporting and careful interpretation of automated scores.
-- Limitation: Many automatic metrics correlate weakly with human judgments in open-domain dialogue.
-
-#### Gururangan et al. (2018) — Annotation artifacts in NLU benchmarks \cite{gururangan2018annotation}
-- Problem: Benchmark performance can be inflated when datasets contain spurious lexical artifacts that correlate with labels.
-- Method: Artifact analysis showing that models can succeed by exploiting shallow correlations.
-- Contribution: Motivates skepticism toward single-dataset accuracy claims and supports robustness-oriented evaluation.
-- Limitation: Artifact detection identifies risk but does not automatically produce domain-specific mitigations.
-
-#### Geva et al. (2019) — Annotator bias and shortcut learning \cite{geva2019shortcut}
-- Problem: Models may learn annotator-specific patterns rather than the intended semantic task.
-- Method: Empirical analysis isolating annotator signals and shortcut features in NLU datasets.
-- Contribution: Highlights measurement error in reported performance and motivates diverse, well-controlled annotation protocols.
-- Limitation: Bias diagnosis requires careful experimental design and can be difficult to integrate into small-project evaluations.
-
-#### Swayamdipta et al. (2020) — Dataset cartography via training dynamics \cite{swayamdipta2020dataset}
-- Problem: Aggregate accuracy obscures which examples are easy, ambiguous, or systematically hard for models.
-- Method: Uses training dynamics (confidence and variability across epochs) to map instances into difficulty regimes.
-- Contribution: Provides a practical lens for diagnosing dataset difficulty and targeting evaluation/augmentation.
-- Limitation: Requires instrumented training runs and is sensitive to model/training configuration.
-
-#### Belinkov and Bisk (2018) — Noise sensitivity in neural models \cite{belinkov2018synthetic}
-- Problem: Neural sequence models degrade sharply under realistic input noise (typos, character-level perturbations).
-- Method: Evaluates robustness under synthetic and natural noise and quantifies performance degradation.
-- Contribution: Motivates explicit preprocessing and robustness testing for deployed NLU components.
-- Limitation: Findings generalize broadly but do not prescribe a single mitigation strategy suitable for all domains.
-
-#### Sun et al. (2020) — Adversarial training for code-mixed/noisy inputs \cite{sun2020adversarial}
-- Problem: Language understanding in multilingual and code-mixed user inputs is brittle under distribution shift.
-- Method: Adversarial training strategies to improve robustness to perturbations and mixing patterns.
-- Contribution: Supports robustness-oriented evaluation and defensive training for real-world conversational inputs.
-- Limitation: Robustness techniques can be data- and compute-intensive relative to small-project constraints.
+Finally, evaluation and robustness literature clarifies why high benchmark scores do not automatically yield dependable assistants. Maroengsit et al. (2019) argue that chatbot quality spans multiple dimensions and that many automatic metrics correlate weakly with human judgments \cite{maroengsit2019evaluation}. Dataset-centric analyses show additional measurement risks: Gururangan et al. (2018) identify annotation artifacts that enable shortcut learning \cite{gururangan2018annotation}, Geva et al. (2019) demonstrate annotator bias effects that can confound purported semantic generalization \cite{geva2019shortcut}, and Swayamdipta et al. (2020) use training dynamics to reveal that aggregate accuracy obscures systematic difficulty regimes \cite{swayamdipta2020dataset}. Robustness under realistic noise remains a deployment concern: Belinkov and Bisk (2018) quantify sharp degradation under character-level perturbations \cite{belinkov2018synthetic}, while Sun et al. (2020) show that adversarial training can improve resilience for multilingual and code-mixed dialogue inputs, albeit with added data and compute costs \cite{sun2020adversarial}. Collectively, these findings favor conservative scope policies, preprocessing, and multi-signal decision-making over reliance on a single metric or a single model.
 
 ### Comparison Table (Selected Works)
 | Paper | Method | Strength | Limitation |
