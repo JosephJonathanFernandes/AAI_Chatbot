@@ -182,15 +182,81 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 | \cite{belinkov2018synthetic} | Noise robustness eval | Quantifies brittleness under noise | Mitigation not guaranteed |
 
 ## Methodology (Design)
-The implemented assistant follows a multi-signal architecture that combines deterministic control components with a generative response layer. The design reflects common findings in conversational AI surveys: strong user experience depends on combining NLU, state/context tracking, and robust evaluation protocols rather than relying solely on surface-level fluency \cite{caldarini2022literature,gao2020recent,gao2019neural,maroengsit2019evaluation}.
+The system is designed as a domain-constrained conversational assistant that combines a structured NLU/control layer with a controlled response generation layer. This hybrid approach follows system-level findings that robust assistants require orchestration, context handling, uncertainty management, and evaluation discipline in addition to fluent text generation \cite{caldarini2022literature,gao2020recent,gao2019neural,khatri2018alexa,maroengsit2019evaluation}.
 
-Design objectives:
-- Domain constraint: Enforce a clear in-scope boundary for a college-information domain.
-- Multi-signal control: Use intent, emotion, and scope signals to modulate response behavior.
-- Grounded generation: Prefer responses grounded in a local knowledge base when possible.
-- Operational robustness: Apply throttling, retries, caching, and fallback strategies for LLM calls.
+### 1. System Overview
+The design targets a college-information domain and is organized as a multi-signal pipeline:
+- **Control and understanding**: preprocessing, intent inference, uncertainty estimation, scope (in-scope/OOS) decisions, and conversation context.
+- **Response layer**: knowledge-grounded response planning followed by controlled natural language generation.
+- **Monitoring and evaluation**: telemetry signals (intent confidence, latency, error modes) and test-driven regression checks to track reliability.
 
-The design also treats uncertainty as a first-class signal: confidence-based intent routing and explicit out-of-scope handling are aligned with benchmarks that stress OOS rejection \cite{larson2019clinc150,casanueva2020banking77}. Evaluation claims are constrained by known risks of dataset artifacts and bias in automated measurements \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
+This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-distribution inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
+
+### 2. Architecture Diagram Explanation (textual)
+Conceptually, an architecture diagram for the system contains the following blocks and directed connections:
+- **User Interface** → sends the utterance $u_t$ to an **Orchestration Layer**.
+- **Orchestration Layer** → routes $u_t$ through a **Preprocessing** block (normalization) and then to the **NLU block**.
+- **NLU block** → produces (i) an **intent distribution** over a closed set of intents and (ii) an **uncertainty/confidence** value; optional auxiliary signals (e.g., sentiment/emotion) are treated as conditioning variables rather than primary decision targets.
+- A **Scope/OOS Gate** consumes the intent distribution and confidence and outputs one of: *in-scope accept*, *clarification required*, or *out-of-scope reject*.
+- A **Dialogue Context Manager** maintains structured state across turns and feeds a summarized context $m_t$ forward.
+- For in-scope queries, a **Knowledge Grounding** component selects relevant domain facts $k_t$; the **Response Policy** constructs a response plan conditioned on $(u_t,m_t,k_t)$.
+- The **LLM Generator** produces surface text conditioned on the response plan; outputs pass through a **Post-processing** and **Safety/Formatting** step.
+- A **Telemetry Store** receives logs from each stage to support monitoring and evaluation.
+
+The separation between control decisions and generation aligns with deployment guidance emphasizing modular guardrails for conversational systems \cite{khatri2018alexa,roller2021recipes,ouyang2022rlhf}.
+
+### 3. Data Flow Pipeline
+The end-to-end pipeline is defined as a deterministic sequence of transformations and decisions:
+
+**Input → Preprocessing → Feature/Representation → Intent/Scope Decision → Response Planning → Generation → Output**
+
+More explicitly:
+1. **Input**: user utterance $u_t$.
+2. **Preprocessing**: normalize casing/whitespace and reduce sensitivity to character-level noise that can degrade NLU performance \cite{belinkov2018synthetic,sun2020adversarial}.
+3. **Representation**: derive a lexical vector $v(u_t)$ (e.g., sparse bag-of-ngrams) and a semantic embedding $e(u_t)$ (e.g., transformer encoder representation) \cite{devlin2019bert,liu2019roberta}.
+4. **Intent inference**: compute intent scores from one or more predictors and aggregate them into a calibrated posterior $p(y\mid u_t)$ over intents.
+5. **Uncertainty and scope**: compute confidence $c=\max_y p(y\mid u_t)$ and apply thresholds to accept, clarify, or reject (OOS). Explicit OOS handling is motivated by intent benchmarks that include rejection evaluation \cite{larson2019clinc150,casanueva2020banking77}.
+6. **Response planning**: condition on $(u_t,m_t)$ and retrieved domain facts $k_t$ to form a response plan that constrains generation.
+7. **Generation and output**: produce the final natural language response, prioritizing grounded content and conservative behavior under uncertainty \cite{radford2019gpt2,ouyang2022rlhf,thoppilan2022lamda}.
+
+### 4. Model Design (intent classification + response generation)
+#### Intent classification
+Intent classification is modeled as multi-class prediction over a closed intent set. Given tokenized input $x=[x_1,\ldots,x_n]$, a transformer encoder produces contextual states $H=[h_1,\ldots,h_n]$ \cite{vaswani2017attention,devlin2019bert}. A pooled vector $z$ (e.g., $h_{[CLS]}$) is mapped to a posterior over intents:
+
+$$
+p(y\mid x)=\mathrm{softmax}(Wz+b),\quad c=\max_y p(y\mid x).
+$$
+
+For efficiency and robustness, intent inference may be complemented with similarity-based retrieval in embedding space, where each intent $i$ has a prototype text $t_i$ and score
+
+$$
+s_i=\cos\bigl(e(u_t),e(t_i)\bigr),\quad \hat{y}=\arg\max_i s_i.
+$$
+
+Embedding-based matching provides an efficient intent routing alternative and is commonly evaluated in intent detection settings \cite{casanueva2020banking77,zhang2020fewshot}. The final decision uses uncertainty-aware thresholds (e.g., reject if $c<\tau$ or $\max_i s_i<\gamma$), reflecting the need for calibrated OOS behavior \cite{larson2019clinc150}.
+
+#### Response generation
+Response generation is treated as conditional text generation using an autoregressive decoder-style language model (LM). Given a structured response plan and grounding context, generation models the probability of an output sequence $r=[r_1,\ldots,r_T]$ as
+
+$$
+p(r\mid u_t,m_t,k_t)=\prod_{t=1}^T p(r_t\mid r_{<t},u_t,m_t,k_t).
+$$
+
+Decoder-only pre-training establishes the base generative capability \cite{radford2018gpt,radford2019gpt2,brown2020fewshot}. Alignment and dialogue specialization approaches improve instruction adherence and conversational quality \cite{ouyang2022rlhf,thoppilan2022lamda,openai2022chatgpt}, but they do not guarantee domain factuality; therefore, grounding and scope control remain first-class design requirements \cite{roller2021recipes,khatri2018alexa}.
+
+### 5. Algorithms / Models Used (RNN vs Transformer comparison)
+Traditional joint NLU systems often rely on recurrent encoders (BiRNN/BiLSTM) trained jointly for intent and slots \cite{liu2016joint,hakkani2016multidomain}. Recurrence provides a strong inductive bias for local sequential patterns but is inherently sequential and can limit throughput.
+
+Transformer encoders replace recurrence with self-attention, enabling parallel training and stronger long-range context modeling \cite{vaswani2017attention}. Pre-trained transformer encoders (e.g., BERT/RoBERTa) provide transferable representations that improve intent classification and joint intent/slot baselines \cite{devlin2019bert,liu2019roberta,chen2019bertjoint}.
+
+For response generation, decoder-style transformers support fluent multi-turn responses but require alignment and system constraints to mitigate hallucination risk \cite{radford2019gpt2,ouyang2022rlhf}. End-to-end trainable dialogue systems have also been explored, including task-oriented dialogue networks and memory-based approaches \cite{wen2017network,bordes2017endtoend}; however, these formulations provide fewer explicit control points for domain scoping and safety policies.
+
+### 6. Design Justification (why chosen)
+The design adopts a modular, hybrid architecture rather than a fully end-to-end conversational model because modular decomposition improves controllability and allows explicit enforcement of domain scope, uncertainty handling, and evaluation checkpoints \cite{hussain2019survey,gao2019neural,khatri2018alexa,roller2021recipes}.
+
+Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-distribution inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
+
+Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}.
 
 ## Implementation
 The implementation is grounded in the repository modules and follows a fixed processing pipeline designed to minimize hallucination risk and reduce brittle behavior under noisy inputs.
