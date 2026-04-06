@@ -410,10 +410,30 @@ The project implementation additionally includes a semantic similarity intent co
 - Weakness: component-level intent confusion remains for conversational-act intents and semantically overlapping fee/hostel/admission categories; improving label definitions, increasing pattern coverage, and adding explicit conversational-act handling are expected to improve macro recall.
 
 ## Conclusion
-A college-domain assistant is implemented as a controlled conversational pipeline combining ensemble intent inference, emotion detection, scope enforcement, and an LLM response layer with knowledge grounding and operational safeguards. The consolidated literature indicates that transformer-based representations and alignment methods improve capability, but robust deployment still requires explicit scope control, evaluation discipline, and resilience to input noise and distribution shift \cite{vaswani2017attention,devlin2019bert,ouyang2022rlhf,larson2019clinc150,belinkov2018synthetic}.
+This work addresses the problem of delivering a reliable college-domain assistant that can route user queries to appropriate intents, handle out-of-scope (OOS) inputs conservatively, and produce helpful responses while reducing brittle behavior in real-world interaction.
+
+**Approach.** The system is implemented as a controlled conversational pipeline that combines preprocessing, ensemble intent inference, scope enforcement, emotion and tone cues, and an LLM response layer with knowledge grounding and operational safeguards (e.g., fallback and recovery). The design reflects evidence that robust deployed assistants require both strong representations and explicit control mechanisms, particularly for OOS handling and noise resilience \cite{larson2019clinc150,casanueva2020banking77,belinkov2018synthetic}.
+
+**Key findings.** Quantitative results on repository artifacts indicate: (i) fast lexical baselines achieve up to 0.662 accuracy on a held-out split of intent patterns, with TF-IDF nearest-neighbor providing the strongest macro F1 (0.567) among the reported baselines; and (ii) end-to-end scenario tests achieve a 94.3\% pass rate (33/35), with failures concentrated on degenerate boundary inputs and a median latency of 2046.8 ms in the saved test artifact.
+
+**Contributions.**
+- A modular, repository-grounded architecture for a college assistant integrating intent routing, context management, scope gating, and an LLM layer.
+- A practical evaluation setup that reports component-level intent metrics and end-to-end scenario outcomes from saved execution artifacts.
+- Operational safeguards (confidence-aware routing, conservative fallback behavior, and error recovery) aligned with deployment reliability goals.
+
+**Limitations.**
+- Intent evaluation is based on locally authored patterns rather than large-scale external benchmarks, and may overestimate generalization due to dataset artifacts \cite{gururangan2018annotation,geva2019shortcut}.
+- The semantic intent component and ensemble behavior are assessed indirectly through end-to-end tests rather than with separate reproducible component metrics.
+- Boundary input handling (e.g., punctuation-only and whitespace-only) remains a failure point and motivates stronger normalization and routing rules.
+
+**Future work.**
+- Multi-lingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
+- Better context handling: strengthen dialogue state tracking and long-horizon memory to reduce ambiguity in multi-turn queries.
+- Real-time deployment: optimize latency and concurrency, and validate behavior under load with production-oriented monitoring.
+- Improved robustness: expand adversarial/noise testing, harden normalization, and improve OOS calibration under distribution shift.
 
 ## References
-The bibliography for this report is defined in `Paper/references.bib`.
+This section lists all works cited in the report. Each entry corresponds to a BibTeX record in `Paper/references.bib`, and all in-text citations use the form `\\cite{vaswani2017attention}` with keys defined in that file.
 
 [1] A. Vaswani et al., "Attention Is All You Need", in Advances in Neural Information Processing Systems, 2017.
 
