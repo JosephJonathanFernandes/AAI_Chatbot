@@ -8,8 +8,8 @@
 
 \title{College AI Assistant: A Multi-Signal, Domain-Constrained Conversational System}
 
-\author{\IEEEauthorblockN{Anonymous}\\
-\IEEEauthorblockA{Mini-Project Report}}
+\author{\IEEEauthorblockN{Joseph Jonathan Fernandes}\\
+\IEEEauthorblockA{Applications of AI Project Report}}
 
 \begin{document}
 \maketitle
@@ -275,12 +275,13 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 
 \textbf{Limitation:} Robustness techniques can be data- and compute-intensive relative to small-project constraints.
 
-\begin{table}[t]
+\begin{table*}[t]
 \caption{Comparison Table (Selected Works)}
 \label{tab:lit-compare}
 \centering
-\small
-\begin{tabular}{p{0.16\linewidth}p{0.24\linewidth}p{0.27\linewidth}p{0.27\linewidth}}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{0.12\textwidth}p{0.18\textwidth}p{0.33\textwidth}p{0.33\textwidth}}
 \toprule
 \textbf{Paper} & \textbf{Method} & \textbf{Strength} & \textbf{Limitation} \\
 \midrule
@@ -296,7 +297,7 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 \cite{belinkov2018synthetic} & Noise robustness eval & Quantifies brittleness under noise & Mitigation not guaranteed \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 Collectively, the surveyed literature motivates a hybrid architecture in which deterministic control (intent routing, scope gating, and monitoring) complements generative response modeling. The following section formalizes this design for a college-domain assistant and specifies the pipeline and decision points that guide the repository implementation.
 
@@ -578,9 +579,9 @@ This work addresses the problem of delivering a reliable college-domain assistan
 \end{itemize}
 
 \section{References}
-The bibliography for this report is defined in \texttt{Paper/references.bib}.
+The bibliography for this report is defined in \texttt{references.bib}.
 
 \bibliographystyle{IEEEtran}
-\bibliography{Paper/references}
+\bibliography{references}
 
 \end{document}
