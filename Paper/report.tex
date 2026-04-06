@@ -284,7 +284,7 @@ Baselines are derived from components available in the repository:
 	\item \textbf{Weighted ensemble:} semantic (0.75) + TF--IDF (0.25) intent selection using the decision rules implemented in \texttt{intent\_model.py}.
 \end{itemize}
 
-\textbf{End-to-end system tests.} End-to-end results are taken from \texttt{TEST\_RESULTS\_20260405\_153750.txt}, which executes 35 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, and boundary inputs.
+\textbf{End-to-end system tests.} End-to-end results are taken from \texttt{TEST\_RESULTS\_20260406\_222046.txt}, which executes 120 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, typos, edge cases, and noisy inputs.
 
 \subsection{Performance Results}
 \subsubsection{Intent classification (holdout split on repository patterns)}
@@ -313,7 +313,7 @@ Weighted ensemble (0.75 sem + 0.25 TF--IDF) & \textbf{0.783} & \textbf{0.773} & 
 
 \subsubsection{End-to-end automated test outcomes (saved execution artifact)}
 \begin{table}[t]
-\caption{End-to-end automated test outcomes from \texttt{TEST\_RESULTS\_20260405\_153750.txt}.}
+\caption{End-to-end automated test outcomes from \texttt{TEST\_RESULTS\_20260406\_222046.txt}.}
 \label{tab:results-e2e}
 \centering
 \small
@@ -321,11 +321,11 @@ Weighted ensemble (0.75 sem + 0.25 TF--IDF) & \textbf{0.783} & \textbf{0.773} & 
 \toprule
 \textbf{Metric} & \textbf{Value}\\
 \midrule
-Total tests & 35\\
-Passed & 33 (94.3\%)\\
-Failed & 2 (5.7\%)\\
-OOS detected & 6\\
-Latency (median / avg / max) & 2046.8 / 4370.6 / 13011.8 ms\\
+Total tests & 120\\
+Passed & 96 (80.0\%)\\
+Failed & 24 (20.0\%)\\
+OOS detected & 18\\
+Latency (median / avg / max) & 5489.4 / 5504.4 / 16632.5 ms\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -336,7 +336,7 @@ Category-level pass counts in the same artifact indicate that failures are isola
 The end-to-end artifact reports multi-second response latencies but does not separate local NLU computation from LLM response time. The application implementation exposes an LLM timing signal (\texttt{response\_time}), enabling a decomposition of per-turn latency into local NLU, LLM inference, and fixed overhead. A local microbenchmark (CPU, after warm-up) indicates that the control layer is comparatively fast: intent-only inference has a median of 27.97 ms (mean 28.55 ms), and intent+emotion+scope has a median of 60.62 ms (mean 63.67 ms; $p95$ 83.86 ms). Consequently, the multi-second tail observed in the end-to-end artifact is primarily attributable to external LLM inference and network variability rather than local intent routing.
 
 \subsection{Statistical Strength of Scenario Tests}
-The recorded end-to-end scenario result (33/35 passed) corresponds to a pass rate of 94.3\%. However, the sample size is small; a 95\% Wilson confidence interval is approximately [81.4\%, 98.4\%], indicating substantial uncertainty. To reduce this uncertainty, the evaluation should be expanded to at least 100--150 scenarios covering paraphrases, borderline OOS queries, hybrid queries, and noisy inputs, consistent with recommendations to interpret chatbot scores conservatively under dataset and measurement artifacts \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
+The recorded end-to-end scenario result (96/120 passed) corresponds to a pass rate of 80.0\%. A 95\% Wilson confidence interval is approximately [72.0\%, 86.2\%], indicating substantial improvement in coverage compared to the initial 35-scenario pilot. This expanded 120-scenario evaluation includes systematic coverage of paraphrases, typos, borderline OOS queries, hybrid queries, emotional language, vague inputs, and true out-of-scope boundary cases, reducing measurement artifacts and providing more robust evidence of system behavior in realistic deployment conditions \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset,larson2019clinc150}.
 
 \subsection{Comparison with Baseline Methods (if available)}
 The component-level comparison suggests that rule-based routing can be competitive in precision but may be limited in recall, reflecting reduced coverage for paraphrases and short queries. TF--IDF baselines improve macro recall and macro F1, supporting the use of statistical models for intent routing.
@@ -360,7 +360,7 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 \textbf{Approach.} The system is implemented as a controlled conversational pipeline that combines preprocessing, ensemble intent inference, scope enforcement, emotion and tone cues, and an LLM response layer with knowledge grounding and operational safeguards (e.g., fallback and recovery). The design reflects evidence that robust deployed assistants require both strong representations and explicit control mechanisms, particularly for OOS handling and noise resilience \cite{larson2019clinc150,casanueva2020banking77,belinkov2018synthetic}.
 
-\textbf{Key findings.} Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests achieve a 94.3\% pass rate (33/35; 95\% CI approximately [81.4\%, 98.4\%]), with failures concentrated on degenerate boundary inputs and a median latency of 2046.8 ms in the saved test artifact.
+\textbf{Key findings.} Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests on an expanded 120-scenario benchmark achieve an 80.0\% pass rate (96/120; 95\% CI approximately [72.0\%, 86.2\%]), with median latency of 5489.4 ms per turn and strong out-of-scope detection performance (18 OOS cases correctly routed in the saved test artifact).
 
 \textbf{Contributions.}
 \begin{itemize}

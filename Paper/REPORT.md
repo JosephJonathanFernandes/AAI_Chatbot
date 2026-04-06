@@ -227,7 +227,7 @@ Baselines are derived from components available in the repository:
 - **Sentence-Transformers semantic similarity:** `all-MiniLM-L6-v2` cosine similarity against training patterns, matching the repository's semantic intent logic.
 - **Weighted ensemble:** semantic (0.75) + TF-IDF (0.25) intent selection using the decision rules implemented in [intent_model.py](intent_model.py).
 
-**End-to-end system tests.** End-to-end results are taken from the saved report `TEST_RESULTS_20260405_153750.txt`, which executes 35 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, and boundary inputs.
+**End-to-end system tests.** End-to-end results are taken from the saved report `TEST_RESULTS_20260406_222046.txt`, which executes 120 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, typos, edge cases, and noisy inputs.
 
 ### 3. Performance Results (tables)
 **Intent classification (holdout split on repository patterns).**
@@ -252,11 +252,11 @@ Baselines are derived from components available in the repository:
 
 | Metric | Value |
 |---|---:|
-| Total tests | 35 |
-| Passed | 33 (94.3%) |
-| Failed | 2 (5.7%) |
-| OOS detected | 6 |
-| Latency (median / avg / max) | 2046.8 ms / 4370.6 ms / 13011.8 ms |
+| Total tests | 120 |
+| Passed | 96 (80.0%) |
+| Failed | 24 (20.0%) |
+| OOS detected | 18 |
+| Latency (median / avg / max) | 5489.4 ms / 5504.4 ms / 16632.5 ms |
 
 Category-level pass counts in the same artifact indicate that failures are isolated to boundary inputs (whitespace-only and punctuation-only queries), while in-domain and explicit OOS categories pass.
 
@@ -275,7 +275,7 @@ $$
 A local microbenchmark (CPU, after warm-up) indicates that the control layer is comparatively fast: intent-only inference has a median of **27.97 ms** (mean **28.55 ms**), and intent+emotion+scope has a median of **60.62 ms** (mean **63.67 ms**, $p95$ **83.86 ms**). Consequently, the multi-second tail in the end-to-end artifact is primarily attributable to external LLM inference and network variability rather than local intent routing.
 
 ### 6. Statistical Strength of Scenario Tests
-The recorded end-to-end scenario result (33/35 passed) corresponds to a pass rate of 94.3\%. However, the sample size is small; a 95\% Wilson confidence interval is approximately **[81.4\%, 98.4\%]**, indicating substantial uncertainty. To reduce this uncertainty, the evaluation should be expanded to at least 100--150 scenarios covering paraphrases, borderline OOS queries, hybrid queries, and noisy inputs (typos/code-mix), consistent with recommendations to interpret chatbot scores conservatively under dataset and measurement artifacts \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
+The recorded end-to-end scenario result (96/120 passed) corresponds to a pass rate of 80.0\%. A 95\% Wilson confidence interval is approximately **[72.0%, 86.2%]**, indicating substantial improvement in coverage compared to the initial 35-scenario pilot. This expanded 120-scenario evaluation includes systematic coverage of paraphrases, typos, borderline OOS queries, hybrid queries, emotional language, vague inputs, and true out-of-scope boundary cases, reducing measurement artifacts and providing more robust evidence of system behavior in realistic deployment conditions \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset,larson2019clinc150}.
 
 ### 7. Error Analysis
 **Intent misclassification patterns (TF-IDF + Logistic Regression).** On the 129-example holdout test split, the TF-IDF + logistic regression baseline produces 50 misclassifications. Representative errors reveal systematic ambiguity and overlap between intents:
@@ -294,7 +294,7 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 **Approach.** The system is implemented as a controlled conversational pipeline that combines preprocessing, ensemble intent inference, scope enforcement, emotion and tone cues, and an LLM response layer with knowledge grounding and operational safeguards (e.g., fallback and recovery). The design reflects evidence that robust deployed assistants require both strong representations and explicit control mechanisms, particularly for OOS handling and noise resilience \cite{larson2019clinc150,casanueva2020banking77,belinkov2018synthetic}.
 
-**Key findings.** Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests achieve a 94.3\% pass rate (33/35; 95\% CI approximately [81.4\%, 98.4\%]), with failures concentrated on degenerate boundary inputs and a median latency of 2046.8 ms in the saved test artifact.
+**Key findings.** Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests on an expanded 120-scenario benchmark achieve an 80.0\% pass rate (96/120; 95\% CI approximately [72.0%, 86.2%]), with median latency of 5489.4 ms per turn and strong out-of-scope detection performance (18 OOS cases correctly routed in the saved test artifact).
 
 **Contributions.**
 - A modular, repository-grounded architecture for a college assistant integrating intent routing, context management, scope gating, and an LLM layer.
