@@ -298,6 +298,8 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 \end{tabular}
 \end{table}
 
+Collectively, the surveyed literature motivates a hybrid architecture in which deterministic control (intent routing, scope gating, and monitoring) complements generative response modeling. The following section formalizes this design for a college-domain assistant and specifies the pipeline and decision points that guide the repository implementation.
+
 \section{Methodology (Design)}
 The system is designed as a domain-constrained conversational assistant that combines a structured NLU/control layer with a controlled response generation layer. This hybrid approach follows system-level findings that robust assistants require orchestration, context handling, uncertainty management, and evaluation discipline in addition to fluent text generation \cite{caldarini2022literature,gao2020recent,gao2019neural,khatri2018alexa,maroengsit2019evaluation}.
 
@@ -308,7 +310,7 @@ The design targets a college-information domain and is organized as a multi-sign
 	\item \textbf{Response layer:} knowledge-grounded response planning followed by controlled natural language generation.
 	\item \textbf{Monitoring and evaluation:} telemetry signals (intent confidence, latency, error modes) and test-driven regression checks to track reliability.
 \end{itemize}
-This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-distribution inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
+This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-scope inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
 
 \subsection{Architecture Diagram Explanation (textual)}
 Conceptually, an architecture diagram for the system contains the following blocks and directed connections:
@@ -370,12 +372,12 @@ For response generation, decoder-style transformers support fluent multi-turn re
 \subsection{Design Justification (why chosen)}
 The design adopts a modular, hybrid architecture rather than a fully end-to-end conversational model because modular decomposition improves controllability and allows explicit enforcement of domain scope, uncertainty handling, and evaluation checkpoints \cite{hussain2019survey,gao2019neural,khatri2018alexa,roller2021recipes}.
 
-Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-distribution inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
+Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-scope inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
 
-Robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}.
+Robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}. The following section maps this design to concrete modules and execution pathways in the repository.
 
 \section{Implementation}
-This section documents the concrete implementation of the designed pipeline using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
+This section operationalizes the design using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
 
 \subsection{Development Environment (languages, tools, libraries)}
 \textbf{Language and runtime.} The system is implemented in Python and executed as either a Streamlit web application (interactive UI) or a command-line runner.
@@ -460,6 +462,8 @@ These controls are implemented to reduce hallucination risk and stabilize user e
 \textbf{Latency and rate limiting for LLM calls.} External LLM endpoints introduce variable response times and occasional rate limits. The implementation uses caching, throttling, concurrency limits, and retry/backoff policies, with provider fallback to maintain responsiveness.
 
 \textbf{Multi-turn coherence.} Follow-up questions often omit explicit context (e.g., ``What about that?''). A bounded conversation history and lightweight entity tracking reduce context loss without requiring full dialogue-state tracking models.
+
+This implementation provides the concrete basis for the empirical results reported in the following section.
 
 \section{Results}
 This section reports quantitative outcomes from (i) a component-level intent-classification evaluation using the repository intent patterns and (ii) an end-to-end automated test run recorded in a saved execution artifact. Metrics and interpretations follow established guidance that chatbot evaluation should separate component accuracy from overall conversational quality and should account for dataset artifacts and measurement bias \cite{maroengsit2019evaluation,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
@@ -567,7 +571,7 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 \textbf{Future work.}
 \begin{itemize}
-	\item Multi-lingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
+	\item Multilingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
 	\item Better context handling: strengthen dialogue state tracking and long-horizon memory to reduce ambiguity in multi-turn queries.
 	\item Real-time deployment: optimize latency and concurrency, and validate behavior under load with production-oriented monitoring.
 	\item Improved robustness: expand adversarial/noise testing, harden normalization, and improve OOS calibration under distribution shift.

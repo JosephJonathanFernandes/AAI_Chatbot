@@ -181,6 +181,8 @@ Conversational AI systems are commonly organized as (i) an NLU layer that maps u
 | \cite{kim2019dst} | DST as RC | Open-vocabulary slot extraction | Per-slot cost; implicit values |
 | \cite{belinkov2018synthetic} | Noise robustness eval | Quantifies brittleness under noise | Mitigation not guaranteed |
 
+Collectively, the surveyed literature motivates a hybrid architecture in which deterministic control (intent routing, scope gating, and monitoring) complements generative response modeling. The following section formalizes this design for a college-domain assistant and specifies the pipeline and decision points that guide the repository implementation.
+
 ## Methodology (Design)
 The system is designed as a domain-constrained conversational assistant that combines a structured NLU/control layer with a controlled response generation layer. This hybrid approach follows system-level findings that robust assistants require orchestration, context handling, uncertainty management, and evaluation discipline in addition to fluent text generation \cite{caldarini2022literature,gao2020recent,gao2019neural,khatri2018alexa,maroengsit2019evaluation}.
 
@@ -190,7 +192,7 @@ The design targets a college-information domain and is organized as a multi-sign
 - **Response layer**: knowledge-grounded response planning followed by controlled natural language generation.
 - **Monitoring and evaluation**: telemetry signals (intent confidence, latency, error modes) and test-driven regression checks to track reliability.
 
-This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-distribution inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
+This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-scope inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
 
 ### 2. Architecture Diagram Explanation (textual)
 Conceptually, an architecture diagram for the system contains the following blocks and directed connections:
@@ -254,12 +256,12 @@ For response generation, decoder-style transformers support fluent multi-turn re
 ### 6. Design Justification (why chosen)
 The design adopts a modular, hybrid architecture rather than a fully end-to-end conversational model because modular decomposition improves controllability and allows explicit enforcement of domain scope, uncertainty handling, and evaluation checkpoints \cite{hussain2019survey,gao2019neural,khatri2018alexa,roller2021recipes}.
 
-Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-distribution inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
+Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-scope inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
 
-Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}.
+Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}. The following section maps this design to concrete modules and execution pathways in the repository.
 
 ## Implementation
-This section documents the concrete implementation of the designed pipeline using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
+This section operationalizes the design using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
 
 ### 1. Development Environment (languages, tools, libraries)
 **Language and runtime.** The system is implemented in Python and executed as either a Streamlit web application (interactive UI) or a command-line runner.
@@ -267,7 +269,7 @@ This section documents the concrete implementation of the designed pipeline usin
 **Core libraries.**
 - **UI**: Streamlit for the chat interface and session state management.
 - **NLU models**: PyTorch as the deep learning backend, Hugging Face Transformers for transformer pipelines, and Sentence-Transformers for embedding-based semantic similarity.
-- **Classical ML**: scikit-learn for TF–IDF vectorization and logistic regression.
+- **Classical ML**: scikit-learn for TF-IDF vectorization and logistic regression.
 - **Data and utilities**: NumPy/Pandas for numeric and tabular handling; Requests for HTTP.
 - **LLM providers**: Groq client/HTTP for the primary model endpoint and `google-genai` for Gemini fallback; `python-dotenv` for environment-variable configuration.
 - **Persistence**: SQLite (via the Python standard library) for interaction logging and lightweight analytics.
@@ -291,7 +293,7 @@ The implementation uses pre-trained transformer models without project-specific 
 
 **Intent components (startup training).**
 - **Semantic classifier**: a Sentence-Transformers encoder (default: `all-MiniLM-L6-v2`) embeds each preprocessed intent pattern; inference selects the intent with maximal cosine similarity to the user embedding.
-- **TF–IDF classifier**: a scikit-learn TF–IDF vectorizer (unigrams/bigrams) and logistic regression classifier are trained on the same preprocessed patterns.
+- **TF-IDF classifier**: a scikit-learn TF-IDF vectorizer (unigrams/bigrams) and logistic regression classifier are trained on the same preprocessed patterns.
 - **Ensembling and calibration**: the final intent prediction uses weighted aggregation with explicit calibration heuristics (agreement boosts, scaling factors, confidence floors) to improve stability under paraphrases and short/noisy inputs.
 
 This hybrid intent implementation reflects the practical combination of transformer representations \cite{vaswani2017attention,devlin2019bert,liu2019roberta} and efficient similarity-based intent matching \cite{casanueva2020banking77}.
@@ -311,7 +313,7 @@ This hybrid intent implementation reflects the practical combination of transfor
 #### Intent Classification
 Intent classification is implemented as an ensemble:
 - semantic similarity over transformer sentence embeddings;
-- TF–IDF + logistic regression for lexical pattern capture;
+- TF-IDF + logistic regression for lexical pattern capture;
 - a context-aware intent refiner that adjusts ambiguous predictions using recent-turn intent continuity.
 
 **Pipeline (pseudo-code style).**
@@ -343,6 +345,8 @@ These controls are implemented to reduce hallucination risk and stabilize user e
 **Latency and rate limiting for LLM calls.** External LLM endpoints introduce variable response times and occasional rate limits. The implementation uses caching, throttling, concurrency limits, and retry/backoff policies, with provider fallback to maintain responsiveness.
 
 **Multi-turn coherence.** Follow-up questions often omit explicit context (e.g., “What about that?”). A bounded conversation history and lightweight entity tracking reduce context loss without requiring full dialogue-state tracking models.
+
+This implementation provides the concrete basis for the empirical results reported in the following section.
 
 ## Results
 This section reports quantitative outcomes from (i) a component-level intent-classification evaluation using the repository intent patterns and (ii) an end-to-end automated test run recorded in a saved execution artifact. Metrics and interpretations follow established guidance that chatbot evaluation should separate component accuracy from overall conversational quality and should account for dataset artifacts and measurement bias \cite{maroengsit2019evaluation,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
@@ -427,7 +431,7 @@ This work addresses the problem of delivering a reliable college-domain assistan
 - Boundary input handling (e.g., punctuation-only and whitespace-only) remains a failure point and motivates stronger normalization and routing rules.
 
 **Future work.**
-- Multi-lingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
+- Multilingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
 - Better context handling: strengthen dialogue state tracking and long-horizon memory to reduce ambiguity in multi-turn queries.
 - Real-time deployment: optimize latency and concurrency, and validate behavior under load with production-oriented monitoring.
 - Improved robustness: expand adversarial/noise testing, harden normalization, and improve OOS calibration under distribution shift.
