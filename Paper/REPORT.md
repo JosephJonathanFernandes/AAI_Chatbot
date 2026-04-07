@@ -2,6 +2,7 @@
 
 ## Abstract
 This report presents a college-domain conversational assistant that combines local multi-signal NLU control (preprocessing, intent, scope, emotion, and context) with external LLM response generation. Component-level evaluation on repository intent patterns shows strong semantic-routing performance (accuracy 0.783, macro F1 0.756), while end-to-end evaluation on 120 scenarios captures deployment-facing behavior under noisy, vague, emotional, and out-of-scope (OOS) inputs. A key finding is that a substantial portion of observed failures in batch execution are infrastructure-related (API rate-limit/provider failures) rather than core routing logic errors. Separating infrastructure failures from functional failures yields a clearer estimate of system behavior and supports more honest interpretation of pass-rate confidence intervals, OOS gating quality, and latency trade-offs.
+The primary contribution is a deployment-realistic evaluation methodology that separates infrastructure failures from functional routing errors, yielding corrected confidence intervals that better reflect core assistant logic.
 
 ## Literature Survey
 Conversational AI systems are commonly organized as (i) an NLU layer that maps user language to structured intent/state and (ii) a response layer that produces natural language outputs. The selected works below are consolidated and rewritten using the technically strongest explanations from the available draft surveys, while preserving a logical progression from traditional sequence models, to transformer-based representation learning, to dialogue alignment, and finally to intent evaluation with explicit out-of-scope (OOS) handling.
@@ -27,16 +28,22 @@ Finally, evaluation and robustness literature clarifies why high benchmark score
 ### Comparison Table (Selected Works)
 | Paper | Method | Strength | Limitation |
 |---|---|---|---|
-| \cite{vaswani2017attention} | Transformer | Parallelizable; long-range modeling | $O(n^2)$ attention cost |
-| \cite{devlin2019bert} | BERT pre-training | Strong NLU transfer | Encoder-only; calibration/OOS needed |
-| \cite{radford2019gpt2} | GPT-style pre-training | Strong generative response layer | Hallucination/grounding risk |
-| \cite{ouyang2022rlhf} | RLHF alignment | Better instruction following | Costly and bias-sensitive |
-| \cite{thoppilan2022lamda} | Dialogue LM tuning | Improves safety/groundedness focus | Resource-intensive; residual errors |
-| \cite{chen2019bertjoint} | Joint NLU with BERT | Strong intent/slot baseline | Compute/latency constraints |
-| \cite{larson2019clinc150} | OOS benchmark | Tests OOS rejection explicitly | OOS varies by domain |
-| \cite{casanueva2020banking77} | Dual encoder | Efficient inference | Domain-specific; single-turn |
-| \cite{kim2019dst} | DST as RC | Open-vocabulary slot extraction | Per-slot cost; implicit values |
-| \cite{belinkov2018synthetic} | Noise robustness eval | Quantifies brittleness under noise | Mitigation not guaranteed |
+| \cite{vaswani2017attention} | Multi-head self-attention encoder-decoder | Parallel training and long-range dependency modeling | $O(n^2)$ attention cost |
+| \cite{liu2016joint} | BiRNN joint intent+slot architecture | Early strong baseline for integrated NLU | Sequential recurrence limits throughput |
+| \cite{devlin2019bert} | 110M-parameter bidirectional encoder, masked-LM pre-training, fine-tuned [CLS] for intent | Strong transferable contextual representations | Encoder-only; needs calibration for OOS |
+| \cite{chen2019bertjoint} | BERT + token-level slot tagging (joint NLU) | Strong intent/slot benchmark performance | Heavier inference than lightweight baselines |
+| \cite{zhang2020fewshot} | Contrastive pre-training + few-shot intent fine-tuning | Better low-resource intent onboarding | Sensitive to support-set quality |
+| \cite{casanueva2020banking77} | Dual sentence encoders with cosine intent retrieval | Fast intent detection with efficient embedding lookup | Domain-specific evaluation scope |
+| \cite{larson2019clinc150} | CLINC150 in-scope/OOS benchmark protocol | Explicitly evaluates rejection behavior | OOS definition varies by deployment |
+| \cite{kim2019dst} | Dialogue state tracking as reading comprehension | Open-vocabulary slot value extraction | Higher per-turn computational cost |
+| \cite{radford2019gpt2} | Autoregressive decoder pre-training | Fluent open-ended generation | Hallucination/grounding risk |
+| \cite{roller2021recipes} | Retrieval-generation hybrid chatbot recipes | Strong practical recipe for open-domain systems | Data and infrastructure intensive |
+| \cite{ouyang2022rlhf} | SFT + reward model + PPO alignment pipeline | Better instruction following and safety behavior | Expensive and preference-bias sensitive |
+| \cite{thoppilan2022lamda} | Dialogue-specialized LM training objectives | Improved conversational quality dimensions | Resource-intensive; residual factual errors |
+| \cite{gururangan2018annotation} | Annotation-artifact analysis in NLU datasets | Exposes spurious dataset shortcuts | Not a direct mitigation method |
+| \cite{geva2019shortcut} | Annotator-bias shortcut learning analysis | Diagnoses hidden labeling bias effects | Requires downstream debiasing work |
+| \cite{swayamdipta2020dataset} | Dataset cartography via training dynamics | Identifies easy/ambiguous/hard instances | Adds analysis overhead |
+| \cite{belinkov2018synthetic} | Character-noise robustness evaluation | Quantifies brittleness under perturbations | Improvement methods required separately |
 
 Collectively, the surveyed literature motivates a hybrid architecture in which deterministic control (intent routing, scope gating, and monitoring) complements generative response modeling. The following section formalizes this design for a college-domain assistant and specifies the pipeline and decision points that guide the repository implementation.
 
@@ -97,6 +104,7 @@ s_i=\cos\bigl(e(u_t),e(t_i)\bigr),\quad \hat{y}=\arg\max_i s_i.
 $$
 
 Embedding-based matching provides an efficient intent routing alternative and is commonly evaluated in intent detection settings \cite{casanueva2020banking77,zhang2020fewshot}. The final decision uses uncertainty-aware thresholds (e.g., reject if $c<\tau$ or $\max_i s_i<\gamma$), reflecting the need for calibrated OOS behavior \cite{larson2019clinc150}.
+In the implemented system, $\tau$ is intent-specific via dynamic confidence thresholds (typical academic intents in the 0.45--0.60 range from [confidence_threshold_manager.py](confidence_threshold_manager.py)), and the semantic-similarity gate uses $\gamma=0.50$ (from [scope_detector.py](scope_detector.py)); this thresholding behavior directly influences OOS precision/recall trade-offs.
 
 #### Response generation
 Response generation is treated as conditional text generation using an autoregressive decoder-style language model (LM). Given a structured response plan and grounding context, generation models the probability of an output sequence $r=[r_1,\ldots,r_T]$ as
@@ -146,6 +154,16 @@ Two local JSON artifacts serve as the primary data sources:
 - typo normalization and abbreviation expansion via a curated mapping;
 - Hinglish/code-switch mapping for common Hindi–English tokens;
 - regex-based cleanup for punctuation artifacts and whitespace normalization.
+
+**Illustrative Hinglish normalization examples.**
+
+| Raw Query | Normalized Query |
+|---|---|
+| fees kitni hai | what are the fees |
+| kya placement hoti hai | what placement is |
+| hostel me room hai kya | hostel room is what |
+| exam kab hai | exam when is |
+| scholarship kaise milegi | scholarship how get |
 
 This preprocessing targets practical robustness issues where minor orthographic noise can degrade NLU signals \cite{belinkov2018synthetic,sun2020adversarial}.
 
@@ -261,6 +279,15 @@ Baselines are derived from components available in the repository:
 | OOS detected | 18 |
 | Latency (median / avg / max) | 4729.2 ms / 4520.3 ms / 14652.3 ms |
 
+**120-scenario suite composition.**
+
+| Scenario Bucket | Total | Passed | Pass Rate |
+|---|---:|---:|---:|
+| In-domain task | 87 | 75 | 86.2% |
+| Robustness/noisy in-domain | 22 | 11 | 50.0% |
+| Explicit out-of-scope | 10 | 8 | 80.0% |
+| Boundary inputs | 1 | 0 | 0.0% |
+
 **Failure attribution of 26 failed tests.**
 
 | Failure Type | Count |
@@ -270,6 +297,7 @@ Baselines are derived from components available in the repository:
 | Intent/scope misroutes (non-API) | 3 |
 
 The raw 78.3% pass rate includes 14 provider-side failures during batch execution. Excluding these exogenous API failures gives a functional pass rate of 88.7% (94/106) on completed responses, which better reflects core system logic.
+Here, boundary inputs are deliberately degenerate queries (for example punctuation-only, whitespace-only, or extreme-length gibberish) used to test guardrails rather than normal user behavior.
 
 Taken together, the intent-performance table and the end-to-end table show that component-level intent strength does not directly translate to raw batch pass rate when external API reliability becomes a bottleneck.
 
@@ -306,6 +334,7 @@ Using explicit OOS-labeled scenarios in the suite (OUTSCOPE + boundary cases), s
 | False-positive rate (in-scope flagged OOS) | 0.092 |
 
 These values indicate conservative but imperfect OOS routing: recall is acceptable, but precision shows over-rejection on some ambiguous/noisy in-scope queries and should be improved with better threshold calibration.
+Concretely, OOS precision 0.444 corresponds to 8 true OOS catches and 10 false OOS flags; inspection of failures shows that many false positives arise from noisy/underspecified in-domain turns, indicating that the current threshold pair is recall-oriented and likely needs tighter calibration for precision.
 
 ### 8. Error Analysis
 **Top intent confusions (TF-IDF + Logistic Regression holdout).**
@@ -320,6 +349,16 @@ These values indicate conservative but imperfect OOS routing: recall is acceptab
 
 These confusion pairs indicate overlap between administratively related intents and conversational-act intents.
 
+**Bottom-5 per-class F1 (semantic model, holdout split).**
+
+| Intent | F1 | Support |
+|---|---:|---:|
+| general_info | 0.400 | 4 |
+| comparison | 0.444 | 5 |
+| affirmation | 0.667 | 5 |
+| eligibility | 0.667 | 7 |
+| library | 0.667 | 4 |
+
 **End-to-end failure modes.** Failure attribution indicates three distinct regimes: API/provider failures (14), boundary/underspecified/noisy queries (9), and non-API intent/scope misroutes (3). This indicates that raw pass-rate degradation is primarily operational during batch execution, while logical failure modes are concentrated in ambiguity-heavy edge cases \cite{belinkov2018synthetic,sun2020adversarial}.
 
 **Strengths and weaknesses.**
@@ -332,11 +371,12 @@ This work addresses the problem of delivering a reliable college-domain assistan
 **Approach.** The system is implemented as a controlled conversational pipeline that combines preprocessing, ensemble intent inference, scope enforcement, emotion and tone cues, and an LLM response layer with knowledge grounding and operational safeguards (e.g., fallback and recovery). The design reflects evidence that robust deployed assistants require both strong representations and explicit control mechanisms, particularly for OOS handling and noise resilience \cite{larson2019clinc150,casanueva2020banking77,belinkov2018synthetic}.
 
 **Key findings.** Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests on an expanded 120-scenario benchmark achieve a raw pass rate of 78.3\% (94/120; 95\% CI [70.1%, 84.8%]), with 14 failures attributable to API/provider errors and a corrected functional pass estimate of 88.7\% (94/106; 95\% CI [81.2%, 93.4%]).
+In condensed form, the main novelty is methodological: reporting raw operational reliability alongside infrastructure-corrected functional reliability, so evaluation reflects both deployment reality and core assistant logic.
 
 **Contributions.**
-- A modular, repository-grounded architecture for a college assistant integrating intent routing, context management, scope gating, and an LLM layer.
-- A practical evaluation setup that reports component-level intent metrics and end-to-end scenario outcomes from saved execution artifacts.
-- Operational safeguards (confidence-aware routing, conservative fallback behavior, and error recovery) aligned with deployment reliability goals.
+- A repository-grounded multi-signal architecture that combines local NLU control and external LLM generation, validated on 120 end-to-end scenarios.
+- A deployment-realistic evaluation protocol that reports both raw operational pass rate (78.3%, 94/120) and corrected functional pass rate (88.7%, 94/106).
+- A quantified reliability analysis with explicit failure attribution (14 API failures vs 12 non-API failures), OOS metrics (precision 0.444, recall 0.727), and confidence intervals for both reporting modes.
 
 **Limitations.**
 - Intent evaluation is based on locally authored patterns rather than large-scale external benchmarks, and may overestimate generalization due to dataset artifacts \cite{gururangan2018annotation,geva2019shortcut}.
@@ -346,9 +386,9 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 **Future work.**
 - Multilingual support: begin by extending token normalization maps in [text_preprocessor.py](text_preprocessor.py) for Konkani and Marathi variants observed in the local student population, then re-evaluate OOS false positives on code-mixed queries.
-- Better context handling: strengthen dialogue state tracking and long-horizon memory to reduce ambiguity in multi-turn queries.
-- Real-time deployment: optimize latency and concurrency, and validate behavior under load with production-oriented monitoring.
-- Improved robustness: expand adversarial/noise testing, harden normalization, and improve OOS calibration under distribution shift.
+- Better context handling: add anaphora-aware follow-up resolution in [context_manager.py](context_manager.py) for pronoun-heavy turns and re-measure failure rates on the CONTEXT bucket.
+- Real-time deployment: implement streaming-first responses in [app.py](app.py) and cache-first replies for high-frequency intents in [llm_handler.py](llm_handler.py), then benchmark median time-to-first-token.
+- Improved robustness: tune $\tau$/$\gamma$ against a held-out OOS calibration set and re-run the 120-scenario suite to target higher OOS precision without collapsing recall.
 
 ## References
 This section lists all works cited in the report. Each entry corresponds to a BibTeX record in `Paper/references.bib`, and all in-text citations use the form `\\cite{vaswani2017attention}` with keys defined in that file.
