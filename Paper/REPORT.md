@@ -36,6 +36,7 @@ Finally, evaluation and robustness literature clarifies why high benchmark score
 | \cite{casanueva2020banking77} | Dual sentence encoders with cosine intent retrieval | Fast intent detection with efficient embedding lookup | Domain-specific evaluation scope |
 | \cite{larson2019clinc150} | CLINC150 in-scope/OOS benchmark protocol | Explicitly evaluates rejection behavior | OOS definition varies by deployment |
 | \cite{kim2019dst} | Dialogue state tracking as reading comprehension | Open-vocabulary slot value extraction | Higher per-turn computational cost |
+| \cite{huang2020transferable} | TRADE dialogue state generator with copy mechanism | Strong cross-domain slot-value transfer with open vocabulary | Added latency and degradation risk on long dialogue contexts |
 | \cite{radford2019gpt2} | Autoregressive decoder pre-training | Fluent open-ended generation | Hallucination/grounding risk |
 | \cite{roller2021recipes} | Retrieval-generation hybrid chatbot recipes | Strong practical recipe for open-domain systems | Data and infrastructure intensive |
 | \cite{ouyang2022rlhf} | SFT + reward model + PPO alignment pipeline | Better instruction following and safety behavior | Expensive and preference-bias sensitive |
@@ -44,6 +45,7 @@ Finally, evaluation and robustness literature clarifies why high benchmark score
 | \cite{geva2019shortcut} | Annotator-bias shortcut learning analysis | Diagnoses hidden labeling bias effects | Requires downstream debiasing work |
 | \cite{swayamdipta2020dataset} | Dataset cartography via training dynamics | Identifies easy/ambiguous/hard instances | Adds analysis overhead |
 | \cite{belinkov2018synthetic} | Character-noise robustness evaluation | Quantifies brittleness under perturbations | Improvement methods required separately |
+| \cite{sun2020adversarial} | Adversarial training for multilingual/code-mixed dialogue robustness | Improves resilience to noisy code-mixed perturbations | Requires additional adversarial data and training compute |
 
 Collectively, the surveyed literature motivates a hybrid architecture in which deterministic control (intent routing, scope gating, and monitoring) complements generative response modeling. The following section formalizes this design for a college-domain assistant and specifies the pipeline and decision points that guide the repository implementation.
 
@@ -164,6 +166,8 @@ Two local JSON artifacts serve as the primary data sources:
 | hostel me room hai kya | hostel room is what |
 | exam kab hai | exam when is |
 | scholarship kaise milegi | scholarship how get |
+
+Normalization preserves content words and discards many Hindi function words; downstream NLU relies on semantic embeddings rather than grammaticality.
 
 This preprocessing targets practical robustness issues where minor orthographic noise can degrade NLU signals \cite{belinkov2018synthetic,sun2020adversarial}.
 
@@ -298,6 +302,7 @@ Baselines are derived from components available in the repository:
 
 The raw 78.3% pass rate includes 14 provider-side failures during batch execution. Excluding these exogenous API failures gives a functional pass rate of 88.7% (94/106) on completed responses, which better reflects core system logic.
 Here, boundary inputs are deliberately degenerate queries (for example punctuation-only, whitespace-only, or extreme-length gibberish) used to test guardrails rather than normal user behavior.
+Within the robustness/noisy in-domain bucket, the 11 failures are concentrated in typo-heavy variants (4), vague/underspecified prompts (4), and emotion-heavy short turns (3), explaining the lower 50.0\% pass rate.
 
 Taken together, the intent-performance table and the end-to-end table show that component-level intent strength does not directly translate to raw batch pass rate when external API reliability becomes a bottleneck.
 
