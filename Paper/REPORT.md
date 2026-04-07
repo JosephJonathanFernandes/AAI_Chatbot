@@ -550,6 +550,89 @@ In condensed form, the main novelty is methodological: reporting raw operational
 - Real-time deployment: implement streaming-first responses in [app.py](app.py) and cache-first replies for high-frequency intents in [llm_handler.py](llm_handler.py), then benchmark median time-to-first-token.
 - Improved robustness: tune $\tau$/$\gamma$ against a held-out OOS calibration set and re-run the 120-scenario suite to target higher OOS precision without collapsing recall.
 
+## Appendix
+
+### A. Reproducibility Checklist
+| Item | Value |
+|---|---|
+| OS | Windows |
+| Python | 3.10+ (project scripts are standard CPython) |
+| Main runtime dependencies | streamlit 1.28.1, torch 2.1.1, transformers 4.35.2, sentence-transformers 2.2.2, scikit-learn 1.3.2, pandas 2.1.4, numpy 1.24.3 |
+| API/LLM dependencies | groq 0.13.3, google-genai 0.1.0, requests 2.31.0 |
+| Test/tooling dependencies | pytest 7.4.3, pytest-cov 4.1.0, pytest-xdist 3.5.0, pytest-timeout 2.1.0, hypothesis 6.92.0 |
+| Dataset files | `data/intents.json`, `data/college_data.json` |
+| Primary result artifact | `TEST_RESULTS_20260407_085552.txt` |
+| Intent split protocol | Stratified 80/20, random seed 42 |
+| Figure outputs | `Paper/figures/*.pdf` and `Paper/figures/*.svg` |
+
+### B. Full 120-Scenario Inventory (Artifact Index)
+The complete 120-case scenario inventory is provided as machine-readable project artifacts:
+- `CHATBOT_QUESTION_TEST_CASES.txt` (scenario catalog and identifiers)
+- `STREAMLIT_TEST_CASES.txt` (UI-facing scenario list)
+- `TEST_RESULTS_20260407_085552.txt` (full execution log with per-case outcomes)
+
+Bucket-level coverage used in the paper:
+- In-domain task: 87 cases
+- Robustness/noisy in-domain: 22 cases
+- Explicit out-of-scope: 10 cases
+- Boundary inputs: 1 case
+
+### C. OOS Confusion Details and Formulae
+Using explicit OOS-labeled cases in the suite:
+- True positives (TP): 8
+- False positives (FP): 10
+- False negatives (FN): 3
+- True negatives (TN): 99
+
+Metrics are computed as:
+
+$$
+	ext{Precision} = \frac{TP}{TP + FP} = \frac{8}{8+10} = 0.444
+$$
+
+$$
+	ext{Recall} = \frac{TP}{TP + FN} = \frac{8}{8+3} = 0.727
+$$
+
+$$
+	ext{FPR} = \frac{FP}{FP + TN} = \frac{10}{10+99} = 0.092
+$$
+
+### D. Representative Failure Log Excerpts
+| Query (excerpt) | Test Type | Detected Intent | Failure Regime |
+|---|---|---|---|
+| Wht r the fess? | `fees_-_with_typos` | hostel (77.9%) | Noise/typo misrouting |
+| Can I retake the exam if I fail? | `exam_-_re-exam_opportunity` | exams (100.0%) | Retrieval/generation mismatch |
+| What's the average salary for placements? | `placements_-_average_package` | placements (95.1%) | Knowledge grounding gap |
+| Do placements vary by specialization/branch? | `placements_-_specialization_gaps` | placements (71.1%) | Specificity gap |
+| What if I want to pursue higher studies instead? | `placements_-_higher_studies` | comparison (44.0%) | Intent overlap |
+| How many students can be accommodated in hostel? | `hostel_-_capacity` | hostel (87.4%) | Missing structured field |
+| What labs are available for students? | `facilities_-_labs` | fees (46.0%) | Cross-intent confusion |
+| How do I apply to the college? | `admission_-_application_process` | admission (65.6%) | Incomplete response |
+| What types of scholarships are available? | `scholarship_-_types_available` | fees (72.1%) | Intent schema overlap |
+| Wat about the exams skeduled? | `typo_-_phonetic_spelling` | exams (100.0%) | Noise robustness failure |
+
+### E. Figure Generation Provenance
+The paper figures are generated directly from repository scripts:
+- `Paper/generate_latency_breakdown_chart.py` -> `per_turn_latency_breakdown.(pdf|svg)`
+- `Paper/generate_confusion_matrix_heatmap.py` -> `top_misclassified_intents_heatmap.(pdf|svg)`
+- `Paper/generate_suite_composition_passrates_chart.py` -> `suite_composition_pass_rates.(pdf|svg)`
+
+One-command regeneration (from repository root):
+
+```powershell
+python Paper/generate_latency_breakdown_chart.py
+python Paper/generate_confusion_matrix_heatmap.py
+python Paper/generate_suite_composition_passrates_chart.py
+```
+
+### F. Prompt/Policy Snapshot (Compact)
+Operational response policy implemented in the runtime stack:
+- Scope-first routing: explicit out-of-domain checks precede generation.
+- Confidence-aware clarification: dynamic intent thresholds determine clarify vs answer.
+- Controlled generation: prompts inject intent, confidence, scope reason, emotion, and retrieved facts.
+- Reliability safeguards: cache lookup, request throttling, concurrent-call limits, retry with jittered backoff, API-key rotation, and Groq->Gemini fallback.
+
 ## References
 This section lists all works cited in the report. Each entry corresponds to a BibTeX record in `Paper/references.bib`, and all in-text citations use the form `\\cite{vaswani2017attention}` with keys defined in that file.
 
