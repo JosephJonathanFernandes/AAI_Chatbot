@@ -220,6 +220,149 @@ Response generation is implemented as a controlled LLM call:
 
 These controls are implemented to reduce hallucination risk and stabilize user experience under rate limits and variable latency \cite{khatri2018alexa,roller2021recipes}.
 
+### 5. Selected Core Code Blocks
+The following snippets omit imports, UI code, error-handling boilerplate, and comments.
+
+**Data Normalization**
+```python
+@staticmethod
+def remove_special_chars(text: str) -> str:
+	text = re.sub(r"[^a-z0-9\s\?!]", "", text)
+	text = re.sub(r"\s+", " ", text).strip()
+	return text
+
+@staticmethod
+def normalize_hinglish(text: str) -> str:
+	words = text.split()
+	converted = []
+	for word in words:
+		clean_word = word.rstrip("?!")
+		ending = word[len(clean_word):]
+		if clean_word in TextPreprocessor.HINGLISH_MAP:
+			mapped = TextPreprocessor.HINGLISH_MAP[clean_word]
+			if mapped:
+				converted.append(mapped + ending)
+		else:
+			converted.append(word)
+	return " ".join(converted)
+```
+
+**Hybrid Intent Ensemble**
+```python
+sem_weighted = sem_conf * self.semantic_weight
+tfidf_weighted = tfidf_conf * self.tfidf_weight
+
+if sem_intent == tfidf_intent:
+	final_intent = sem_intent
+	avg_conf = (sem_conf + tfidf_conf) / 2.0
+	agreement_boost = 1.15
+	final_confidence = min(1.0, avg_conf * agreement_boost * self.confidence_scaling)
+elif max(sem_weighted, tfidf_weighted) > 0.6:
+	if sem_weighted > tfidf_weighted:
+		final_intent = sem_intent
+		final_confidence = min(1.0, sem_weighted * self.confidence_scaling)
+	else:
+		final_intent = tfidf_intent
+		final_confidence = min(1.0, tfidf_weighted * self.confidence_scaling)
+else:
+	if sem_weighted >= tfidf_weighted:
+		final_intent = sem_intent
+		final_confidence = min(1.0, sem_weighted * self.confidence_scaling)
+	else:
+		final_intent = tfidf_intent
+		final_confidence = min(1.0, tfidf_weighted * self.confidence_scaling)
+
+final_confidence = max(self.confidence_min, final_confidence)
+return final_intent or "unknown", final_confidence, detailed_scores
+```
+
+**Uncertainty and Scope Gating**
+```python
+query_lower = query.lower()
+has_college_context = any(prefix in query_lower for prefix in self.COLLEGE_CONTEXT_PREFIXES)
+if has_college_context:
+	return True, "college_context_detected", 0.85
+
+if self.definite_oos_pattern.search(query_lower):
+	return False, "definite_out_of_domain", 0.95
+if self.ambiguous_oos_pattern.search(query_lower):
+	return False, "ambiguous_out_of_domain", 0.65
+
+domain_score, matched_category = self._check_domain_keywords(query_lower)
+if self.use_semantic and domain_score == 0.0:
+	semantic_score, semantic_category = self._check_semantic_similarity(query)
+	if semantic_score > domain_score:
+		domain_score, matched_category = semantic_score, semantic_category
+
+if conversation_history:
+	context_boost = self._compute_context_score(query_lower, conversation_history)
+	if context_boost > 0:
+		domain_score = min(0.95, domain_score + context_boost)
+
+if domain_score > self.confidence_threshold:
+	return True, f"domain_keywords_{matched_category}", domain_score
+return False, "low_domain_confidence", max(domain_score, intent_confidence * 0.3)
+```
+
+**Context Tracking**
+```python
+def add_turn(self, user_input, bot_response, intent, confidence, emotion, entities=None):
+	turn = {
+		"timestamp": datetime.now().isoformat(),
+		"user_input": user_input,
+		"bot_response": bot_response,
+		"intent": intent,
+		"confidence": confidence,
+		"emotion": emotion,
+		"entities": entities or {}
+	}
+	self.conversation_history.append(turn)
+	self.last_intent = intent
+	self.last_confidence = confidence
+	self.last_emotion = emotion
+	self.last_entities = entities or {}
+
+def resolve_pronouns(self, user_input: str) -> str:
+	lower_input = user_input.lower()
+	resolved = user_input
+	if ("it" in lower_input or "that" in lower_input or "this" in lower_input) and self.last_entities:
+		if "department" in self.last_entities:
+			resolved = resolved.replace("it", self.last_entities["department"])
+			resolved = resolved.replace("that", self.last_entities["department"])
+	return resolved
+```
+
+**LLM Operational Safeguards**
+```python
+last_error = None
+for attempt in range(self.retry_max_attempts):
+	try:
+		response = requests.post(
+			f"{self.groq_base_url}/chat/completions",
+			headers=headers,
+			json=payload,
+			timeout=self.groq_timeout
+		)
+
+		if response.status_code == 429:
+			self.rate_limit_count += 1
+			if len(self.groq_api_keys) > 1:
+				self._rotate_groq_key()
+				groq_api_key = self._get_current_groq_key()
+				time.sleep(self._get_jittered_backoff_delay(attempt))
+				continue
+			if attempt < self.retry_max_attempts - 1:
+				time.sleep(self._get_jittered_backoff_delay(attempt))
+				continue
+			return {"error": "Rate limit exceeded after retries"}
+
+		if response.status_code != 200:
+			if 500 <= response.status_code < 600 and attempt < self.retry_max_attempts - 1:
+				time.sleep(self._get_jittered_backoff_delay(attempt))
+				continue
+			return {"error": last_error}
+```
+
 ### 6. Challenges Faced and Solutions
 **Noisy and code-mixed inputs.** Short, misspelled, or Hinglish queries can degrade lexical and embedding signals. A dedicated normalization layer and dual-model ensemble mitigate brittleness \cite{belinkov2018synthetic,sun2020adversarial}.
 
@@ -292,6 +435,10 @@ Baselines are derived from components available in the repository:
 | Explicit out-of-scope | 10 | 8 | 80.0% |
 | Boundary inputs | 1 | 0 | 0.0% |
 
+![120-Scenario Suite Composition and Pass Rates](Paper/figures/suite_composition_pass_rates.svg)
+
+This figure is generated by [Paper/generate_suite_composition_passrates_chart.py](Paper/generate_suite_composition_passrates_chart.py) and visualizes pass-rate vs. remaining proportion for each scenario bucket.
+
 **Failure attribution of 26 failed tests.**
 
 | Failure Type | Count |
@@ -324,6 +471,10 @@ A local microbenchmark (CPU, after warm-up) indicates that the control layer is 
 
 For a student-facing assistant, a median of about 4.7 seconds per turn is usable but not ideal for conversational flow. Practical mitigation includes (i) token streaming for faster time-to-first-token, (ii) cache-first handling of high-frequency intents such as fees/exams/admission, and (iii) asynchronous UI updates so scope/intention feedback appears before full generation completes.
 
+![Per-Turn Latency Breakdown](Paper/figures/per_turn_latency_breakdown.svg)
+
+The chart is generated by [Paper/generate_latency_breakdown_chart.py](Paper/generate_latency_breakdown_chart.py) and shows that external LLM inference dominates the median per-turn budget.
+
 ### 6. Statistical Strength of Scenario Tests
 The recorded end-to-end scenario result (94/120 passed) corresponds to a raw pass rate of 78.3\%. The 95\% Wilson confidence interval for this **raw operational pass rate** is **[70.1%, 84.8%]**. Because 14/26 failures were API/provider failures, a corrected functional estimate (94/106) is 88.7\% with a 95\% Wilson interval of **[81.2%, 93.4%]**. Reporting both numbers separates infrastructure reliability from core assistant logic.
 
@@ -351,6 +502,10 @@ Concretely, OOS precision 0.444 corresponds to 8 true OOS catches and 10 false O
 | gratitude | greetings | 2 |
 | admission | out_of_scope | 2 |
 | fees | campus_life | 2 |
+
+![Top Misclassified Intent Pairs Heatmap](Paper/figures/top_misclassified_intents_heatmap.svg)
+
+The heatmap is generated by [Paper/generate_confusion_matrix_heatmap.py](Paper/generate_confusion_matrix_heatmap.py) using Seaborn/Matplotlib with a white background and a Blues colormap for publication readability.
 
 These confusion pairs indicate overlap between administratively related intents and conversational-act intents.
 
