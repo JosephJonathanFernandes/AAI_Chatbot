@@ -1,0 +1,1449 @@
+====================================================================================================
+CHATBOT TEST EXECUTION REPORT
+====================================================================================================
+
+Execution Time: 2026-04-07 08:55:52
+Total Tests: 120
+Successful: 94 (78.3%)
+Failed: 26 (21.7%)
+Out-of-Scope Detected: 18
+
+[LATENCY METRICS (milliseconds)]
+  Min:       779.2ms
+  Max:     14652.3ms
+  Avg:      4520.3ms
+  Median:   4729.2ms
+  Stdev:    3126.4ms
+
+[TEST RESULTS BY CATEGORY]
+  admission       | Pass:  9/11 ( 81.8%) | Avg:   4563ms
+  campus_life     | Pass:  1/ 1 (100.0%) | Avg:   5558ms
+  exams           | Pass: 11/13 ( 84.6%) | Avg:   5390ms
+  faculty         | Pass:  7/ 7 (100.0%) | Avg:   4768ms
+  fees            | Pass: 18/20 ( 90.0%) | Avg:   4769ms
+  general_info    | Pass:  3/ 5 ( 60.0%) | Avg:   1855ms
+  hostel          | Pass:  8/10 ( 80.0%) | Avg:   4290ms
+  out_of_scope    | Pass:  7/ 8 ( 87.5%) | Avg:   5067ms
+  placements      | Pass:  9/15 ( 60.0%) | Avg:   5257ms
+  unknown         | Pass: 21/30 ( 70.0%) | Avg:   3876ms
+
+[DETAILED TEST RESULTS]
+----------------------------------------------------------------------------------------------------
+
+Test ID: FEES-001
+  Query:      What are the admission fees?
+  Type:       admission_fees_-_direct_query
+  Status:     PASS
+  Latency:    1553.3ms
+  Intent:     admission (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Admission Fees:**
+
+The admission fees for our college vary based on the program you're applying to...
+
+Test ID: FEES-002
+  Query:      Do I have to pay admission fees separately from tuition?
+  Type:       admission_fees_-_with_condition
+  Status:     PASS
+  Latency:    1498.0ms
+  Intent:     admission (68.5%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+**Admission Fees: A Separate Payment**
+
+Generally, admission fees a...
+
+Test ID: FEES-003
+  Query:      What's the engineering program tuition fee?
+  Type:       tuition_fees_-_specific_program
+  Status:     PASS
+  Latency:    1393.8ms
+  Intent:     fees (93.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Engineering Program Tuition Fee**
+
+Since I don't have specific information about the college you'r...
+
+Test ID: FEES-004
+  Query:      How much does it cost?
+  Type:       fees_-_vague_reference
+  Status:     PASS
+  Latency:    1406.4ms
+  Intent:     fees (69.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since you asked about the cost, I'll provide general information about ...
+
+Test ID: FEES-005
+  Query:      Give me a comparison of fees for different programs
+  Type:       fees_-_multiple_programs
+  Status:     PASS
+  Latency:    1576.2ms
+  Intent:     comparison (71.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Comparison of Fees for Different Programs**
+
+Since you're looking for a comparison of fees for dif...
+
+Test ID: FEES-006
+  Query:      Are there scholarships that reduce the fees?
+  Type:       fees_-_scholarship_inquiry
+  Status:     PASS
+  Latency:    1593.0ms
+  Intent:     fees (91.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+You're interested in reducing your college fees, which is a great c...
+
+Test ID: FEES-007
+  Query:      What payment methods do you accept for fees?
+  Type:       fees_-_payment_methods
+  Status:     PASS
+  Latency:    1687.6ms
+  Intent:     fees (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Payment Options for Fees**
+
+You can pay your fees using the following methods:
+
+* **Online Portal*...
+
+Test ID: FEES-008
+  Query:      What happens if I can't pay my fees on time?
+  Type:       fees_-_late_payment
+  Status:     PASS
+  Latency:    1811.0ms
+  Intent:     fees (78.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   If you're unable to pay your fees on time, don't worry. It's not uncommon for students to face finan...
+
+Test ID: FEES-009
+  Query:      Can I get a refund if I don't join after paying fees?
+  Type:       fees_-_refund_policy
+  Status:     PASS
+  Latency:    1697.5ms
+  Intent:     fees (59.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're considering joining the college but have second thoughts after paying fees. Generally, refund...
+
+Test ID: FEES-010
+  Query:      Are there any hidden charges or additional fees beyond tuition?
+  Type:       fees_-_hidden_costs
+  Status:     PASS
+  Latency:    2826.2ms
+  Intent:     fees (99.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Hidden Charges or Additional Fees Beyond Tuition**
+
+As a student, it's essential to be aware of an...
+
+Test ID: FEES-011
+  Query:      What's the hostel fee?
+  Type:       fees_-_hostel_fees
+  Status:     PASS
+  Latency:    9528.7ms
+  Intent:     hostel (77.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   QUERY ANALYSIS:
+- Detected Intent: hostel
+- Confidence Level: 50.0%
+- User Emotion: Neutral
+- Scope:...
+
+Test ID: FEES-012
+  Query:      Wht r the fess?
+  Type:       fees_-_with_typos
+  Status:     FAIL
+  Latency:    779.2ms
+  Intent:     out_of_scope (29.9%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I'm happy to help with college-related topics. However, I'm a bit confused about your query. Could y...
+
+Test ID: FEES-013
+  Query:      How much money do I gotta pay?
+  Type:       fees_-_casual_language
+  Status:     PASS
+  Latency:    1029.8ms
+  Intent:     fees (83.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   It seems like you're asking about the fees associated with attending our college. Since you didn't s...
+
+Test ID: FEES-014
+  Query:      This is way too expensive! Why are the fees so high?!
+  Type:       fees_-_negative_emotion
+  Status:     PASS
+  Latency:    6307.1ms
+  Intent:     fees (93.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I understand your concern about the fees being high. Let's break down the typical college fee struct...
+
+Test ID: EXAM-001
+  Query:      When are the exams scheduled?
+  Type:       exam_schedule_-_general
+  Status:     PASS
+  Latency:    3376.3ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Exam Schedule Inquiry**
+
+Given the current time (08:41, Tuesday morning), classes are likely in se...
+
+Test ID: EXAM-002
+  Query:      When is the math exam?
+  Type:       exam_schedule_-_specific_subject
+  Status:     PASS
+  Latency:    6777.7ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **ALREADY CLARIFIED** (You've already mentioned exams as your intent)
+
+**Exam Schedule:** I'd be hap...
+
+Test ID: EXAM-003
+  Query:      What's the exam pattern?
+  Type:       exam_pattern_-_question
+  Status:     PASS
+  Latency:    6566.9ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Exam Pattern**
+
+Since you're asking about the exam pattern, I'll provide you with a general overvi...
+
+Test ID: EXAM-004
+  Query:      When will exam results be announced?
+  Type:       exam_results_-_timeline
+  Status:     PASS
+  Latency:    7259.7ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Given the current time, 08:41 on a Tuesday morning, it's likely that cl...
+
+Test ID: EXAM-005
+  Query:      How do I prepare for the final exams?
+  Type:       exam_preparation
+  Status:     PASS
+  Latency:    6111.6ms
+  Intent:     exams (90.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Preparing for Final Exams**
+
+Given the current time (08:41 Tuesday morning), classes are likely ha...
+
+Test ID: EXAM-006
+  Query:      Where are the exams conducted?
+  Type:       exam_venues
+  Status:     PASS
+  Latency:    5896.3ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Exam Venue**
+
+Since you didn't specify the type of exams you're referring to (mid-semester, end-se...
+
+Test ID: EXAM-007
+  Query:      Can I get previous years exam papers?
+  Type:       exam_-_previous_years
+  Status:     PASS
+  Latency:    7624.1ms
+  Intent:     exams (93.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You can definitely get previous years' exam papers, but there are a few things to consider.
+
+**Typic...
+
+Test ID: EXAM-008
+  Query:      I didn't understand the exam schedule
+  Type:       exam_-_clarification
+  Status:     PASS
+  Latency:    4914.6ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'd be happy to help you understand the exam schedule. 
+
+Since you're currently in the middle of the...
+
+Test ID: EXAM-009
+  Query:      Can I retake the exam if I fail?
+  Type:       exam_-_re-exam_opportunity
+  Status:     FAIL
+  Latency:    7203.0ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: EXAM-010
+  Query:      What materials can I bring to the exam?
+  Type:       exam_-_calculator/materials
+  Status:     PASS
+  Latency:    1403.7ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **You're all set for the exam!**
+
+Since you're asking about materials to bring to the exam, I'll pro...
+
+Test ID: EXAM-011
+  Query:      What if I face technical issues during the exam?
+  Type:       exam_-_technical_issues
+  Status:     PASS
+  Latency:    1030.4ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   If you face technical issues during the exam, don't panic. Here's what you can do:
+
+* **Notify the i...
+
+Test ID: PLACE-001
+  Query:      Tell me about placements
+  Type:       placements_-_general
+  Status:     PASS
+  Latency:    5966.9ms
+  Intent:     placements (94.4%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Placement Process at Our College**
+
+As you're interested in learning about placements at our colle...
+
+Test ID: PLACE-002
+  Query:      What's the average salary for placements?
+  Type:       placements_-_average_package
+  Status:     FAIL
+  Latency:    11286.0ms
+  Intent:     placements (95.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: PLACE-003
+  Query:      Which companies visit campus for recruitment?
+  Type:       placements_-_companies
+  Status:     PASS
+  Latency:    1392.4ms
+  Intent:     placements (98.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Placement Updates for This Semester**
+
+As we're in the midst of the recruitment season (August-Nov...
+
+Test ID: PLACE-004
+  Query:      Is placement guaranteed?
+  Type:       placements_-_guarantee
+  Status:     PASS
+  Latency:    1390.2ms
+  Intent:     placements (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Placement Guarantee**
+
+Given the information, I'd like to clarify: Are you referring to a specific...
+
+Test ID: PLACE-005
+  Query:      What's the eligibility criteria for placements?
+  Type:       placements_-_eligibility
+  Status:     PASS
+  Latency:    4700.6ms
+  Intent:     admission (79.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Eligibility Criteria for Placements**
+
+Since you're asking about placements, I'm assuming you're a...
+
+Test ID: PLACE-006
+  Query:      When does campus recruitment happen?
+  Type:       placements_-_timeline
+  Status:     PASS
+  Latency:    4829.6ms
+  Intent:     placements (63.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Campus Recruitment Timeline**
+
+Campus recruitment typically happens during the peak season, which ...
+
+Test ID: PLACE-007
+  Query:      Do placements vary by specialization/branch?
+  Type:       placements_-_specialization_gaps
+  Status:     FAIL
+  Latency:    8704.0ms
+  Intent:     placements (71.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: PLACE-008
+  Query:      Are internships provided before final placement?
+  Type:       placements_-_internships
+  Status:     PASS
+  Latency:    1254.9ms
+  Intent:     placements (86.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+**Are internships provided before final placement?**
+
+In most colle...
+
+Test ID: PLACE-009
+  Query:      What if I want to pursue higher studies instead?
+  Type:       placements_-_higher_studies
+  Status:     FAIL
+  Latency:    922.9ms
+  Intent:     comparison (44.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   Considering you're interested in pursuing higher studies, it's great that you're thinking ahead. Sin...
+
+Test ID: PLACE-010
+  Query:      I'm worried the package might be too low for me
+  Type:       placements_-_concerns_-_low_package
+  Status:     PASS
+  Latency:    5964.3ms
+  Intent:     placements (78.5%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Concerned about package?**
+
+Don't worry, it's normal to have doubts! Let's break down the placemen...
+
+Test ID: PLACE-011
+  Query:      What preparation does college provide for placements?
+  Type:       placements_-_support_services
+  Status:     PASS
+  Latency:    6912.5ms
+  Intent:     placements (63.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+To prepare for placements, your college likely offers various resou...
+
+Test ID: HOSTEL-001
+  Query:      Is hostel accommodation available?
+  Type:       hostel_-_availability
+  Status:     PASS
+  Latency:    6407.0ms
+  Intent:     hostel (87.4%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Hostel Accommodation Availability**
+
+✓ IN-SCOPE (college domain)
+
+Our college offers hostel accomm...
+
+Test ID: HOSTEL-002
+  Query:      How many students can be accommodated in hostel?
+  Type:       hostel_-_capacity
+  Status:     FAIL
+  Latency:    9202.1ms
+  Intent:     admission (67.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: HOSTEL-003
+  Query:      Are single rooms available or only shared rooms?
+  Type:       hostel_-_room_types
+  Status:     PASS
+  Latency:    1258.5ms
+  Intent:     hostel (74.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Given the college's generic hostel information, it's likely that both s...
+
+Test ID: HOSTEL-004
+  Query:      What facilities are provided in the hostel?
+  Type:       hostel_-_facilities
+  Status:     PASS
+  Latency:    964.1ms
+  Intent:     hostel (83.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're interested in knowing about the facilities provided in the hostel. 
+
+Based on general college...
+
+Test ID: HOSTEL-005
+  Query:      What are the hostel curfew rules?
+  Type:       hostel_-_rules
+  Status:     PASS
+  Latency:    5613.3ms
+  Intent:     hostel (81.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Hostel Curfew Rules**
+
+As a student, it's essential to be aware of the hostel curfew rules to avoi...
+
+Test ID: HOSTEL-006
+  Query:      Is hostel provided for international students?
+  Type:       hostel_-_for_international_students
+  Status:     PASS
+  Latency:    5853.8ms
+  Intent:     hostel (62.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Most colleges provide hostels for international students, but it's esse...
+
+Test ID: HOSTEL-007
+  Query:      Can I stay off-campus instead of hostel?
+  Type:       hostel_-_off-campus_options
+  Status:     PASS
+  Latency:    5422.6ms
+  Intent:     hostel (94.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **ALREADY CLARIFIED**
+
+You can definitely consider staying off-campus instead of a hostel. The colle...
+
+Test ID: HOSTEL-008
+  Query:      Are separate hostels for boys and girls?
+  Type:       hostel_-_gender-specific
+  Status:     PASS
+  Latency:    9239.8ms
+  Intent:     hostel (71.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   [Unable to answer: Are separate hostels for boys]
+
+Since the query is "girls," I'll assume you're as...
+
+Test ID: HOSTEL-009
+  Query:      How much is the hostel fee and when's payment due?
+  Type:       hostel_-_fees_and_payment
+  Status:     PASS
+  Latency:    13829.4ms
+  Intent:     hostel (74.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Hostel Fee Inquiry**
+
+Hello! I'd be happy to help you with your query. However, I need a bit more ...
+
+Test ID: HOSTEL-010
+  Query:      How is hostel allotment done? First come first serve?
+  Type:       hostel_-_allocation_process
+  Status:     PASS
+  Latency:    1337.8ms
+  Intent:     hostel (67.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   Hostel allotment in colleges is usually done through a combination of factors, not just first come f...
+
+Test ID: HOSTEL-011
+  Query:      Is mess facility included in hostel?
+  Type:       hostel_-_food/mess
+  Status:     PASS
+  Latency:    1034.9ms
+  Intent:     hostel (67.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Based on the generic college hostel information, it seems that the mess...
+
+Test ID: FACULTY-001
+  Query:      How do I contact the faculty members?
+  Type:       faculty_-_contact_information
+  Status:     PASS
+  Latency:    5525.0ms
+  Intent:     faculty (65.5%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Given the current time (08:41 on a Tuesday), it's likely that classes a...
+
+Test ID: FACULTY-002
+  Query:      What are the qualifications of the faculty?
+  Type:       faculty_-_qualifications
+  Status:     PASS
+  Latency:    5170.7ms
+  Intent:     faculty (90.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since you're interested in knowing the qualifications of the faculty, I...
+
+Test ID: FACULTY-003
+  Query:      What research areas do the faculty work on?
+  Type:       faculty_-_research_areas
+  Status:     PASS
+  Latency:    5215.2ms
+  Intent:     faculty (69.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since you're interested in learning about the research areas of our fac...
+
+Test ID: FACULTY-004
+  Query:      When can I see the professor during office hours?
+  Type:       faculty_-_office_hours
+  Status:     PASS
+  Latency:    3258.0ms
+  Intent:     faculty (55.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're looking to catch up with your professor during office hours. 
+
+Office hours are a great time ...
+
+Test ID: FACULTY-005
+  Query:      Can I get a faculty mentor for my project?
+  Type:       faculty_-_mentorship
+  Status:     PASS
+  Latency:    6145.6ms
+  Intent:     faculty (85.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **You're on the right track!**
+
+✓ IN-SCOPE (college domain)
+
+Since it's a Tuesday morning and classe...
+
+Test ID: FACULTY-006
+  Query:      Who is the academic advisor?
+  Type:       faculty_-_academic_advisor
+  Status:     PASS
+  Latency:    4926.5ms
+  Intent:     faculty (53.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're looking for the academic advisor. 
+
+Since you're likely attending classes or visiting offices...
+
+Test ID: FACULTY-007
+  Query:      Do we have guest lectures from industry experts?
+  Type:       faculty_-_guest_lectures
+  Status:     PASS
+  Latency:    3134.0ms
+  Intent:     faculty (65.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+We definitely have guest lectures from industry experts, which can ...
+
+Test ID: FACILITY-001
+  Query:      Tell me about the library facilities
+  Type:       facilities_-_library
+  Status:     PASS
+  Latency:    5736.4ms
+  Intent:     library (67.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Library Facilities**
+
+You're likely looking for information about our college library facilities. ...
+
+Test ID: FACILITY-002
+  Query:      What labs are available for students?
+  Type:       facilities_-_labs
+  Status:     FAIL
+  Latency:    10226.0ms
+  Intent:     fees (46.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: FACILITY-003
+  Query:      What sports facilities are available?
+  Type:       facilities_-_sports
+  Status:     PASS
+  Latency:    1424.7ms
+  Intent:     campus_life (70.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Sports Facilities Available**
+
+You're looking for sports facilities on campus? We've got you cover...
+
+Test ID: FACILITY-004
+  Query:      Where is the cafeteria and what are the timings?
+  Type:       facilities_-_cafeteria
+  Status:     PASS
+  Latency:    5974.1ms
+  Intent:     timetable (55.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Given the current time (08:41) on a Tuesday morning, it's likely that c...
+
+Test ID: FACILITY-005
+  Query:      Is there a medical clinic on campus?
+  Type:       facilities_-_healthcare
+  Status:     PASS
+  Latency:    4757.9ms
+  Intent:     campus_life (46.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since it's a Tuesday morning and classes are likely in session, I'm hap...
+
+Test ID: FACILITY-006
+  Query:      Is bus transportation provided?
+  Type:       facilities_-_transportation
+  Status:     PASS
+  Latency:    5308.7ms
+  Intent:     fees (45.4%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+I'm happy to help you with your query about bus transportation. However...
+
+Test ID: FACILITY-007
+  Query:      Where can I park my vehicle?
+  Type:       facilities_-_parking
+  Status:     PASS
+  Latency:    6002.2ms
+  Intent:     exams (27.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **PARKING INFORMATION**
+
+Since you're asking about parking, I'll assume you're looking for a spot ne...
+
+Test ID: FACILITY-008
+  Query:      Is there WiFi on campus? What's the speed?
+  Type:       facilities_-_wifi/internet
+  Status:     PASS
+  Latency:    3423.2ms
+  Intent:     campus_life (45.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Good morning! It's great to hear you're thinking about staying connecte...
+
+Test ID: FACILITY-009
+  Query:      Is there a gymnasium on campus?
+  Type:       facilities_-_gym
+  Status:     PASS
+  Latency:    5600.8ms
+  Intent:     campus_life (69.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Good morning! It's 08:41 on a Tuesday, and classes are likely in full s...
+
+Test ID: ADMIT-001
+  Query:      What's the eligibility criteria for admission?
+  Type:       admission_-_eligibility
+  Status:     PASS
+  Latency:    6110.8ms
+  Intent:     admission (96.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Eligibility Criteria for Admission**
+
+To be eligible for admission, you typically need to meet the...
+
+Test ID: ADMIT-002
+  Query:      How do I apply to the college?
+  Type:       admission_-_application_process
+  Status:     FAIL
+  Latency:    7318.5ms
+  Intent:     admission (65.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: ADMIT-003
+  Query:      What documents are needed for admission?
+  Type:       admission_-_documents_required
+  Status:     PASS
+  Latency:    965.3ms
+  Intent:     admission (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Admission Documents Needed**
+
+Based on our college's admission process, you'll need the following ...
+
+Test ID: ADMIT-004
+  Query:      Is there an entrance exam?
+  Type:       admission_-_entrance_exam
+  Status:     PASS
+  Latency:    1204.9ms
+  Intent:     admission (89.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+Considering the generic admission process, entrance exams are indee...
+
+Test ID: ADMIT-005
+  Query:      What's the admission timeline? When do applications close?
+  Type:       admission_-_timeline
+  Status:     PASS
+  Latency:    5587.1ms
+  Intent:     admission (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Admission Timeline and Application Closure**
+
+Since you're interested in the admission timeline, I...
+
+Test ID: ADMIT-006
+  Query:      How are students selected for admission?
+  Type:       admission_-_selection_criterion
+  Status:     FAIL
+  Latency:    7528.6ms
+  Intent:     admission (91.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: ADMIT-007
+  Query:      Are there merit-based scholarships for admission?
+  Type:       admission_-_scholarships
+  Status:     PASS
+  Latency:    2031.7ms
+  Intent:     fees (77.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Yes, many colleges offer merit-based scholarships for admission. These ...
+
+Test ID: ADMIT-008
+  Query:      Is there a counseling session before enrollment?
+  Type:       admission_-_counseling
+  Status:     PASS
+  Latency:    871.0ms
+  Intent:     admission (56.4%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Based on the generic admission process, it seems that there is a counse...
+
+Test ID: ADMIT-009
+  Query:      What's the curriculum offered?
+  Type:       admission_-_syllabus/curriculum
+  Status:     PASS
+  Latency:    5710.3ms
+  Intent:     timetable (51.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Curriculum Offered**
+
+As a student, you're probably interested in knowing the various courses and ...
+
+Test ID: ADMIT-010
+  Query:      Can I defer my admission to the next year?
+  Type:       admission_-_deferral
+  Status:     PASS
+  Latency:    4993.5ms
+  Intent:     admission (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+You're considering deferring your admission to the next year. While I d...
+
+Test ID: SCHOLAR-001
+  Query:      What types of scholarships are available?
+  Type:       scholarship_-_types_available
+  Status:     FAIL
+  Latency:    7996.1ms
+  Intent:     fees (72.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: SCHOLAR-002
+  Query:      How do I apply for merit scholarship?
+  Type:       scholarship_-_merit-based
+  Status:     PASS
+  Latency:    1194.7ms
+  Intent:     fees (73.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Applying for Merit Scholarship**
+
+I'd be happy to guide you through the process. To apply for a me...
+
+Test ID: SCHOLAR-003
+  Query:      Are there need-based financial aid options?
+  Type:       scholarship_-_need-based
+  Status:     PASS
+  Latency:    3428.5ms
+  Intent:     fees (88.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+You're looking for financial aid options, specifically need-based ones....
+
+Test ID: SCHOLAR-004
+  Query:      Are there scholarships specifically for girl students?
+  Type:       scholarship_-_category_scholarships
+  Status:     FAIL
+  Latency:    9191.1ms
+  Intent:     fees (72.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: SCHOLAR-005
+  Query:      How much scholarship can I get?
+  Type:       scholarship_-_amount
+  Status:     PASS
+  Latency:    1455.2ms
+  Intent:     fees (85.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Scholarship Opportunities**
+
+You're interested in knowing how much scholarship you can get. I'd be...
+
+Test ID: SCHOLAR-006
+  Query:      What's the minimum CGPA required for scholarship?
+  Type:       scholarship_-_criteria
+  Status:     PASS
+  Latency:    1233.4ms
+  Intent:     eligibility (57.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **ALREADY CLARIFIED**
+
+Since you're asking about the minimum CGPA required for a scholarship, I'll p...
+
+Test ID: SCHOLAR-007
+  Query:      When is the scholarship application deadline?
+  Type:       scholarship_-_application_deadline
+  Status:     PASS
+  Latency:    4503.1ms
+  Intent:     admission (82.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since I don't have specific information about the scholarship applicati...
+
+Test ID: SCHOLAR-008
+  Query:      Do I need to maintain a certain CGPA to keep the scholarship?
+  Type:       scholarship_-_maintenance
+  Status:     PASS
+  Latency:    5282.0ms
+  Intent:     eligibility (47.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since it's Tuesday morning, and classes are likely happening, I'm assum...
+
+Test ID: TYPO-001
+  Query:      Wha r the admmission fees?
+  Type:       typo_-_simple_misspelling
+  Status:     PASS
+  Latency:    4874.8ms
+  Intent:     fees (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since you're asking about admission fees, I'll provide general informat...
+
+Test ID: TYPO-002
+  Query:      Wat about the exams skeduled?
+  Type:       typo_-_phonetic_spelling
+  Status:     FAIL
+  Latency:    9004.9ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: TYPO-003
+  Query:      whn r plmnts?
+  Type:       typo_-_missing_vowels
+  Status:     FAIL
+  Latency:    1613.8ms
+  Intent:     exams (30.5%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I'm happy to help you with your query about placements. However, I noticed that your intent is leani...
+
+Test ID: TYPO-004
+  Query:      what@@bout the hosteeel???
+  Type:       typo_-_extra_characters
+  Status:     FAIL
+  Latency:    2424.1ms
+  Intent:     out_of_scope (34.1%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   It looks like there's a typo in your query. You meant to ask about the "hostel" right?
+
+Since you're...
+
+Test ID: TYPO-005
+  Query:      WHAT ARE THE FEES???
+  Type:       typo_-_case_insensitivity
+  Status:     FAIL
+  Latency:    10249.7ms
+  Intent:     fees (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: TYPO-006
+  Query:      cn i gt a scolarship 4 my program??
+  Type:       typo_-_mixed_typos
+  Status:     PASS
+  Latency:    1508.8ms
+  Intent:     admission (46.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+You're asking about scholarships for your program. While I don't have s...
+
+Test ID: TYPO-007
+  Query:      What's the programme syllabus?
+  Type:       spelling_-_british_vs_american
+  Status:     PASS
+  Latency:    1185.0ms
+  Intent:     exams (76.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Programme Syllabus**
+
+Since I don't have specific information about your programme syllabus, I'll ...
+
+Test ID: TYPO-008
+  Query:      What's CGPA required for my B.Tech?
+  Type:       abbreviation_-_common_terms
+  Status:     PASS
+  Latency:    5832.4ms
+  Intent:     admission (53.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **ALREADY CLARIFIED**
+
+Since you're asking about the CGPA required for your B.Tech, I'll provide gen...
+
+Test ID: VAGUE-001
+  Query:      Tell me about the college
+  Type:       vague_-_open-ended
+  Status:     PASS
+  Latency:    4426.1ms
+  Intent:     general_info (92.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   Good morning! It's great to hear from you on this Tuesday morning. As a student at our college, you'...
+
+Test ID: VAGUE-002
+  Query:      What about that thing you mentioned?
+  Type:       vague_-_unclear_reference
+  Status:     FAIL
+  Latency:    5101.0ms
+  Intent:     unknown (27.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I didn't mention anything specific earlier, so I'm not sure what you're referring to. Can you please...
+
+Test ID: VAGUE-003
+  Query:      Can I do it?
+  Type:       vague_-_pronouns_without_antecedent
+  Status:     FAIL
+  Latency:    5212.0ms
+  Intent:     negation (50.7%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   It sounds like you're asking if you can do something, but I'm not entirely sure what that something ...
+
+Test ID: VAGUE-004
+  Query:      Anything about campus life?
+  Type:       vague_-_"anything_about_x"
+  Status:     PASS
+  Latency:    5558.0ms
+  Intent:     campus_life (77.5%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're interested in campus life. That's a great topic. Since it's a Tuesday morning, classes are li...
+
+Test ID: VAGUE-005
+  Query:      Fees, placements, and placements facilities?
+  Type:       vague_-_multiple_topics
+  Status:     PASS
+  Latency:    11991.3ms
+  Intent:     placements (69.3%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Placement Information**
+
+Hello! I'd be happy to help you with your query about placements.
+
+**Plac...
+
+Test ID: VAGUE-006
+  Query:      Is it possible?
+  Type:       vague_-_missing_key_info
+  Status:     FAIL
+  Latency:    796.7ms
+  Intent:     negation (53.4%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   Since the intent is negation, I'll assume you're asking if something is possible. However, you haven...
+
+Test ID: VAGUE-007
+  Query:      I was wondering if there's a way to...
+  Type:       vague_-_indirect_question
+  Status:     FAIL
+  Latency:    1936.4ms
+  Intent:     negation (53.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   It seems like you're wondering if there's a way to... (but I'm not entirely sure what you're looking...
+
+Test ID: EMOTION-001
+  Query:      Why does everything have to be so complicated?! Nobody explains anythi
+  Type:       emotion_-_frustrated/angry
+  Status:     FAIL
+  Latency:    947.6ms
+  Intent:     negation (27.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I can sense your frustration, and it's completely normal to feel that way, especially in the morning...
+
+Test ID: EMOTION-002
+  Query:      I'm so worried I won't get a good package...
+  Type:       emotion_-_sad/worried
+  Status:     FAIL
+  Latency:    8052.7ms
+  Intent:     placements (60.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: EMOTION-003
+  Query:      I'm so excited to join! Tell me everything about the campus!
+  Type:       emotion_-_excited/happy
+  Status:     PASS
+  Latency:    977.5ms
+  Intent:     campus_life (59.8%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'm thrilled to hear you're excited to join our campus community.
+
+**Campus Overview:**
+Our campus i...
+
+Test ID: EMOTION-004
+  Query:      I'm really confused about what to do... everything seems overwhelming.
+  Type:       emotion_-_confused/lost
+  Status:     FAIL
+  Latency:    1234.8ms
+  Intent:     admission (29.1%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   It sounds like you're feeling a bit overwhelmed with the admission process. Don't worry, I'm here to...
+
+Test ID: EMOTION-005
+  Query:      Oh great, another expensive fee to pay, I'm sure...
+  Type:       emotion_-_sarcasm
+  Status:     PASS
+  Latency:    14652.3ms
+  Intent:     fees (69.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   [Unable to answer: Oh great]
+
+Another expensive fee to pay - that can be frustrating. 
+
+Considering ...
+
+Test ID: EMOTION-006
+  Query:      PLEASE I need scholarship or I can't come!
+  Type:       emotion_-_desperate
+  Status:     PASS
+  Latency:    3031.1ms
+  Intent:     fees (71.9%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I understand your concern about scholarship, and I'm here to help. 
+
+Firstly, let's break down your ...
+
+Test ID: EMOTION-007
+  Query:      whatever...just tell me the fees
+  Type:       emotion_-_apathetic
+  Status:     PASS
+  Latency:    5659.3ms
+  Intent:     fees (83.6%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **Fees at Our College**
+
+Since you didn't specify the exact college or program, I'll provide general...
+
+Test ID: CONTEXT-001
+  Query:      And what's the average package?
+  Type:       context_-_follow-up_question
+  Status:     FAIL
+  Latency:    10015.4ms
+  Intent:     placements (85.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: CONTEXT-002
+  Query:      Do you mean for admission or for placements?
+  Type:       context_-_clarification_request
+  Status:     PASS
+  Latency:    1359.8ms
+  Intent:     admission (93.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'm assuming you're asking about the admission process for our college. However, I'd like to clarify...
+
+Test ID: CONTEXT-003
+  Query:      Are they different for other programs?
+  Type:       context_-_pronoun_reference
+  Status:     PASS
+  Latency:    1119.2ms
+  Intent:     general_info (39.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'd be happy to help you with your question. 
+
+Since you're asking about whether programs are differ...
+
+Test ID: CONTEXT-004
+  Query:      Specifically, what if I have a sports scholarship?
+  Type:       context_-_multiple_clarifications
+  Status:     PASS
+  Latency:    7874.2ms
+  Intent:     fees (67.1%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   You're looking for information on fees. I'd be happy to help.
+
+Based on the generic college fee stru...
+
+Test ID: CONTEXT-005
+  Query:      Is this the same for all students?
+  Type:       context_-_long_conversation
+  Status:     PASS
+  Latency:    846.5ms
+  Intent:     general_info (60.2%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   **✓ IN-SCOPE (college domain)**
+
+Considering your question, "Is this the same for all students?" is ...
+
+Test ID: CONTEXT-006
+  Query:      When are the next exams?
+  Type:       context_-_temporal_reference
+  Status:     PASS
+  Latency:    2903.2ms
+  Intent:     exams (100.0%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+Since I don't have the exact exam schedule for your college, I'll provi...
+
+Test ID: OUTSCOPE-001
+  Query:      What's the weather today?
+  Type:       out-of-scope_-_completely_unrelated
+  Status:     PASS
+  Latency:    4591.2ms
+  Intent:     out_of_scope (86.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+
+Test ID: OUTSCOPE-002
+  Query:      What's your personal life like?
+  Type:       out-of-scope_-_personal/private
+  Status:     PASS
+  Latency:    5512.6ms
+  Intent:     campus_life (52.9%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+
+Test ID: OUTSCOPE-003
+  Query:      Can you help me with my homework?
+  Type:       out-of-scope_-_request_for_personal_help
+  Status:     PASS
+  Latency:    4648.0ms
+  Intent:     out_of_scope (54.0%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+
+Test ID: OUTSCOPE-004
+  Query:      How do I fix my laptop?
+  Type:       out-of-scope_-_technology_advice
+  Status:     PASS
+  Latency:    1179.3ms
+  Intent:     out_of_scope (21.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   I'm happy to help, but it seems like fixing your laptop is outside my college-specific knowledge sco...
+
+Test ID: OUTSCOPE-005
+  Query:      I have a headache, what should I do?
+  Type:       out-of-scope_-_medical_advice
+  Status:     PASS
+  Latency:    8046.5ms
+  Intent:     exams (26.9%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   [Unable to answer: I have a headache]
+
+I'd be happy to help you with your query. Since your intent i...
+
+Test ID: OUTSCOPE-006
+  Query:      What's your view on politics?
+  Type:       out-of-scope_-_political/sensitive
+  Status:     PASS
+  Latency:    2959.3ms
+  Intent:     out_of_scope (60.9%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+
+Test ID: OUTSCOPE-007
+  Query:      Which religion is correct?
+  Type:       out-of-scope_-_religious_discussion
+  Status:     PASS
+  Latency:    4120.3ms
+  Intent:     negation (30.8%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   That's beyond my scope. I can help with college topics like fees, exams, placements, admission, host...
+
+Test ID: OUTSCOPE-008
+  Query:      This restaurant's food is terrible
+  Type:       out-of-scope_-_complaint_about_non-college
+  Status:     FAIL
+  Latency:    9479.3ms
+  Intent:     hostel (31.7%)
+  Emotion:    neutral
+  In-Scope:   True
+  Error:      Both APIs failed
+
+Test ID: OUTSCOPE-009
+  Query:      asdfjkl; qwerty zxcvbnm
+  Type:       out-of-scope_-_spam/gibberish
+  Status:     FAIL
+  Latency:    1289.4ms
+  Intent:     exams (33.8%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   It seems like your query is not a clear question. I'm a college AI assistant, and I'm here to help w...
+
+Test ID: OUTSCOPE-010
+  Query:      How do I get my certificate after graduation?
+  Type:       out-of-scope_-_but_related
+  Status:     PASS
+  Latency:    979.9ms
+  Intent:     admission (45.5%)
+  Emotion:    neutral
+  In-Scope:   True
+  Response:   ✓ IN-SCOPE (college domain)
+
+You're probably eager to receive your certificate after graduation. Don...
+
+Test ID: BOUND-001
+  Query:      A question that is 1000+ characters long
+  Type:       boundary_-_extremely_long_input
+  Status:     FAIL
+  Latency:    4463.8ms
+  Intent:     out_of_scope (35.2%)
+  Emotion:    neutral
+  In-Scope:   False
+  Response:   I see you have a long question, but I'm not sure I can fully understand it. Could you provide more d...
+
+[EDGE CASE ANALYSIS]
+----------------------------------------------------------------------------------------------------
+
+TYPO: 2/6 passed
+  [PASS] TYPO-001        | Wha r the admmission fees?                        
+  [FAIL] TYPO-002        | Wat about the exams skeduled?                     
+  [FAIL] TYPO-003        | whn r plmnts?                                     
+  [FAIL] TYPO-004        | what@@bout the hosteeel???                        
+  [FAIL] TYPO-005        | WHAT ARE THE FEES???                              
+  [PASS] TYPO-006        | cn i gt a scolarship 4 my program??               
+
+OUT_OF_SCOPE: 7/8 passed
+  [PASS] OUTSCOPE-001    | What's the weather today?                         
+  [PASS] OUTSCOPE-002    | What's your personal life like?                   
+  [PASS] OUTSCOPE-003    | Can you help me with my homework?                 
+  [PASS] OUTSCOPE-004    | How do I fix my laptop?                           
+  [PASS] OUTSCOPE-005    | I have a headache, what should I do?              
+  [PASS] OUTSCOPE-006    | What's your view on politics?                     
+  [PASS] OUTSCOPE-007    | Which religion is correct?                        
+  [FAIL] OUTSCOPE-008    | This restaurant's food is terrible                
+
+EMOTION: 4/7 passed
+  [FAIL] EMOTION-001     | Why does everything have to be so complicated?! No
+  [FAIL] EMOTION-002     | I'm so worried I won't get a good package...      
+  [PASS] EMOTION-003     | I'm so excited to join! Tell me everything about t
+  [FAIL] EMOTION-004     | I'm really confused about what to do... everything
+  [PASS] EMOTION-005     | Oh great, another expensive fee to pay, I'm sure..
+  [PASS] EMOTION-006     | PLEASE I need scholarship or I can't come!        
+  [PASS] EMOTION-007     | whatever...just tell me the fees                  
+
+[SUMMARY STATISTICS]
+----------------------------------------------------------------------------------------------------
+Average Response Latency: 4520.3ms
+P95 Latency: 10226.0ms
+Success Rate: 94/120 (78.3%)
+Out-of-Scope Detection Rate: 15.0%
+
+====================================================================================================

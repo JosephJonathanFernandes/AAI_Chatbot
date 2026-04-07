@@ -1,5 +1,8 @@
 # College AI Assistant: A Multi-Signal, Domain-Constrained Conversational System
 
+## Abstract
+This report presents a college-domain conversational assistant that combines local multi-signal NLU control (preprocessing, intent, scope, emotion, and context) with external LLM response generation. Component-level evaluation on repository intent patterns shows strong semantic-routing performance (accuracy 0.783, macro F1 0.756), while end-to-end evaluation on 120 scenarios captures deployment-facing behavior under noisy, vague, emotional, and out-of-scope (OOS) inputs. A key finding is that a substantial portion of observed failures in batch execution are infrastructure-related (API rate-limit/provider failures) rather than core routing logic errors. Separating infrastructure failures from functional failures yields a clearer estimate of system behavior and supports more honest interpretation of pass-rate confidence intervals, OOS gating quality, and latency trade-offs.
+
 ## Literature Survey
 Conversational AI systems are commonly organized as (i) an NLU layer that maps user language to structured intent/state and (ii) a response layer that produces natural language outputs. The selected works below are consolidated and rewritten using the technically strongest explanations from the available draft surveys, while preserving a logical progression from traditional sequence models, to transformer-based representation learning, to dialogue alignment, and finally to intent evaluation with explicit out-of-scope (OOS) handling.
 
@@ -116,7 +119,7 @@ The design adopts a modular, hybrid architecture rather than a fully end-to-end 
 
 Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-scope inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
 
-Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}. The following section maps this design to concrete modules and execution pathways in the repository.
+Finally, robustness and measurement risks motivate conservative preprocessing and careful interpretation of automated evaluation results. Neural NLU brittleness under noise and dataset artifacts can inflate reported performance without improving real-world reliability \cite{belinkov2018synthetic,sun2020adversarial,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}. The methodology therefore prioritizes scope control and grounded generation over unconstrained fluency, consistent with survey evidence that reliable chatbot performance depends on system integration and evaluation discipline \cite{caldarini2022literature,maroengsit2019evaluation}. These design choices translate directly into implementation requirements: a deterministic local control path, explicit uncertainty gating, and fault-tolerant LLM orchestration. The following section maps this design to concrete modules and execution pathways in the repository.
 
 ## Implementation
 This section operationalizes the design using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
@@ -217,7 +220,7 @@ Two metric groups are reported:
 Macro-averaged scores are emphasized because the intent set is multi-class and exhibits class imbalance; macro scores reduce the risk of majority-class dominance masking poor performance on smaller intents.
 
 ### 2. Experimental Setup
-**Intent classification evaluation.** The evaluation uses the repository intent patterns in [data/intents.json](data/intents.json), which contains **650** preprocessed patterns across **18** intent labels. A stratified 80/20 split is applied (**521** train, **129** test) with a fixed random seed (42). The same preprocessing logic used by the implementation ([text_preprocessor.py](text_preprocessor.py)) is applied prior to training and evaluation.
+**Intent classification evaluation.** The evaluation uses the repository intent patterns in [data/intents.json](data/intents.json), which contains approximately **650** preprocessed patterns across **18** intent labels (about **36 patterns per intent on average**). A stratified 80/20 split is applied with a fixed random seed (42). The same preprocessing logic used by the implementation ([text_preprocessor.py](text_preprocessor.py)) is applied prior to training and evaluation.
 
 Baselines are derived from components available in the repository:
 - **Majority baseline:** always predicts the most frequent training intent.
@@ -227,7 +230,7 @@ Baselines are derived from components available in the repository:
 - **Sentence-Transformers semantic similarity:** `all-MiniLM-L6-v2` cosine similarity against training patterns, matching the repository's semantic intent logic.
 - **Weighted ensemble:** semantic (0.75) + TF-IDF (0.25) intent selection using the decision rules implemented in [intent_model.py](intent_model.py).
 
-**End-to-end system tests.** End-to-end results are taken from the saved report `TEST_RESULTS_20260406_222046.txt`, which executes 120 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, typos, edge cases, and noisy inputs.
+**End-to-end system tests.** End-to-end results are taken from the saved report `TEST_RESULTS_20260407_085552.txt`, which executes 120 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, typos, edge cases, and noisy inputs.
 
 ### 3. Performance Results (tables)
 **Intent classification (holdout split on repository patterns).**
@@ -245,7 +248,7 @@ Baselines are derived from components available in the repository:
 - Keyword rules improve substantially over the majority baseline, indicating that intent-specific lexical cues exist in the pattern set.
 - Among fast lexical baselines, TF-IDF nearest-neighbor provides the strongest macro F1 (0.562), while logistic regression provides slightly better macro precision.
 - The semantic component provides the strongest performance overall (accuracy 0.783; macro F1 0.756), consistent with embedding robustness to paraphrases and short/noisy inputs \cite{devlin2019bert,liu2019roberta}.
-- In this split, the weighted ensemble matches the semantic predictor because the semantic signal dominates under the default weights; the ensemble’s primary benefit is calibration and robustness in edge cases where lexical evidence is decisive.
+- In this split, the weighted ensemble matches the semantic predictor because the semantic signal dominates under the default weights; this should be interpreted as a **calibration/robustness mechanism** (confidence smoothing and fallback behavior on ambiguous/noisy inputs), not as an accuracy booster on this holdout.
 - These numbers are best interpreted as **pattern-set generalization** rather than a full measure of real-user robustness; pattern corpora can contain artifacts that inflate apparent performance \cite{gururangan2018annotation,geva2019shortcut}.
 
 **End-to-end automated test outcomes (saved execution artifact).**
@@ -253,17 +256,29 @@ Baselines are derived from components available in the repository:
 | Metric | Value |
 |---|---:|
 | Total tests | 120 |
-| Passed | 96 (80.0%) |
-| Failed | 24 (20.0%) |
+| Passed | 94 (78.3%) |
+| Failed | 26 (21.7%) |
 | OOS detected | 18 |
-| Latency (median / avg / max) | 5489.4 ms / 5504.4 ms / 16632.5 ms |
+| Latency (median / avg / max) | 4729.2 ms / 4520.3 ms / 14652.3 ms |
 
-Category-level pass counts in the same artifact indicate that failures are isolated to boundary inputs (whitespace-only and punctuation-only queries), while in-domain and explicit OOS categories pass.
+**Failure attribution of 26 failed tests.**
+
+| Failure Type | Count |
+|---|---:|
+| API/provider failures (`Both APIs failed`) | 14 |
+| Boundary/underspecified/noisy inputs | 9 |
+| Intent/scope misroutes (non-API) | 3 |
+
+The raw 78.3% pass rate includes 14 provider-side failures during batch execution. Excluding these exogenous API failures gives a functional pass rate of 88.7% (94/106) on completed responses, which better reflects core system logic.
+
+Taken together, the intent-performance table and the end-to-end table show that component-level intent strength does not directly translate to raw batch pass rate when external API reliability becomes a bottleneck.
 
 ### 4. Comparison with Baseline Methods (if available)
 The component-level comparison suggests that rule-based routing can be competitive in precision but may be limited in recall, reflecting reduced coverage for paraphrases and short queries. TF-IDF baselines improve macro recall and macro F1, supporting the use of statistical models for intent routing.
 
 The repository implementation additionally includes a semantic similarity component (Sentence-Transformers) and a weighted ensemble. On the same holdout split, the semantic component substantially improves macro F1 (0.756), consistent with prior work emphasizing robust representations for intent routing and uncertainty-aware scoping \cite{larson2019clinc150,casanueva2020banking77}.
+
+Because the ensemble and semantic-only scores are identical in this split, the ensemble should be viewed as an operational reliability choice (confidence calibration and safer routing under ambiguity), rather than a direct accuracy gain mechanism.
 
 ### 5. Latency Breakdown (NLU vs LLM)
 The end-to-end artifact reports median/average/max response latencies in the multi-second range, but it does not separate local NLU computation from LLM response time. The application implementation exposes an LLM timing signal (`response_time`), enabling a decomposition of total per-turn latency into:
@@ -274,16 +289,38 @@ $$
 
 A local microbenchmark (CPU, after warm-up) indicates that the control layer is comparatively fast: intent-only inference has a median of **27.97 ms** (mean **28.55 ms**), and intent+emotion+scope has a median of **60.62 ms** (mean **63.67 ms**, $p95$ **83.86 ms**). Consequently, the multi-second tail in the end-to-end artifact is primarily attributable to external LLM inference and network variability rather than local intent routing.
 
+For a student-facing assistant, a median of about 4.7 seconds per turn is usable but not ideal for conversational flow. Practical mitigation includes (i) token streaming for faster time-to-first-token, (ii) cache-first handling of high-frequency intents such as fees/exams/admission, and (iii) asynchronous UI updates so scope/intention feedback appears before full generation completes.
+
 ### 6. Statistical Strength of Scenario Tests
-The recorded end-to-end scenario result (96/120 passed) corresponds to a pass rate of 80.0\%. A 95\% Wilson confidence interval is approximately **[72.0%, 86.2%]**, indicating substantial improvement in coverage compared to the initial 35-scenario pilot. This expanded 120-scenario evaluation includes systematic coverage of paraphrases, typos, borderline OOS queries, hybrid queries, emotional language, vague inputs, and true out-of-scope boundary cases, reducing measurement artifacts and providing more robust evidence of system behavior in realistic deployment conditions \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset,larson2019clinc150}.
+The recorded end-to-end scenario result (94/120 passed) corresponds to a raw pass rate of 78.3\%. The 95\% Wilson confidence interval for this **raw operational pass rate** is **[70.1%, 84.8%]**. Because 14/26 failures were API/provider failures, a corrected functional estimate (94/106) is 88.7\% with a 95\% Wilson interval of **[81.2%, 93.4%]**. Reporting both numbers separates infrastructure reliability from core assistant logic.
 
-### 7. Error Analysis
-**Intent misclassification patterns (TF-IDF + Logistic Regression).** On the 129-example holdout test split, the TF-IDF + logistic regression baseline produces 50 misclassifications. Representative errors reveal systematic ambiguity and overlap between intents:
-- **Semantic overlap:** e.g., “hostel charges included?” is predicted as `hostel` instead of `fees`, reflecting that cost-related queries can cross multiple intents.
-- **Short conversational acts:** greetings/thanks/negation (e.g., “hello there”, “thank you so much”, “not at all”) are misrouted, suggesting insufficient conversational-act coverage or overly aggressive stop-word removal.
-- **Slot-driven queries:** e.g., “how do i find my seat number?” is predicted as `admission` instead of `exams`, indicating that some exam-administration terms are not strongly represented in the learned lexical features.
+This expanded 120-scenario evaluation includes systematic coverage of paraphrases, typos, borderline OOS queries, hybrid queries, emotional language, vague inputs, and true out-of-scope boundary cases, reducing measurement artifacts and providing more robust evidence of system behavior in realistic deployment conditions \cite{gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset,larson2019clinc150}.
 
-**End-to-end failure modes.** The only recorded failures occur on boundary inputs (whitespace-only and punctuation-only). Such degenerate inputs are known to trigger brittle behavior in NLU pipelines and motivate explicit normalization and routing rules \cite{belinkov2018synthetic,sun2020adversarial}.
+### 7. OOS Detection Metrics
+Using explicit OOS-labeled scenarios in the suite (OUTSCOPE + boundary cases), scope-gating outcomes are:
+
+| OOS Metric | Value |
+|---|---:|
+| Precision | 0.444 |
+| Recall | 0.727 |
+| False-positive rate (in-scope flagged OOS) | 0.092 |
+
+These values indicate conservative but imperfect OOS routing: recall is acceptable, but precision shows over-rejection on some ambiguous/noisy in-scope queries and should be improved with better threshold calibration.
+
+### 8. Error Analysis
+**Top intent confusions (TF-IDF + Logistic Regression holdout).**
+
+| True Intent | Predicted Intent | Count |
+|---|---|---:|
+| admission | eligibility | 3 |
+| admission | exams | 3 |
+| gratitude | greetings | 2 |
+| admission | out_of_scope | 2 |
+| fees | campus_life | 2 |
+
+These confusion pairs indicate overlap between administratively related intents and conversational-act intents.
+
+**End-to-end failure modes.** Failure attribution indicates three distinct regimes: API/provider failures (14), boundary/underspecified/noisy queries (9), and non-API intent/scope misroutes (3). This indicates that raw pass-rate degradation is primarily operational during batch execution, while logical failure modes are concentrated in ambiguity-heavy edge cases \cite{belinkov2018synthetic,sun2020adversarial}.
 
 **Strengths and weaknesses.**
 - Strength: strong end-to-end functional pass rate on in-domain and OOS scenarios in the recorded artifact, indicating stable orchestration and conservative fallback behavior.
@@ -294,7 +331,7 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 **Approach.** The system is implemented as a controlled conversational pipeline that combines preprocessing, ensemble intent inference, scope enforcement, emotion and tone cues, and an LLM response layer with knowledge grounding and operational safeguards (e.g., fallback and recovery). The design reflects evidence that robust deployed assistants require both strong representations and explicit control mechanisms, particularly for OOS handling and noise resilience \cite{larson2019clinc150,casanueva2020banking77,belinkov2018synthetic}.
 
-**Key findings.** Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests on an expanded 120-scenario benchmark achieve an 80.0\% pass rate (96/120; 95\% CI approximately [72.0%, 86.2%]), with median latency of 5489.4 ms per turn and strong out-of-scope detection performance (18 OOS cases correctly routed in the saved test artifact).
+**Key findings.** Quantitative results on repository artifacts indicate: (i) lexical baselines achieve up to 0.620 accuracy and up to 0.562 macro F1 on the held-out split of intent patterns, while the semantic component achieves 0.783 accuracy and 0.756 macro F1 on the same split; and (ii) end-to-end scenario tests on an expanded 120-scenario benchmark achieve a raw pass rate of 78.3\% (94/120; 95\% CI [70.1%, 84.8%]), with 14 failures attributable to API/provider errors and a corrected functional pass estimate of 88.7\% (94/106; 95\% CI [81.2%, 93.4%]).
 
 **Contributions.**
 - A modular, repository-grounded architecture for a college assistant integrating intent routing, context management, scope gating, and an LLM layer.
@@ -303,11 +340,12 @@ This work addresses the problem of delivering a reliable college-domain assistan
 
 **Limitations.**
 - Intent evaluation is based on locally authored patterns rather than large-scale external benchmarks, and may overestimate generalization due to dataset artifacts \cite{gururangan2018annotation,geva2019shortcut}.
+- The pattern inventory is relatively shallow per class (about 36 patterns per intent on average), with several low-sample intents (e.g., `unknown`, `campus_life`, `greetings`, `gratitude`, `general_info`) that can increase class imbalance effects.
 - The intent evaluation reflects pattern-set generalization and does not fully capture real-user distribution shift, multi-turn ambiguity, or adversarial/noisy inputs.
 - Boundary input handling (e.g., punctuation-only and whitespace-only) remains a failure point and motivates stronger normalization and routing rules.
 
 **Future work.**
-- Multilingual support: extend preprocessing and intent representations to multilingual and code-mixed inputs.
+- Multilingual support: begin by extending token normalization maps in [text_preprocessor.py](text_preprocessor.py) for Konkani and Marathi variants observed in the local student population, then re-evaluate OOS false positives on code-mixed queries.
 - Better context handling: strengthen dialogue state tracking and long-horizon memory to reduce ambiguity in multi-turn queries.
 - Real-time deployment: optimize latency and concurrency, and validate behavior under load with production-oriented monitoring.
 - Improved robustness: expand adversarial/noise testing, harden normalization, and improve OOS calibration under distribution shift.
