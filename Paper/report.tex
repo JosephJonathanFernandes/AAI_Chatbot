@@ -83,23 +83,23 @@ The primary contribution is a deployment-realistic evaluation methodology that s
 This chapter focuses on five high-impact studies that align directly with the assistant design goals: contextual understanding, efficient intent routing, out-of-scope rejection, and safe text generation. Each selected paper contributes a different system requirement, so together they form a compact but complete foundation for this project.
 Rather than listing many partially related works, this survey prioritizes depth on a small set of papers that map directly to implemented design choices in this report. The sequence is intentionally structured from representation learning foundations to deployment constraints and finally to generation safety.
 
-\subsection{The Paradigm Shift to Self-Attention Architecture (Vaswani et al., 2017)}
+\subsection{The Paradigm Shift to Self-Attention Architecture: Vaswani et al., 2017}
 RNN-based language systems process tokens step-by-step, which often weakens long-range dependency capture and limits parallelization. Vaswani et al. introduced the transformer, where multi-head self-attention and positional encoding replace recurrent computation \cite{vaswani2017attention}. This redesign improved scalability and contextual modeling quality, while introducing the known quadratic attention cost $O(n^2)$. In this project, the paper provides the architectural rationale for using transformer-era semantic representations instead of purely sequential NLU encoders.
 From a systems perspective, this contribution is important because intent routing quality in noisy conversational settings depends on context-rich token interactions, not only local word order. The transformer formulation therefore supports the report's decision to rely on embedding-driven understanding before downstream control decisions.
 
-\subsection{Bidirectional Pre-Training for Semantic Context (Devlin et al., 2019)}
+\subsection{Bidirectional Pre-Training for Semantic Context: Devlin et al., 2019}
 Devlin et al. showed that bidirectional pre-training with masked language modeling can produce robust representations that transfer effectively to downstream tasks \cite{devlin2019bert}. BERT demonstrates that large-scale unsupervised pre-training substantially improves semantic feature quality before task adaptation. For the current assistant, this supports encoding noisy user input into a richer semantic space prior to intent decisions. The paper also implies an important limitation for deployment: representation strength alone does not enforce domain boundaries or reliable out-of-scope behavior.
 This observation is especially relevant for college-assistant use cases, where semantically similar but policy-different requests can occur in the same conversation. As a result, this work is used here as representation justification, while control logic is handled separately through thresholds and scope checks.
 
-\subsection{Lightweight Intent Routing under Deployment Constraints (Casanueva et al., 2020)}
+\subsection{Lightweight Intent Routing under Deployment Constraints: Casanueva et al., 2020}
 Casanueva et al. emphasize practical intent detection with sentence-embedding retrieval rather than heavyweight classifier stacks \cite{casanueva2020banking77}. By comparing user embeddings with intent prototypes through cosine similarity, their method achieves strong routing speed with competitive accuracy. This idea maps directly to the project implementation, where similarity-based semantic routing is combined with lexical evidence to maintain responsiveness under real-time constraints.
 For deployment-oriented assistants, this contribution is significant because it demonstrates that efficient routing can be achieved without sacrificing robustness to paraphrases. It also supports an architecture where fast semantic matching is used as a first-pass decision mechanism that can be refined by additional control signals.
 
-\subsection{Benchmarking and Mitigating Out-of-Scope Queries (Larson et al., 2019)}
+\subsection{Benchmarking and Mitigating Out-of-Scope Queries: Larson et al., 2019}
 Larson et al. made out-of-scope handling measurable by introducing CLINC150 with explicit OOS samples \cite{larson2019clinc150}. Their benchmark highlights a key reliability issue: closed-set models may confidently assign a wrong in-domain label when no valid label exists. This project adopts that lesson through threshold-based acceptance rules and semantic scope checks that prefer clarification or fallback over forced intent assignment.
 This directly addresses a common user-trust failure mode in student support assistants: confident but irrelevant answers. By prioritizing safe rejection and clarification paths, the design follows a deployment-centered interpretation of model quality rather than a closed-world accuracy-only interpretation.
 
-\subsection{Aligning Generative Output for Conversational Safety (Ouyang et al., 2022)}
+\subsection{Aligning Generative Output for Conversational Safety: Ouyang et al., 2022}
 Ouyang et al. describe RLHF as a practical alignment pipeline that improves instruction following and reduces harmful output tendencies in large language models \cite{ouyang2022rlhf}. The approach combines supervised fine-tuning, a preference-trained reward model, and policy optimization. For this assistant, the key implication is that alignment improves behavior quality but does not by itself guarantee domain-accurate facts. Therefore, generation is constrained by grounding and policy controls tied to college-specific data.
 In practical terms, this means generation quality must be interpreted together with factual anchoring mechanisms. The report therefore treats aligned generation as a necessary layer for tone and instruction compliance, but not as a replacement for explicit domain constraints.
 
@@ -125,7 +125,7 @@ Ouyang et al. (2022) \cite{ouyang2022rlhf} & RLHF pipeline (SFT + reward model +
 \end{tabularx}
 \end{table}
 
-\chapter{Methodology (Design)}
+\chapter{Methodology and Design}
 The system is designed as a domain-constrained conversational assistant that combines a structured NLU/control layer with a controlled response generation layer. This hybrid approach follows system-level findings that robust assistants require orchestration, context handling, uncertainty management, and evaluation discipline in addition to fluent text generation \cite{caldarini2022literature,gao2020recent,gao2019neural,khatri2018alexa,maroengsit2019evaluation}.
 
 \subsection{System Overview}
@@ -137,7 +137,7 @@ The design targets a college-information domain and is organized as a multi-sign
 \end{itemize}
 This decomposition reflects common taxonomies for conversational agents and supports predictable behavior under ambiguous or out-of-scope inputs \cite{hussain2019survey,larson2019clinc150,casanueva2020banking77}.
 
-\subsection{Architecture Diagram (Figure 1)}
+\subsection{Architecture Diagram: Figure 1}
 Figure~\ref{fig:architecture} summarizes the repository-grounded architecture. The design separates local control decisions (preprocessing, intent/emotion/scope inference, context) from external LLM response generation. This separation aligns with deployment guidance emphasizing modular guardrails and explicit control points for conversational systems \cite{khatri2018alexa,roller2021recipes,ouyang2022rlhf}.
 
 \begin{figure*}[t]
@@ -226,8 +226,8 @@ More explicitly:
 	\item \textbf{Generation and output:} produce the final natural language response with conservative behavior under uncertainty \cite{radford2019gpt2,ouyang2022rlhf,thoppilan2022lamda}.
 \end{enumerate}
 
-\subsection{Model Design (intent classification + response generation)}
-\subsubsection{Intent classification}
+\subsection{Model Design: Intent Classification and Response Generation}
+\subsubsection{Intent Classification}
 Intent classification is modeled as multi-class prediction over a closed intent set. Given tokenized input $x=[x_1,\ldots,x_n]$, a transformer encoder produces contextual states $H=[h_1,\ldots,h_n]$ \cite{vaswani2017attention,devlin2019bert}. A pooled vector $z$ is mapped to a posterior over intents:
 \[
 p(y\mid x)=\mathrm{softmax}(Wz+b),\quad c=\max_y p(y\mid x).
@@ -238,21 +238,21 @@ s_i=\cos\bigl(e(u_t),e(t_i)\bigr),\quad \hat{y}=\arg\max_i s_i.
 \]
 The final decision uses uncertainty-aware thresholds (e.g., reject if $c<\tau$ or $\max_i s_i<\gamma$), reflecting the need for calibrated OOS behavior \cite{larson2019clinc150,casanueva2020banking77,zhang2020fewshot}. In the implemented system, $\tau$ is intent-specific via dynamic confidence thresholds (typical academic intents in the 0.45--0.60 range from \texttt{confidence\_threshold\_manager.py}), while the semantic scope gate uses $\gamma=0.50$ (from \texttt{scope\_detector.py}); this setting directly affects observed OOS precision/recall.
 
-\subsubsection{Response generation}
+\subsubsection{Response Generation}
 Response generation is treated as conditional text generation using an autoregressive decoder-style language model (LM). Given a structured response plan and grounding context, generation models the probability of an output sequence $r=[r_1,\ldots,r_T]$ as
 \[
 p(r\mid u_t,m_t,k_t)=\prod_{t=1}^T p(r_t\mid r_{<t},u_t,m_t,k_t).
 \]
 Decoder-only pre-training establishes the base generative capability \cite{radford2018gpt,radford2019gpt2,brown2020fewshot}. Alignment and dialogue specialization approaches improve instruction adherence and conversational quality \cite{ouyang2022rlhf,thoppilan2022lamda,openai2022chatgpt}, but they do not guarantee domain factuality; therefore, grounding and scope control remain first-class design requirements \cite{roller2021recipes,khatri2018alexa}.
 
-\subsection{Algorithms / Models Used (RNN vs Transformer comparison)}
+\subsection{Algorithms and Models Used: RNN vs Transformer Comparison}
 Traditional joint NLU systems often rely on recurrent encoders (BiRNN/BiLSTM) trained jointly for intent and slots \cite{liu2016joint,hakkani2016multidomain}. Recurrence provides a strong inductive bias for local sequential patterns but is inherently sequential and can limit throughput.
 
 Transformer encoders replace recurrence with self-attention, enabling parallel training and stronger long-range context modeling \cite{vaswani2017attention}. Pre-trained transformer encoders (e.g., BERT/RoBERTa) provide transferable representations that improve intent classification and joint intent/slot baselines \cite{devlin2019bert,liu2019roberta,chen2019bertjoint}.
 
 For response generation, decoder-style transformers support fluent multi-turn responses but require alignment and system constraints to mitigate hallucination risk \cite{radford2019gpt2,ouyang2022rlhf}. End-to-end trainable dialogue systems have also been explored, including task-oriented dialogue networks and memory-based approaches \cite{wen2017network,bordes2017endtoend}; however, these formulations provide fewer explicit control points for domain scoping and safety policies.
 
-\subsection{Design Justification (why chosen)}
+\subsection{Design Justification}
 The design adopts a modular, hybrid architecture rather than a fully end-to-end conversational model because modular decomposition improves controllability and allows explicit enforcement of domain scope, uncertainty handling, and evaluation checkpoints \cite{hussain2019survey,gao2019neural,khatri2018alexa,roller2021recipes}.
 
 Uncertainty-aware intent routing is emphasized because deployed assistants must handle ambiguous and out-of-scope inputs; explicit OOS gating is supported by intent benchmarks designed to measure rejection performance \cite{larson2019clinc150,casanueva2020banking77}. A hybrid intent stack (lexical evidence + transformer-derived semantics) supports a practical trade-off among interpretability, latency, and paraphrase robustness \cite{devlin2019bert,liu2019roberta}.
@@ -262,7 +262,7 @@ Robustness and measurement risks motivate conservative preprocessing and careful
 \chapter{Implementation}
 This section operationalizes the design using Python modules in the repository. The implementation emphasizes reproducible preprocessing, explicit scope and confidence controls, and a monitored LLM response layer.
 
-\subsection{Development Environment (languages, tools, libraries)}
+\subsection{Development Environment: Languages, Tools, and Libraries}
 \textbf{Language and runtime.} The system is implemented in Python and executed as either a Streamlit web application (interactive UI) or a command-line runner.
 
 \textbf{Core libraries.}
@@ -277,7 +277,7 @@ This section operationalizes the design using Python modules in the repository. 
 
 \textbf{Testing and quality tools.} The development toolchain includes PyTest (with coverage, parallelism, and timeouts), Hypothesis for property-based tests, Locust for load/performance testing, and formatting/linting tools (Black, Flake8, isort).
 
-\subsection{Dataset Description (source, preprocessing steps)}
+\subsection{Dataset Description: Source and Preprocessing Steps}
 Two local JSON artifacts serve as the primary data sources:
 \begin{itemize}
 	\item \textbf{Intent dataset} (\texttt{data/intents.json}): an intent schema containing tags, paraphrased training patterns, and optional keyword lists. This file is used to train lightweight intent components at application startup.
@@ -307,10 +307,10 @@ scholarship kaise milegi & scholarship how get\\
 \end{table}
 Normalization preserves content words and discards many Hindi function words; downstream NLU relies on semantic embeddings rather than grammaticality.
 
-\subsection{Model Implementation (training, fine-tuning)}
+\subsection{Model Implementation: Training and Fine-Tuning}
 The implementation uses pre-trained transformer models without project-specific fine-tuning of large encoders/decoders. Instead, fast-to-train components are fit on local intent patterns, while response generation relies on instruction-following LLM inference.
 
-\subsubsection{Intent components (startup training)}
+\subsubsection{Intent Components for Startup Training}
 \begin{itemize}
 	\item \textbf{Semantic classifier:} a Sentence-Transformers encoder (default: \texttt{all-MiniLM-L6-v2}) embeds each preprocessed intent pattern; inference selects the intent with maximal cosine similarity to the user embedding.
 	\item \textbf{TF--IDF classifier:} a scikit-learn TF--IDF vectorizer (unigrams/bigrams) and logistic regression classifier are trained on the same preprocessed patterns.
@@ -318,13 +318,13 @@ The implementation uses pre-trained transformer models without project-specific 
 \end{itemize}
 This hybrid intent implementation reflects the practical combination of transformer representations \cite{vaswani2017attention,devlin2019bert,liu2019roberta} and efficient similarity-based intent matching \cite{casanueva2020banking77}.
 
-\subsubsection{Emotion signal (pre-trained inference)}
+\subsubsection{Emotion Signal from Pre-Trained Inference}
 A cached transformer pipeline performs sentiment analysis and maps sentiment to coarse interaction emotions (e.g., neutral, stressed). Keyword-based filters reduce false positives on short information-seeking questions.
 
-\subsubsection{LLM response generation (inference, no fine-tuning)}
+\subsubsection{LLM Response Generation by Inference Without Fine-Tuning}
 Response generation is performed via an autoregressive LLM endpoint (Groq, with Gemini fallback), consistent with decoder-only pre-training and instruction-following alignment approaches \cite{radford2019gpt2,ouyang2022rlhf,openai2022chatgpt}. The implementation does not train a dialogue model from scratch; it conditions inference using structured prompts and retrieved domain facts.
 
-\subsection{System Integration (frontend/backend if any)}
+\subsection{System Integration: Frontend and Backend}
 \textbf{Frontend.} The Streamlit application orchestrates the end-to-end turn loop (message capture, inference calls, UI rendering) and maintains session identifiers for logging.
 
 \textbf{Backend orchestration.} The orchestration layer instantiates and caches major components (intent, scope, emotion, prompt builder, LLM handler, and context manager) to amortize model-loading cost.
@@ -332,7 +332,7 @@ Response generation is performed via an autoregressive LLM endpoint (Groq, with 
 \textbf{Persistence and analytics.} A SQLite-backed logging layer records timestamped interactions with intent/confidence, emotion, scope decisions, response time, and LLM source. A small connection pool reduces per-turn database overhead.
 
 \subsection{Key Functional Modules}
-\subsubsection{Intent classification}
+\subsubsection{Intent Classification}
 Intent classification is implemented as an ensemble: semantic similarity over transformer sentence embeddings; TF--IDF + logistic regression for lexical pattern capture; and a context-aware intent refiner that adjusts ambiguous predictions using recent-turn intent continuity.
 
 \textbf{Pipeline (pseudo-code style).}
@@ -346,10 +346,10 @@ Intent classification is implemented as an ensemble: semantic similarity over tr
 \end{enumerate}
 To support deployment realism, the intent decision is followed by explicit confidence thresholding and OOS handling aligned with benchmarks that emphasize rejection performance \cite{larson2019clinc150}.
 
-\subsubsection{Entity/slot extraction}
+\subsubsection{Entity and Slot Extraction}
 The implementation includes lightweight entity extraction in the context manager to support multi-turn continuity rather than full named-entity recognition. Extracted entities include user name patterns and intent-specific fields (e.g., department/program hints, exam type, fee-related subtopics). Pronoun resolution uses the most recent tracked entities to reduce context loss in follow-up turns.
 
-\subsubsection{Response generation}
+\subsubsection{Response Generation}
 Response generation is implemented as a controlled LLM call:
 \begin{itemize}
 	\item \textbf{Prompt construction:} a prompt-engineering module injects detected intent, confidence, scope status, emotion, conversation history, and retrieved knowledge snippets.
@@ -522,7 +522,7 @@ This implementation provides the concrete basis for the empirical results report
 \chapter{Results}
 This section reports quantitative outcomes from (i) a component-level intent-classification evaluation using the repository intent patterns and (ii) an end-to-end automated test run recorded in a saved execution artifact. Metrics and interpretations follow established guidance that chatbot evaluation should separate component accuracy from overall conversational quality and should account for dataset artifacts and measurement bias \cite{maroengsit2019evaluation,gururangan2018annotation,geva2019shortcut,swayamdipta2020dataset}.
 
-\subsection{Evaluation Metrics (Accuracy, Precision, Recall, F1-score)}
+\subsection{Evaluation Metrics: Accuracy, Precision, Recall, and F1-Score}
 Two metric groups are reported:
 \begin{itemize}
 	\item \textbf{Intent classification (component-level):} Accuracy and macro-averaged Precision/Recall/F1 across the closed intent set.
@@ -546,7 +546,7 @@ Baselines are derived from components available in the repository:
 \textbf{End-to-end system tests.} End-to-end results are taken from \texttt{TEST\_RESULTS\_20260407\_085552.txt}, which executes 120 scenario tests spanning in-domain requests, hybrid queries, explicit OOS queries, typos, edge cases, and noisy inputs.
 
 \subsection{Performance Results}
-\subsubsection{Intent classification (holdout split on repository patterns)}
+\subsubsection{Intent Classification on Holdout Split of Repository Patterns}
 \begin{table}[t]
 \caption{Intent classification performance (macro-averaged).}
 \label{tab:results-intent}
@@ -570,7 +570,7 @@ Weighted ensemble (0.75 sem + 0.25 TF--IDF) & \textbf{0.783} & \textbf{0.773} & 
 
 \textbf{Observations.} Keyword rules improve substantially over the majority baseline, indicating that intent-specific lexical cues exist in the pattern set. Among fast lexical baselines, TF--IDF nearest-neighbor provides the strongest macro F1, while logistic regression provides slightly better macro precision. The semantic component provides the strongest performance overall (accuracy 0.783; macro F1 0.756). In this split, the weighted ensemble matches the semantic predictor because the semantic signal dominates under the default weights; this should be interpreted as a calibration/robustness mechanism (confidence smoothing and safer routing under ambiguity), not as an accuracy booster on this holdout. These numbers are best interpreted as pattern-set generalization rather than a full measure of real-user robustness; pattern corpora can contain artifacts that inflate apparent performance \cite{gururangan2018annotation,geva2019shortcut}.
 
-\subsubsection{End-to-end automated test outcomes (saved execution artifact)}
+\subsubsection{End-to-End Automated Test Outcomes from Saved Execution Artifact}
 \begin{table}[t]
 \caption{End-to-end automated test outcomes from \texttt{TEST\_RESULTS\_20260407\_085552.txt}.}
 \label{tab:results-e2e}
@@ -641,7 +641,7 @@ Intent/scope misroutes (non-API) & 3\\
 
 Taken together, Table~\ref{tab:results-intent} and Table~\ref{tab:results-e2e} show that strong component-level intent metrics do not directly translate to raw batch pass rate when external API reliability is a bottleneck.
 
-\subsection{Latency Breakdown (NLU vs LLM)}
+\subsection{Latency Breakdown: NLU vs LLM}
 The end-to-end artifact reports multi-second response latencies but does not separate local NLU computation from LLM response time. The application implementation exposes an LLM timing signal (\texttt{response\_time}), enabling a decomposition of per-turn latency into local NLU, LLM inference, and fixed overhead. A local microbenchmark (CPU, after warm-up) indicates that the control layer is comparatively fast: intent-only inference has a median of 27.97 ms (mean 28.55 ms), and intent+emotion+scope has a median of 60.62 ms (mean 63.67 ms; $p95$ 83.86 ms). Consequently, the multi-second tail observed in the end-to-end artifact is primarily attributable to external LLM inference and network variability rather than local intent routing. For a student-facing assistant, median latency around 4.7 seconds is usable but not ideal for conversational flow. Practical mitigation includes token streaming (lower time-to-first-token), cache-first handling for high-frequency intents, and asynchronous UI status updates before full response generation completes.
 
 \begin{figure*}[t]
@@ -680,7 +680,7 @@ False-positive rate (in-scope flagged OOS) & 0.092\\
 These values indicate conservative but imperfect OOS routing: recall is acceptable, but precision shows over-rejection on some ambiguous/noisy in-scope queries.
 Concretely, OOS precision 0.444 corresponds to 8 true OOS catches and 10 false OOS flags; this indicates a recall-leaning operating point and explains why ambiguous/noisy in-domain turns are occasionally over-rejected.
 
-\subsection{Comparison with Baseline Methods (if available)}
+\subsection{Comparison with Baseline Methods}
 The component-level comparison suggests that rule-based routing can be competitive in precision but may be limited in recall, reflecting reduced coverage for paraphrases and short queries. TF--IDF baselines improve macro recall and macro F1, supporting the use of statistical models for intent routing.
 
 The repository implementation additionally includes a semantic similarity component (Sentence-Transformers) and a weighted ensemble. On the same holdout split, the semantic component substantially improves macro F1 (0.756), consistent with prior work emphasizing robust representations for intent routing and uncertainty-aware scoping \cite{larson2019clinc150,casanueva2020banking77}.
@@ -808,7 +808,7 @@ Intent split protocol & Stratified 80/20, random seed 42\\
 \label{tab:appendix-repro}
 \end{table}
 
-\section{120-Scenario Inventory (Machine-Readable Artifacts)}
+\section{120-Scenario Inventory: Machine-Readable Artifacts}
 The complete scenario inventory and execution traces are provided in:
 \texttt{CHATBOT\_QUESTION\_TEST\_CASES.txt}, \texttt{STREAMLIT\_TEST\_CASES.txt}, and \texttt{TEST\_RESULTS\_20260407\_085552.txt}. Bucket counts used in this report are: in-domain task (87), robustness/noisy in-domain (22), explicit OOS (10), and boundary inputs (1).
 
@@ -840,7 +840,7 @@ python Paper/generate_confusion_matrix_heatmap.py
 python Paper/generate_suite_composition_passrates_chart.py
 \end{verbatim}
 
-\section{Prompt/Policy Snapshot (Compact)}
+\section{Prompt and Policy Snapshot}
 Runtime control policies used in deployment evaluation: (i) scope-first routing before generation, (ii) confidence-aware clarification via dynamic thresholds, (iii) controlled prompt construction with intent/scope/emotion/grounding fields, and (iv) reliability safeguards combining cache lookup, throttling, concurrency limits, jittered backoff, API-key rotation, and Groq-to-Gemini fallback.
 
 
